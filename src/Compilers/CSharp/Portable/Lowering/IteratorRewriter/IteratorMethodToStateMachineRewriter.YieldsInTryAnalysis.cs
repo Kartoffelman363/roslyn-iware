@@ -99,6 +99,14 @@ namespace Microsoft.CodeAnalysis.CSharp
                 return null;
             }
 
+            //TODO-aljaz implement?
+            /*
+            public override BoundNode VisitSqlStatement(BoundSqlStatement node)
+            {
+                return base.VisitSqlStatement(node);
+            }
+            */
+
             public override BoundNode VisitYieldReturnStatement(BoundYieldReturnStatement node)
             {
                 _seenYield = true;

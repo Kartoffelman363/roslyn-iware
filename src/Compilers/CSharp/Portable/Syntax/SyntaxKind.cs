@@ -326,6 +326,14 @@ namespace Microsoft.CodeAnalysis.CSharp
         ExplicitKeyword = 8383,
         /// <summary>Represents <see langword="implicit"/>.</summary>
         ImplicitKeyword = 8384,
+        /// <summary>Represents <see langword="sql"/>.</summary>
+        SqlKeyword = 8385,
+        /// <summary>Represents <see langword="sqldo"/>.</summary>
+        SqlDoKeyword = 8386,
+        /// <summary>Represents <see langword="sqlempty"/>.</summary>
+        SqlEmptyKeyword = 8387,
+        /// <summary>Represents <see langword="sqlend"/>.</summary>
+        SqlEndKeyword = 8388,
 
         // contextual keywords
         /// <summary>Represents <see langword="yield"/>.</summary>
@@ -855,6 +863,12 @@ namespace Microsoft.CodeAnalysis.CSharp
         ParenthesizedVariableDesignation = 8928,
         ForEachVariableStatement = 8929,
 
+        // sql
+        SqlStatement = 8930,
+        SqlDoClause = 8931,
+        SqlEmptyClause = 8932,
+        SqlEndClause = 8933,
+
         // patterns (for pattern-matching)
         DeclarationPattern = 9000,
         ConstantPattern = 9002,
@@ -931,15 +945,5 @@ namespace Microsoft.CodeAnalysis.CSharp
         ExtensionDeclaration = 9079,
 
         IgnoredDirectiveTrivia = 9080,
-
-        // Starting at 30000 to ensure space for future additions to C# by Microsoft
-        SqlStatement = 30001,
-        SqlKeyword = 30002,
-        SqlDoClause = 30003,
-        SqlDoKeyword = 30004,
-        SqlEmptyClause = 30005,
-        SqlEmptyKeyword = 30006,
-        SqlEndClause = 30007,
-        SqlEndKeyword = 30008,
     }
 }

@@ -324,6 +324,15 @@ namespace Microsoft.CodeAnalysis.CSharp
             return null;
         }
 
+        //TODO-aljaz implement?
+        /*
+        public override BoundNode VisitSqlStatement(BoundSqlStatement node)
+        {
+            return node;
+            // return base.VisitSqlStatement(node);
+        }
+        */
+
         protected override void VisitFinallyBlock(BoundStatement finallyBlock, ref LocalState unsetInFinally)
         {
             if (_seenYieldInCurrentTry)

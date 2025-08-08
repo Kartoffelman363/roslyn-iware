@@ -560,7 +560,7 @@ return_statement
   ;
 
 sql_statement
-  : attribute_list* sql_keyword block
+  : attribute_list* 'sql' block
   ;
 
 switch_statement
@@ -1786,10 +1786,6 @@ multi_line_raw_string_literal_token
   ;
 
 single_line_raw_string_literal_token
-  : /* see lexical specification */
-  ;
-
-sql_keyword
   : /* see lexical specification */
   ;
 

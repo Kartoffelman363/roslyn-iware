@@ -403,6 +403,15 @@ namespace Microsoft.CodeAnalysis.CSharp
             return result;
         }
 
+        // TODO-aljaz implement?
+        /*
+        protected override BoundBlock VisitSqlStatement(BoundBlock node)
+        {
+            return node;
+            //return base.VisitSqlStatement(node);
+        }
+        */
+
         protected override BoundBlock VisitFinally(BoundBlock finallyBlock)
         {
             // within a finally, continuing disposal doesn't require any jump

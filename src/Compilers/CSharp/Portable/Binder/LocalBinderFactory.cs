@@ -849,6 +849,35 @@ namespace Microsoft.CodeAnalysis.CSharp
             Visit(node.Statement, _enclosing);
         }
 
+        public override void VisitSqlStatement(SqlStatementSyntax node)
+        {
+            Visit(node.Block, _enclosing);
+            /*
+            if (node.Catches.Any())
+            {
+                // NOTE: We're going to cheat a bit - we know that the block is definitely going
+                // to get a map entry, so we don't need to worry about the WithAdditionalFlags
+                // binder being dropped.  That is, there's no point in adding the WithAdditionalFlags
+                // binder to the map ourselves and having VisitBlock unconditionally overwrite it.
+                Visit(node.Block, _enclosing.WithAdditionalFlags(BinderFlags.InTryBlockOfTryCatch));
+            }
+            else
+            {
+                Visit(node.Block, _enclosing);
+            }
+
+            foreach (CatchClauseSyntax c in node.Catches)
+            {
+                Visit(c, _enclosing);
+            }
+
+            if (node.Finally != null)
+            {
+                Visit(node.Finally, _enclosing);
+            }
+            */
+        }
+
         public override void VisitTryStatement(TryStatementSyntax node)
         {
             if (node.Catches.Any())

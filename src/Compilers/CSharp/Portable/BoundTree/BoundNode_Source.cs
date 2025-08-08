@@ -71,6 +71,54 @@ namespace Microsoft.CodeAnalysis.CSharp
                             }
                             break;
                         }
+                    case BoundSqlStatement sqlStatement:
+                        {
+                            appendLine("sql");
+                            appendSource(sqlStatement.SqlBlock);
+
+                            /*
+                            var catchBlocks = tryStatement.CatchBlocks;
+                            if (catchBlocks != null)
+                            {
+                                foreach (var catchBlock in catchBlocks)
+                                {
+                                    append("catch (");
+                                    append(catchBlock.ExceptionTypeOpt?.Name);
+                                    append(" ");
+                                    appendSource(catchBlock.ExceptionSourceOpt);
+                                    append(")");
+                                    if (catchBlock.ExceptionFilterOpt is { } exceptionFilter)
+                                    {
+                                        if (catchBlock.ExceptionFilterPrologueOpt is { } exceptionFilterPrologue)
+                                        {
+                                            appendLine("");
+                                            appendLine("{");
+                                            appendSource(exceptionFilterPrologue);
+                                            appendLine("}");
+                                        }
+                                        else
+                                        {
+                                            append(" ");
+                                        }
+                                        append("when (");
+                                        appendSource(exceptionFilter);
+                                        append(")");
+                                    }
+                                    appendLine("");
+
+                                    appendSource(catchBlock.Body);
+                                }
+                            }
+
+                            var finallyBlock = tryStatement.FinallyBlockOpt;
+                            if (finallyBlock != null)
+                            {
+                                appendLine("finally");
+                                appendSource(finallyBlock);
+                            }
+                            */
+                            break;
+                        }
                     case BoundThrowStatement throwStatement:
                         {
                             append("throw ");

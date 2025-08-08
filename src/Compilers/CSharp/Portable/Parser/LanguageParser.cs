@@ -9014,21 +9014,28 @@ done:
 
             var @sql = this.EatToken(SyntaxKind.SqlKeyword);
 
-            BlockSyntax sqlBlock;
-            if (sql.IsMissing)
-            {
-                Debug.Assert(@sql.ContainsDiagnostics);
-                Debug.Assert(this.CurrentToken.Kind is SyntaxKind.SqlDoKeyword or SyntaxKind.SqlEmptyKeyword or SyntaxKind.SqlEndKeyword);
-
-                sqlBlock = missingBlock();
-            }
-            else
-            {
-                var saveTerm = _termState;
-                _termState |= TerminatorState.IsEndOfTryBlock;
-                sqlBlock = this.ParsePossiblyAttributedBlock();
-                _termState = saveTerm;
-            }
+            //TODO-aljaz include this code?
+            /*
+             BlockSyntax sqlBlock;
+-            if (sql.IsMissing)
+-            {
+-                Debug.Assert(@sql.ContainsDiagnostics);
+-                Debug.Assert(this.CurrentToken.Kind is SyntaxKind.SqlDoKeyword or SyntaxKind.SqlEmptyKeyword or SyntaxKind.SqlEndKeyword);
+-
+-                sqlBlock = missingBlock();
+-            }
+-            else
+-            {
+-                var saveTerm = _termState;
+-                _termState |= TerminatorState.IsEndOfTryBlock;
+-                sqlBlock = this.ParsePossiblyAttributedBlock();
+-                _termState = saveTerm;
+-            }
+            */
+            var saveTerm = _termState;
+            _termState |= TerminatorState.IsEndOfTryBlock;
+            BlockSyntax sqlBlock = this.ParsePossiblyAttributedBlock();
+            _termState = saveTerm;
 
             /*
              * // TODO-aljaz add SqlDo, SqlEmpty and SqlEnd clauses
@@ -9068,7 +9075,6 @@ done:
                 @sql,
                 sqlBlock);
 
-            //return _syntaxFactory.SqlStatement(attributes, this.EatToken(
             BlockSyntax missingBlock()
                 => _syntaxFactory.Block(
                     attributeLists: default,

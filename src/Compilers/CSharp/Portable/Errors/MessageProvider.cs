@@ -296,11 +296,13 @@ namespace Microsoft.CodeAnalysis.CSharp
             diagnostics.Add(ErrorCode.ERR_AttributeParameterRequired2, node.Name.Location, parameterName1, parameterName2);
         }
 
-        //TODO-aljaz possible issue unknown why method was not implemented beforehand -- had to add it myself, failed during Release build but not Debug build
+        //TODO-aljaz probably just reported as missing by Release build due to some missing binaries
+        /*
         internal override bool ShouldAssertExpectedMessageArgumentsLength(int errorCode)
         {
             return Instance.ShouldAssertExpectedMessageArgumentsLength(errorCode);
         }
+        */
 
         public override int ERR_BadAssemblyName => (int)ErrorCode.ERR_BadAssemblyName;
 

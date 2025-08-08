@@ -919,6 +919,15 @@ namespace Microsoft.CodeAnalysis.CSharp
             return result;
         }
 
+        //TODO-aljaz implement?
+        /*
+        protected virtual BoundBlock VisitSqlStatement(BoundBlock node)
+        {
+            return node;
+            //return null;
+        }
+        */
+
         protected virtual BoundBlock VisitFinally(BoundBlock finallyBlock)
         {
             return (BoundBlock)this.Visit(finallyBlock);

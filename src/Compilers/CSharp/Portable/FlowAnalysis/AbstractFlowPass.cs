@@ -1902,6 +1902,13 @@ namespace Microsoft.CodeAnalysis.CSharp
             }
         }
 
+        // TODO-aljaz implement?
+        public override BoundNode VisitSqlStatement(BoundSqlStatement node)
+        {
+            return null;
+            //return base.VisitSqlStatement(node);
+        }
+
         protected Optional<TLocalState> NonMonotonicState;
 
         /// <summary>

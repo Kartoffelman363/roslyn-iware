@@ -1568,6 +1568,8 @@ namespace Microsoft.CodeAnalysis.CSharp
                     return "default";
                 case SyntaxKind.TryKeyword:
                     return "try";
+                case SyntaxKind.SqlKeyword:
+                    return "sql";
                 case SyntaxKind.CatchKeyword:
                     return "catch";
                 case SyntaxKind.FinallyKeyword:

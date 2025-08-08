@@ -88,6 +88,10 @@ namespace Microsoft.CodeAnalysis.CSharp.CodeGen
                     EmitTryStatement((BoundTryStatement)statement);
                     break;
 
+                case BoundKind.SqlStatement:
+                    EmitSqlStatement((BoundSqlStatement)statement);
+                    break;
+
                 case BoundKind.SwitchDispatch:
                     EmitSwitchDispatch((BoundSwitchDispatch)statement);
                     break;
@@ -917,6 +921,14 @@ oneMoreTime:
                     _builder.EmitRet(expressionOpt == null);
                 }
             }
+        }
+
+        private void EmitSqlStatement(BoundSqlStatement statement)
+        {
+            _builder.OpenLocalScope();
+            throw new Exception($"This is it: {statement.SqlBlock.ToString()}");
+            EmitBlock(statement.SqlBlock);
+            _builder.CloseLocalScope();
         }
 
         private void EmitTryStatement(BoundTryStatement statement, bool emitCatchesOnly = false)

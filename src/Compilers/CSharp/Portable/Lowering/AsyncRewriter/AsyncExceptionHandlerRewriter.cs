@@ -243,6 +243,15 @@ namespace Microsoft.CodeAnalysis.CSharp
             }
         }
 
+        //TODO-aljaz implement?
+        /*
+        public override BoundNode VisitSqlStatement(BoundSqlStatement node)
+        {
+            //return node;
+            return base.VisitSqlStatement(node);
+        }
+        */
+
         private BoundBlock PendBranches(
             AwaitFinallyFrame frame,
             LocalSymbol pendingBranchVar,
@@ -843,6 +852,15 @@ namespace Microsoft.CodeAnalysis.CSharp
                 _seenAwait = _seenAwait | origSeenAwait;
                 return null;
             }
+
+            //TODO-aljaz implement?
+            /*
+            public override BoundNode VisitSqlStatement(BoundSqlStatement node)
+            {
+                //return node;
+                return base.VisitSqlStatement(node);
+            }
+            */
 
             public override BoundNode VisitCatchBlock(BoundCatchBlock node)
             {
