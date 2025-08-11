@@ -18,5 +18,6 @@ namespace Microsoft.CodeAnalysis.CodeGen
         /// Scope of user-defined variable hoisted to state machine.
         /// </summary>
         StateMachineVariable,
+        Sql
     }
 }

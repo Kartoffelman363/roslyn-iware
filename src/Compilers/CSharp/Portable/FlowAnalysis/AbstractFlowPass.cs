@@ -1903,10 +1903,18 @@ namespace Microsoft.CodeAnalysis.CSharp
         }
 
         // TODO-aljaz implement?
+        /*
+         * In NullableWalker and the other bound-tree visitors, the convention is:
+         * If you’re delegating directly to another Visit(...) call and want to return whatever that call returns, you return the result.
+         * If you’re just visiting children for side effects (analysis, verification) and don’t care about the return, you visit and return null.
+         */
         public override BoundNode VisitSqlStatement(BoundSqlStatement node)
         {
-            return null;
-            //return base.VisitSqlStatement(node);
+            /*
+             * Visit(node.SqlBlock);
+             * return null;
+             */
+            return Visit(node.SqlBlock);
         }
 
         protected Optional<TLocalState> NonMonotonicState;

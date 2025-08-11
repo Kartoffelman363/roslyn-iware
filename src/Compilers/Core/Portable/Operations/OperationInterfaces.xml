@@ -481,34 +481,6 @@
       </Comments>
     </Property>
   </Node>
-  <Node Name="ISqlOperation" Base="IOperation" ChildrenOrder="Body">
-    <Comments>
-      <summary>
-        Represents an sql SELECT statement and what is to be done with the data it returns.
-        <para>
-        Current usage:
-        <list type="number">
-          <item><description>C# try statement</description></item>
-        </list>
-        </para>
-      </summary>
-    </Comments>
-    <Property Name="Body" Type="IBlockOperation">
-      <Comments>
-        <summary>The SQL SELECT statement</summary>
-      </Comments>
-    </Property>
-    <!--Property Name="Catches" Type="ImmutableArray&lt;ICatchClauseOperation&gt;">
-      <Comments>
-        <summary>Catch clauses of the try.</summary>
-      </Comments>
-    </Property>
-    <Property Name="Finally" Type="IBlockOperation?">
-      <Comments>
-        <summary>Finally handler of the try.</summary>
-      </Comments>
-    </Property-->
-  </Node>
   <Node Name="IUsingOperation" Base="IOperation" ChildrenOrder="Resources,Body">
     <Comments>
       <summary>
@@ -3766,5 +3738,35 @@
         </summary>
       </Comments>
     </Property>
+  </Node>
+  <Node Name="ISqlOperation" Base="IOperation" ChildrenOrder="Body">
+    <Comments>
+      <summary>
+        Represents an sql SELECT statement and what is to be done with the data it returns.
+        <para>
+          Current usage:
+          <list type="number">
+            <item>
+              <description>C# try statement</description>
+            </item>
+          </list>
+        </para>
+      </summary>
+    </Comments>
+    <Property Name="Body" Type="IBlockOperation">
+      <Comments>
+        <summary>The SQL SELECT statement</summary>
+      </Comments>
+    </Property>
+    <!--Property Name="Catches" Type="ImmutableArray&lt;ICatchClauseOperation&gt;">
+      <Comments>
+        <summary>Catch clauses of the try.</summary>
+      </Comments>
+    </Property>
+    <Property Name="Finally" Type="IBlockOperation?">
+      <Comments>
+        <summary>Finally handler of the try.</summary>
+      </Comments>
+    </Property-->
   </Node>
 </Tree>

@@ -8562,7 +8562,7 @@ catch
         {
             var text = @"
 sql {
-    
+    System.Console.Write(2);
 }
 System.Console.Write(4);
 ";

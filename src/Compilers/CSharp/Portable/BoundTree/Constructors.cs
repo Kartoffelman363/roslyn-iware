@@ -652,6 +652,14 @@ namespace Microsoft.CodeAnalysis.CSharp
         }
     }
 
+    internal partial class BoundSqlStatement
+    {
+        public BoundSqlStatement(SyntaxNode syntax, BoundBlock tryBlock/*, ImmutableArray<BoundCatchBlock> catchBlocks, BoundBlock? finallyBlockOpt, LabelSymbol? finallyLabelOpt = null*/)
+            : this(syntax, tryBlock/*, catchBlocks, finallyBlockOpt, finallyLabelOpt, preferFaultHandler: false*/, hasErrors: false)
+        {
+        }
+    }
+
     internal partial class BoundAddressOfOperator
     {
         public BoundAddressOfOperator(SyntaxNode syntax, BoundExpression operand, TypeSymbol type, bool hasErrors = false)

@@ -926,7 +926,7 @@ oneMoreTime:
         private void EmitSqlStatement(BoundSqlStatement statement)
         {
             _builder.OpenLocalScope();
-            throw new Exception($"This is it: {statement.SqlBlock.ToString()}");
+            //throw new Exception($"This is it: {statement.SqlBlock.ToString()}");
             EmitBlock(statement.SqlBlock);
             _builder.CloseLocalScope();
         }

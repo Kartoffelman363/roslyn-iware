@@ -87,6 +87,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
             IsEndOfTypeSignature = 1 << 26,
             IsExpressionOrPatternInCaseLabelOfSwitchStatement = 1 << 27,
             IsPatternInSwitchExpressionArm = 1 << 28,
+            IsEndOfSqlBlock = 1 << 29
         }
 
         private const int LastTerminatorState = (int)TerminatorState.IsPatternInSwitchExpressionArm;
@@ -114,6 +115,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
                     case TerminatorState.IsPossibleStatementStartOrStop when this.IsPossibleStatementStartOrStop():
                     case TerminatorState.IsEndOfFixedStatement when this.IsEndOfFixedStatement():
                     case TerminatorState.IsEndOfTryBlock when this.IsEndOfTryBlock():
+                    case TerminatorState.IsEndOfSqlBlock when this.IsEndOfSqlBlock():
                     case TerminatorState.IsEndOfCatchClause when this.IsEndOfCatchClause():
                     case TerminatorState.IsEndOfFilterClause when this.IsEndOfFilterClause():
                     case TerminatorState.IsEndOfCatchBlock when this.IsEndOfCatchBlock():
@@ -9033,7 +9035,7 @@ done:
 -            }
             */
             var saveTerm = _termState;
-            _termState |= TerminatorState.IsEndOfTryBlock;
+            _termState |= TerminatorState.IsEndOfSqlBlock;
             BlockSyntax sqlBlock = this.ParsePossiblyAttributedBlock();
             _termState = saveTerm;
 
@@ -9157,6 +9159,11 @@ done:
         private bool IsEndOfTryBlock()
         {
             return this.CurrentToken.Kind is SyntaxKind.CloseBraceToken or SyntaxKind.CatchKeyword or SyntaxKind.FinallyKeyword;
+        }
+
+        private bool IsEndOfSqlBlock()
+        {
+            return this.CurrentToken.Kind is SyntaxKind.CloseBraceToken /* or SyntaxKind.CatchKeyword or SyntaxKind.FinallyKeyword*/;
         }
 
         private CatchClauseSyntax ParseCatchClause()
