@@ -1914,7 +1914,8 @@ namespace Microsoft.CodeAnalysis.CSharp
              * Visit(node.SqlBlock);
              * return null;
              */
-            return Visit(node.SqlBlock);
+            //return Visit(node.SqlBlock);
+            return null;
         }
 
         protected Optional<TLocalState> NonMonotonicState;

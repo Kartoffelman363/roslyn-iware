@@ -4256,25 +4256,34 @@ namespace Microsoft.CodeAnalysis.CSharp
 
     internal sealed partial class BoundSqlStatement : BoundStatement
     {
-        public BoundSqlStatement(SyntaxNode syntax, BoundBlock sqlBlock, bool hasErrors = false)
-            : base(BoundKind.SqlStatement, syntax, hasErrors || sqlBlock.HasErrors())
+        public BoundSqlStatement(SyntaxNode syntax, string sqlContents, bool hasErrors)
+            : base(BoundKind.SqlStatement, syntax, hasErrors)
         {
 
-            RoslynDebug.Assert(sqlBlock is object, "Field 'sqlBlock' cannot be null (make the type nullable in BoundNodes.xml to remove this check)");
+            RoslynDebug.Assert(sqlContents is object, "Field 'sqlContents' cannot be null (make the type nullable in BoundNodes.xml to remove this check)");
 
-            this.SqlBlock = sqlBlock;
+            this.SqlContents = sqlContents;
         }
 
-        public BoundBlock SqlBlock { get; }
+        public BoundSqlStatement(SyntaxNode syntax, string sqlContents)
+            : base(BoundKind.SqlStatement, syntax)
+        {
+
+            RoslynDebug.Assert(sqlContents is object, "Field 'sqlContents' cannot be null (make the type nullable in BoundNodes.xml to remove this check)");
+
+            this.SqlContents = sqlContents;
+        }
+
+        public string SqlContents { get; }
 
         [DebuggerStepThrough]
         public override BoundNode? Accept(BoundTreeVisitor visitor) => visitor.VisitSqlStatement(this);
 
-        public BoundSqlStatement Update(BoundBlock sqlBlock)
+        public BoundSqlStatement Update(string sqlContents)
         {
-            if (sqlBlock != this.SqlBlock)
+            if (sqlContents != this.SqlContents)
             {
-                var result = new BoundSqlStatement(this.Syntax, sqlBlock, this.HasErrors);
+                var result = new BoundSqlStatement(this.Syntax, sqlContents, this.HasErrors);
                 result.CopyAttributes(this);
                 return result;
             }
@@ -10284,11 +10293,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             this.Visit(node.FinallyBlockOpt);
             return null;
         }
-        public override BoundNode? VisitSqlStatement(BoundSqlStatement node)
-        {
-            this.Visit(node.SqlBlock);
-            return null;
-        }
+        public override BoundNode? VisitSqlStatement(BoundSqlStatement node) => null;
         public override BoundNode? VisitCatchBlock(BoundCatchBlock node)
         {
             this.Visit(node.ExceptionSourceOpt);
@@ -11574,11 +11579,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             BoundBlock? finallyBlockOpt = (BoundBlock?)this.Visit(node.FinallyBlockOpt);
             return node.Update(tryBlock, catchBlocks, finallyBlockOpt, finallyLabelOpt, node.PreferFaultHandler);
         }
-        public override BoundNode? VisitSqlStatement(BoundSqlStatement node)
-        {
-            BoundBlock sqlBlock = (BoundBlock)this.Visit(node.SqlBlock);
-            return node.Update(sqlBlock);
-        }
+        public override BoundNode? VisitSqlStatement(BoundSqlStatement node) => node;
         public override BoundNode? VisitCatchBlock(BoundCatchBlock node)
         {
             ImmutableArray<LocalSymbol> locals = this.VisitLocals(node.Locals);
@@ -16151,7 +16152,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         );
         public override TreeDumperNode VisitSqlStatement(BoundSqlStatement node, object? arg) => new TreeDumperNode("sqlStatement", null, new TreeDumperNode[]
         {
-            new TreeDumperNode("sqlBlock", null, new TreeDumperNode[] { Visit(node.SqlBlock, null) }),
+            new TreeDumperNode("sqlContents", node.SqlContents, null),
             new TreeDumperNode("hasErrors", node.HasErrors, null)
         }
         );

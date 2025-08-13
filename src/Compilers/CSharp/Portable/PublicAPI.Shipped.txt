@@ -2513,9 +2513,9 @@ Microsoft.CodeAnalysis.CSharp.Syntax.TryStatementSyntax.WithFinally(Microsoft.Co
 Microsoft.CodeAnalysis.CSharp.Syntax.TryStatementSyntax.WithTryKeyword(Microsoft.CodeAnalysis.SyntaxToken tryKeyword) -> Microsoft.CodeAnalysis.CSharp.Syntax.TryStatementSyntax!
 Microsoft.CodeAnalysis.CSharp.Syntax.SqlStatementSyntax
 Microsoft.CodeAnalysis.CSharp.Syntax.SqlStatementSyntax.SqlStatementSyntax() -> void
-Microsoft.CodeAnalysis.CSharp.Syntax.SqlStatementSyntax.Update(Microsoft.CodeAnalysis.SyntaxToken sqlKeyword, Microsoft.CodeAnalysis.CSharp.Syntax.BlockSyntax! block) -> Microsoft.CodeAnalysis.CSharp.Syntax.SqlStatementSyntax!
-static Microsoft.CodeAnalysis.CSharp.SyntaxFactory.SqlStatement(Microsoft.CodeAnalysis.CSharp.Syntax.BlockSyntax! block) -> Microsoft.CodeAnalysis.CSharp.Syntax.SqlStatementSyntax!
-static Microsoft.CodeAnalysis.CSharp.SyntaxFactory.SqlStatement(Microsoft.CodeAnalysis.SyntaxToken sqlKeyword, Microsoft.CodeAnalysis.CSharp.Syntax.BlockSyntax! block) -> Microsoft.CodeAnalysis.CSharp.Syntax.SqlStatementSyntax!
+Microsoft.CodeAnalysis.CSharp.Syntax.SqlStatementSyntax.Update(Microsoft.CodeAnalysis.SyntaxToken sqlKeyword, Microsoft.CodeAnalysis.CSharp.Syntax.BlockSyntax! block, string! sqlContents) -> Microsoft.CodeAnalysis.CSharp.Syntax.SqlStatementSyntax!
+static Microsoft.CodeAnalysis.CSharp.SyntaxFactory.SqlStatement(Microsoft.CodeAnalysis.CSharp.Syntax.BlockSyntax! block, string! sqlContents) -> Microsoft.CodeAnalysis.CSharp.Syntax.SqlStatementSyntax!
+static Microsoft.CodeAnalysis.CSharp.SyntaxFactory.SqlStatement(Microsoft.CodeAnalysis.SyntaxToken sqlKeyword, Microsoft.CodeAnalysis.CSharp.Syntax.BlockSyntax! block, string! sqlContents) -> Microsoft.CodeAnalysis.CSharp.Syntax.SqlStatementSyntax!
 Microsoft.CodeAnalysis.CSharp.Syntax.TupleElementSyntax
 Microsoft.CodeAnalysis.CSharp.Syntax.TupleElementSyntax.Identifier.get -> Microsoft.CodeAnalysis.SyntaxToken
 Microsoft.CodeAnalysis.CSharp.Syntax.TupleElementSyntax.Type.get -> Microsoft.CodeAnalysis.CSharp.Syntax.TypeSyntax!
@@ -3378,6 +3378,7 @@ Microsoft.CodeAnalysis.CSharp.SyntaxKind.SqlDoKeyword = 8386 -> Microsoft.CodeAn
 Microsoft.CodeAnalysis.CSharp.SyntaxKind.SqlEmptyClause = 8932 -> Microsoft.CodeAnalysis.CSharp.SyntaxKind
 Microsoft.CodeAnalysis.CSharp.SyntaxKind.SqlEmptyKeyword = 8387 -> Microsoft.CodeAnalysis.CSharp.SyntaxKind
 Microsoft.CodeAnalysis.CSharp.SyntaxKind.SqlEndClause = 8933 -> Microsoft.CodeAnalysis.CSharp.SyntaxKind
+Microsoft.CodeAnalysis.CSharp.SyntaxKind.SqlTextLiteralToken = 8934 -> Microsoft.CodeAnalysis.CSharp.SyntaxKind
 Microsoft.CodeAnalysis.CSharp.SyntaxKind.SqlEndKeyword = 8388 -> Microsoft.CodeAnalysis.CSharp.SyntaxKind
 Microsoft.CodeAnalysis.CSharp.SyntaxKind.ThisConstructorInitializer = 8890 -> Microsoft.CodeAnalysis.CSharp.SyntaxKind
 Microsoft.CodeAnalysis.CSharp.SyntaxKind.ThisExpression = 8746 -> Microsoft.CodeAnalysis.CSharp.SyntaxKind

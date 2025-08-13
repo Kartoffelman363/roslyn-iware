@@ -3010,7 +3010,20 @@
     <Field Name="SqlKeyword" Type="SyntaxToken">
       <Kind Name="SqlKeyword"/>
     </Field>
-    <Field Name="Block" Type="BlockSyntax"/>
+    <Field Name="SqlOpenBraceToken" Type="SyntaxToken">
+      <Kind Name="OpenBraceToken"/>
+    </Field>
+    <Field Name="SqlTextToken" Type="SyntaxToken">
+      <Kind Name="SqlTextLiteralToken" />
+    </Field>
+    <Field Name="SqlCloseBraceToken" Type="SyntaxToken">
+      <Kind Name="CloseBraceToken"/>
+    </Field>
+    <!--Field Name="Block" Type="BlockSyntax"  Optional="true" /-->
+    <!--Field Name="SqlContents" Type="string" Optional="true" /-->
+    <!--might also need Override idk what it is-->
+    <!--Kind Name="StringLiteralToken" /-->
+    <!--/Field-->
   </Node>
 
   <Node Name="TryStatementSyntax" Base="StatementSyntax">

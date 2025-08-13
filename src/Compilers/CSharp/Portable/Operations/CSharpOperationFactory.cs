@@ -183,6 +183,7 @@ namespace Microsoft.CodeAnalysis.Operations
                     return CreateBoundForEachStatementOperation((BoundForEachStatement)boundNode);
                 case BoundKind.TryStatement:
                     return CreateBoundTryStatementOperation((BoundTryStatement)boundNode);
+                //TODO-aljaz do I need isqloperaion
                 case BoundKind.SqlStatement:
                     return CreateBoundSqlStatementOperation((BoundSqlStatement)boundNode);
                 case BoundKind.CatchBlock:
@@ -1994,16 +1995,16 @@ namespace Microsoft.CodeAnalysis.Operations
             return new ForEachLoopOperation(loopControlVariable, collection, nextVariables, info, isAsynchronous, body, locals, continueLabel, exitLabel, _semanticModel, syntax, isImplicit);
         }
 
+        //TODO-aljaz do i need ISqlOperation?
         private ISqlOperation CreateBoundSqlStatementOperation(BoundSqlStatement boundSqlStatement)
         {
-            var body = (IBlockOperation)Create(boundSqlStatement.SqlBlock);
-            /*
-            ImmutableArray<ICatchClauseOperation> catches = CreateFromArray<BoundCatchBlock, ICatchClauseOperation>(boundTryStatement.CatchBlocks);
-            var @finally = (IBlockOperation?)Create(boundTryStatement.FinallyBlockOpt);
-            */
+            //ImmutableArray<ICatchClauseOperation> catches = CreateFromArray<BoundCatchBlock, ICatchClauseOperation>(boundTryStatement.CatchBlocks);
+            //var @finally = (IBlockOperation?)Create(boundTryStatement.FinallyBlockOpt);
             SyntaxNode syntax = boundSqlStatement.Syntax;
             bool isImplicit = boundSqlStatement.WasCompilerGenerated;
-            return new SqlOperation(body, /*catches, @finally, exitLabel: null,*/ _semanticModel, syntax, isImplicit);
+            return new SqlOperation(boundSqlStatement.SqlContents,
+                // catches, @finally, exitLabel: null,
+                _semanticModel, syntax, isImplicit);
         }
 
         private ITryOperation CreateBoundTryStatementOperation(BoundTryStatement boundTryStatement)

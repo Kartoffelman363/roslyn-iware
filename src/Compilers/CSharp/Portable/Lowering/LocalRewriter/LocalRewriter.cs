@@ -1136,6 +1136,46 @@ namespace Microsoft.CodeAnalysis.CSharp
             return new CompoundUseSiteInfo<AssemblySymbol>(_diagnostics, _compilation.Assembly);
         }
 
+        public override BoundNode? VisitSqlStatement(BoundSqlStatement node)
+        {
+            // Grab the original SQL text inside the block
+            // This uses the Syntax API, not bound nodes
+            //var sqlText = node.SqlBlock.Syntax.ToFullString().Trim();
+            var sqlText = node.SqlContents;
+
+            // Create a string literal syntax node
+            var literalSyntax = SyntaxFactory.LiteralExpression(
+                SyntaxKind.StringLiteralExpression,
+                SyntaxFactory.Literal(sqlText));
+
+            // Bind that literal to get a BoundExpression
+            var boundLiteral = _factory.Literal(sqlText);
+
+            // Create a bound call to MySqlFunction(string)
+            var mySqlMethod = tryLookupMySqlFunction(node.Syntax);
+            Debug.Assert(mySqlMethod is not null, "IWare.Sql.MySqlFunction is missing");
+            // ^ you'll need to resolve the symbol for MySqlFunction here (see note below)
+
+            var boundCall = _factory.Call(
+                receiver: null,
+                method: mySqlMethod,
+                args: ImmutableArray.Create<BoundExpression>(boundLiteral)
+                );
+
+            // Return as a normal expression statement so later passes/emit see a call
+            return new BoundExpressionStatement(node.Syntax, boundCall);
+
+            MethodSymbol? tryLookupMySqlFunction(SyntaxNode syntax)
+            {
+                var type = _compilation.GetTypeByMetadataName("IWare.Sql");
+                var mySqlFunction = type?
+                    .GetMembers("MySqlFunction")
+                    .OfType<MethodSymbol>()
+                    .FirstOrDefault(m => m.Parameters.Length == 1 && m.Parameters[0].Type.SpecialType == SpecialType.System_String);
+                return mySqlFunction;
+            }
+        }
+
 #if DEBUG
         /// <summary>
         /// Note: do not use a static/singleton instance of this type, as it holds state.

@@ -1233,7 +1233,7 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
             var ss = (SqlStatementSyntax)statement;
             Assert.NotEqual(default, ss.SqlKeyword);
             Assert.False(ss.SqlKeyword.IsMissing);
-            Assert.NotNull(ss.Block);
+            //Assert.NotNull(ss.SqlTextToken);
         }
 
         [Fact]

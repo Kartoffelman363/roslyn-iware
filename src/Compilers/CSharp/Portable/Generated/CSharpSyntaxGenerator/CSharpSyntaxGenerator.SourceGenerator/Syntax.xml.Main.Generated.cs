@@ -1939,7 +1939,7 @@ public partial class CSharpSyntaxRewriter : CSharpSyntaxVisitor<SyntaxNode?>
         => node.Update((PatternSyntax?)Visit(node.Pattern) ?? throw new ArgumentNullException("pattern"), (WhenClauseSyntax?)Visit(node.WhenClause), VisitToken(node.EqualsGreaterThanToken), (ExpressionSyntax?)Visit(node.Expression) ?? throw new ArgumentNullException("expression"));
 
     public override SyntaxNode? VisitSqlStatement(SqlStatementSyntax node)
-        => node.Update(VisitList(node.AttributeLists), VisitToken(node.SqlKeyword), (BlockSyntax?)Visit(node.Block) ?? throw new ArgumentNullException("block"));
+        => node.Update(VisitList(node.AttributeLists), VisitToken(node.SqlKeyword), VisitToken(node.SqlOpenBraceToken), VisitToken(node.SqlTextToken), VisitToken(node.SqlCloseBraceToken));
 
     public override SyntaxNode? VisitTryStatement(TryStatementSyntax node)
         => node.Update(VisitList(node.AttributeLists), VisitToken(node.TryKeyword), (BlockSyntax?)Visit(node.Block) ?? throw new ArgumentNullException("block"), VisitList(node.Catches), (FinallyClauseSyntax?)Visit(node.Finally));
@@ -4663,22 +4663,22 @@ public static partial class SyntaxFactory
         => SyntaxFactory.SwitchExpressionArm(pattern, default, SyntaxFactory.Token(SyntaxKind.EqualsGreaterThanToken), expression);
 
     /// <summary>Creates a new SqlStatementSyntax instance.</summary>
-    public static SqlStatementSyntax SqlStatement(SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken sqlKeyword, BlockSyntax block)
+    public static SqlStatementSyntax SqlStatement(SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken sqlKeyword, SyntaxToken sqlOpenBraceToken, SyntaxToken sqlTextToken, SyntaxToken sqlCloseBraceToken)
     {
         if (sqlKeyword.Kind() != SyntaxKind.SqlKeyword) throw new ArgumentException(nameof(sqlKeyword));
-        if (block == null) throw new ArgumentNullException(nameof(block));
-        return (SqlStatementSyntax)Syntax.InternalSyntax.SyntaxFactory.SqlStatement(attributeLists.Node.ToGreenList<Syntax.InternalSyntax.AttributeListSyntax>(), (Syntax.InternalSyntax.SyntaxToken)sqlKeyword.Node!, (Syntax.InternalSyntax.BlockSyntax)block.Green).CreateRed();
+        if (sqlOpenBraceToken.Kind() != SyntaxKind.OpenBraceToken) throw new ArgumentException(nameof(sqlOpenBraceToken));
+        if (sqlTextToken.Kind() != SyntaxKind.SqlTextLiteralToken) throw new ArgumentException(nameof(sqlTextToken));
+        if (sqlCloseBraceToken.Kind() != SyntaxKind.CloseBraceToken) throw new ArgumentException(nameof(sqlCloseBraceToken));
+        return (SqlStatementSyntax)Syntax.InternalSyntax.SyntaxFactory.SqlStatement(attributeLists.Node.ToGreenList<Syntax.InternalSyntax.AttributeListSyntax>(), (Syntax.InternalSyntax.SyntaxToken)sqlKeyword.Node!, (Syntax.InternalSyntax.SyntaxToken)sqlOpenBraceToken.Node!, (Syntax.InternalSyntax.SyntaxToken)sqlTextToken.Node!, (Syntax.InternalSyntax.SyntaxToken)sqlCloseBraceToken.Node!).CreateRed();
     }
 
     /// <summary>Creates a new SqlStatementSyntax instance.</summary>
-    public static SqlStatementSyntax SqlStatement(SyntaxList<AttributeListSyntax> attributeLists, BlockSyntax block)
-        => SyntaxFactory.SqlStatement(attributeLists, SyntaxFactory.Token(SyntaxKind.SqlKeyword), block);
+    public static SqlStatementSyntax SqlStatement(SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken sqlTextToken)
+        => SyntaxFactory.SqlStatement(attributeLists, SyntaxFactory.Token(SyntaxKind.SqlKeyword), SyntaxFactory.Token(SyntaxKind.OpenBraceToken), sqlTextToken, SyntaxFactory.Token(SyntaxKind.CloseBraceToken));
 
-#pragma warning disable RS0027
     /// <summary>Creates a new SqlStatementSyntax instance.</summary>
-    public static SqlStatementSyntax SqlStatement(BlockSyntax? block = default)
-        => SyntaxFactory.SqlStatement(default, SyntaxFactory.Token(SyntaxKind.SqlKeyword), block ?? SyntaxFactory.Block());
-#pragma warning restore RS0027
+    public static SqlStatementSyntax SqlStatement(SyntaxToken sqlTextToken)
+        => SyntaxFactory.SqlStatement(default, SyntaxFactory.Token(SyntaxKind.SqlKeyword), SyntaxFactory.Token(SyntaxKind.OpenBraceToken), sqlTextToken, SyntaxFactory.Token(SyntaxKind.CloseBraceToken));
 
     /// <summary>Creates a new TryStatementSyntax instance.</summary>
     public static TryStatementSyntax TryStatement(SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken tryKeyword, BlockSyntax block, SyntaxList<CatchClauseSyntax> catches, FinallyClauseSyntax? @finally)

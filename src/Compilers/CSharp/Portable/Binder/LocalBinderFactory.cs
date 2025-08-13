@@ -851,7 +851,8 @@ namespace Microsoft.CodeAnalysis.CSharp
 
         public override void VisitSqlStatement(SqlStatementSyntax node)
         {
-            Visit(node.Block, _enclosing);
+            //Do I want to visit anything?
+            //Visit(node.SqlContents, _enclosing);
             /*
             if (node.Catches.Any())
             {

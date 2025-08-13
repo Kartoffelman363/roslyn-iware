@@ -8954,7 +8954,6 @@ public sealed partial class SwitchExpressionArmSyntax : CSharpSyntaxNode
 public sealed partial class SqlStatementSyntax : StatementSyntax
 {
     private SyntaxNode? attributeLists;
-    private BlockSyntax? block;
 
     internal SqlStatementSyntax(InternalSyntax.CSharpSyntaxNode green, SyntaxNode? parent, int position)
       : base(green, parent, position)
@@ -8965,32 +8964,24 @@ public sealed partial class SqlStatementSyntax : StatementSyntax
 
     public SyntaxToken SqlKeyword => new SyntaxToken(this, ((InternalSyntax.SqlStatementSyntax)this.Green).sqlKeyword, GetChildPosition(1), GetChildIndex(1));
 
-    public BlockSyntax Block => GetRed(ref this.block, 2)!;
+    public SyntaxToken SqlOpenBraceToken => new SyntaxToken(this, ((InternalSyntax.SqlStatementSyntax)this.Green).sqlOpenBraceToken, GetChildPosition(2), GetChildIndex(2));
 
-    internal override SyntaxNode? GetNodeSlot(int index)
-        => index switch
-        {
-            0 => GetRedAtZero(ref this.attributeLists)!,
-            2 => GetRed(ref this.block, 2)!,
-            _ => null,
-        };
+    public SyntaxToken SqlTextToken => new SyntaxToken(this, ((InternalSyntax.SqlStatementSyntax)this.Green).sqlTextToken, GetChildPosition(3), GetChildIndex(3));
 
-    internal override SyntaxNode? GetCachedSlot(int index)
-        => index switch
-        {
-            0 => this.attributeLists,
-            2 => this.block,
-            _ => null,
-        };
+    public SyntaxToken SqlCloseBraceToken => new SyntaxToken(this, ((InternalSyntax.SqlStatementSyntax)this.Green).sqlCloseBraceToken, GetChildPosition(4), GetChildIndex(4));
+
+    internal override SyntaxNode? GetNodeSlot(int index) => index == 0 ? GetRedAtZero(ref this.attributeLists)! : null;
+
+    internal override SyntaxNode? GetCachedSlot(int index) => index == 0 ? this.attributeLists : null;
 
     public override void Accept(CSharpSyntaxVisitor visitor) => visitor.VisitSqlStatement(this);
     public override TResult? Accept<TResult>(CSharpSyntaxVisitor<TResult> visitor) where TResult : default => visitor.VisitSqlStatement(this);
 
-    public SqlStatementSyntax Update(SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken sqlKeyword, BlockSyntax block)
+    public SqlStatementSyntax Update(SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken sqlKeyword, SyntaxToken sqlOpenBraceToken, SyntaxToken sqlTextToken, SyntaxToken sqlCloseBraceToken)
     {
-        if (attributeLists != this.AttributeLists || sqlKeyword != this.SqlKeyword || block != this.Block)
+        if (attributeLists != this.AttributeLists || sqlKeyword != this.SqlKeyword || sqlOpenBraceToken != this.SqlOpenBraceToken || sqlTextToken != this.SqlTextToken || sqlCloseBraceToken != this.SqlCloseBraceToken)
         {
-            var newNode = SyntaxFactory.SqlStatement(attributeLists, sqlKeyword, block);
+            var newNode = SyntaxFactory.SqlStatement(attributeLists, sqlKeyword, sqlOpenBraceToken, sqlTextToken, sqlCloseBraceToken);
             var annotations = GetAnnotations();
             return annotations?.Length > 0 ? newNode.WithAnnotations(annotations) : newNode;
         }
@@ -8999,14 +8990,14 @@ public sealed partial class SqlStatementSyntax : StatementSyntax
     }
 
     internal override StatementSyntax WithAttributeListsCore(SyntaxList<AttributeListSyntax> attributeLists) => WithAttributeLists(attributeLists);
-    public new SqlStatementSyntax WithAttributeLists(SyntaxList<AttributeListSyntax> attributeLists) => Update(attributeLists, this.SqlKeyword, this.Block);
-    public SqlStatementSyntax WithSqlKeyword(SyntaxToken sqlKeyword) => Update(this.AttributeLists, sqlKeyword, this.Block);
-    public SqlStatementSyntax WithBlock(BlockSyntax block) => Update(this.AttributeLists, this.SqlKeyword, block);
+    public new SqlStatementSyntax WithAttributeLists(SyntaxList<AttributeListSyntax> attributeLists) => Update(attributeLists, this.SqlKeyword, this.SqlOpenBraceToken, this.SqlTextToken, this.SqlCloseBraceToken);
+    public SqlStatementSyntax WithSqlKeyword(SyntaxToken sqlKeyword) => Update(this.AttributeLists, sqlKeyword, this.SqlOpenBraceToken, this.SqlTextToken, this.SqlCloseBraceToken);
+    public SqlStatementSyntax WithSqlOpenBraceToken(SyntaxToken sqlOpenBraceToken) => Update(this.AttributeLists, this.SqlKeyword, sqlOpenBraceToken, this.SqlTextToken, this.SqlCloseBraceToken);
+    public SqlStatementSyntax WithSqlTextToken(SyntaxToken sqlTextToken) => Update(this.AttributeLists, this.SqlKeyword, this.SqlOpenBraceToken, sqlTextToken, this.SqlCloseBraceToken);
+    public SqlStatementSyntax WithSqlCloseBraceToken(SyntaxToken sqlCloseBraceToken) => Update(this.AttributeLists, this.SqlKeyword, this.SqlOpenBraceToken, this.SqlTextToken, sqlCloseBraceToken);
 
     internal override StatementSyntax AddAttributeListsCore(params AttributeListSyntax[] items) => AddAttributeLists(items);
     public new SqlStatementSyntax AddAttributeLists(params AttributeListSyntax[] items) => WithAttributeLists(this.AttributeLists.AddRange(items));
-    public SqlStatementSyntax AddBlockAttributeLists(params AttributeListSyntax[] items) => WithBlock(this.Block.WithAttributeLists(this.Block.AttributeLists.AddRange(items)));
-    public SqlStatementSyntax AddBlockStatements(params StatementSyntax[] items) => WithBlock(this.Block.WithStatements(this.Block.Statements.AddRange(items)));
 }
 
 /// <remarks>

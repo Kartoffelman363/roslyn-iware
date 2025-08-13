@@ -3739,21 +3739,20 @@
       </Comments>
     </Property>
   </Node>
-  <Node Name="ISqlOperation" Base="IOperation" ChildrenOrder="Body">
+  <!--add back ChildrenOrder="Body"-->
+  <Node Name="ISqlOperation" Base="IOperation">
     <Comments>
       <summary>
-        Represents an sql SELECT statement and what is to be done with the data it returns.
+        Represents an sql operation for exception handling code with an sql statement, event for each line from the table, an empty and end handler.
         <para>
-          Current usage:
-          <list type="number">
-            <item>
-              <description>C# try statement</description>
-            </item>
-          </list>
+        Current usage:
+        <list type="number">
+          <item><description>C# sql statement</description></item>
+        </list>
         </para>
       </summary>
     </Comments>
-    <Property Name="Body" Type="IBlockOperation">
+    <Property Name="Body" Type="string">
       <Comments>
         <summary>The SQL SELECT statement</summary>
       </Comments>

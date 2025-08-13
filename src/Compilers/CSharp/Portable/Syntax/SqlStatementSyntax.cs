@@ -32,8 +32,13 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax
 {
     public partial class SqlStatementSyntax
     {
-        public SqlStatementSyntax Update(SyntaxToken sqlKeyword, BlockSyntax block/*, SyntaxList<CatchClauseSyntax> catches, FinallyClauseSyntax @finally*/)
-            => Update(AttributeLists, sqlKeyword, block/*, catches, @finally*/);
+        public SqlStatementSyntax Update(SyntaxToken sqlKeyword, SyntaxToken sqlOpenBraceToken, SyntaxToken sqlContents, SyntaxToken sqlCloseBraceToken
+            //, SyntaxList<CatchClauseSyntax> catches, FinallyClauseSyntax @finally
+            )
+            => Update(AttributeLists, sqlKeyword, sqlOpenBraceToken, sqlContents, sqlCloseBraceToken
+                // block, sqlContents
+                //, catches, @finally
+                );
     }
 }
 
@@ -50,7 +55,9 @@ namespace Microsoft.CodeAnalysis.CSharp
         );
         */
 
-        public static SqlStatementSyntax SqlStatement(SyntaxToken sqlKeyword, BlockSyntax block/*, SyntaxList<CatchClauseSyntax> catches, FinallyClauseSyntax? @finally*/)
-            => SqlStatement(attributeLists: default, sqlKeyword, block/*, catches, @finally*/);
+        public static SqlStatementSyntax SqlStatement(SyntaxToken sqlKeyword, SyntaxToken sqlOpenBraceToken, SyntaxToken sqlContents, SyntaxToken sqlCloseBraceToken
+            //BlockSyntax block, SyntaxList<CatchClauseSyntax> catches, FinallyClauseSyntax? @finally
+            )
+            => SqlStatement(attributeLists: default, sqlKeyword, sqlOpenBraceToken, sqlContents, sqlCloseBraceToken/*, catches, @finally*/);
     }
 }

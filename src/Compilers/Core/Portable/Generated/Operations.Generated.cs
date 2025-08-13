@@ -3994,14 +3994,12 @@ namespace Microsoft.CodeAnalysis.Operations
         CommonConversion ElementConversion { get; }
     }
     /// <summary>
-    /// Represents an sql SELECT statement and what is to be done with the data it returns.
+    /// Represents an sql operation for exception handling code with an sql statement, event for each line from the table, an empty and end handler.
     /// <para>
-    ///   Current usage:
-    ///   <list type="number">
-    ///     <item>
-    ///       <description>C# try statement</description>
-    ///     </item>
-    ///   </list>
+    /// Current usage:
+    /// <list type="number">
+    ///   <item><description>C# sql statement</description></item>
+    /// </list>
     /// </para>
     /// </summary>
     /// <remarks>
@@ -4017,7 +4015,7 @@ namespace Microsoft.CodeAnalysis.Operations
         /// <summary>
         /// The SQL SELECT statement
         /// </summary>
-        IBlockOperation Body { get; }
+        string Body { get; }
     }
     #endregion
 
@@ -10808,49 +10806,16 @@ namespace Microsoft.CodeAnalysis.Operations
     }
     internal sealed partial class SqlOperation : Operation, ISqlOperation
     {
-        internal SqlOperation(IBlockOperation body, SemanticModel? semanticModel, SyntaxNode syntax, bool isImplicit)
+        internal SqlOperation(string body, SemanticModel? semanticModel, SyntaxNode syntax, bool isImplicit)
             : base(semanticModel, syntax, isImplicit)
         {
-            Body = SetParentOperation(body, this);
+            Body = body;
         }
-        public IBlockOperation Body { get; }
-        internal override int ChildOperationsCount =>
-            (Body is null ? 0 : 1);
-        internal override IOperation GetCurrent(int slot, int index)
-            => slot switch
-            {
-                0 when Body != null
-                    => Body,
-                _ => throw ExceptionUtilities.UnexpectedValue((slot, index)),
-            };
-        internal override (bool hasNext, int nextSlot, int nextIndex) MoveNext(int previousSlot, int previousIndex)
-        {
-            switch (previousSlot)
-            {
-                case -1:
-                    if (Body != null) return (true, 0, 0);
-                    else goto case 0;
-                case 0:
-                case 1:
-                    return (false, 1, 0);
-                default:
-                    throw ExceptionUtilities.UnexpectedValue((previousSlot, previousIndex));
-            }
-        }
-        internal override (bool hasNext, int nextSlot, int nextIndex) MoveNextReversed(int previousSlot, int previousIndex)
-        {
-            switch (previousSlot)
-            {
-                case int.MaxValue:
-                    if (Body != null) return (true, 0, 0);
-                    else goto case 0;
-                case 0:
-                case -1:
-                    return (false, -1, 0);
-                default:
-                    throw ExceptionUtilities.UnexpectedValue((previousSlot, previousIndex));
-            }
-        }
+        public string Body { get; }
+        internal override int ChildOperationsCount => 0;
+        internal override IOperation GetCurrent(int slot, int index) => throw ExceptionUtilities.UnexpectedValue((slot, index));
+        internal override (bool hasNext, int nextSlot, int nextIndex) MoveNext(int previousSlot, int previousIndex) => (false, int.MinValue, int.MinValue);
+        internal override (bool hasNext, int nextSlot, int nextIndex) MoveNextReversed(int previousSlot, int previousIndex) => (false, int.MinValue, int.MinValue);
         public override ITypeSymbol? Type => null;
         internal override ConstantValue? OperationConstantValue => null;
         public override OperationKind Kind => OperationKind.Sql;
@@ -11483,7 +11448,7 @@ namespace Microsoft.CodeAnalysis.Operations
         public override IOperation VisitSql(ISqlOperation operation, object? argument)
         {
             var internalOperation = (SqlOperation)operation;
-            return new SqlOperation(Visit(internalOperation.Body), internalOperation.OwningSemanticModel, internalOperation.Syntax, internalOperation.IsImplicit);
+            return new SqlOperation(internalOperation.Body, internalOperation.OwningSemanticModel, internalOperation.Syntax, internalOperation.IsImplicit);
         }
     }
     #endregion

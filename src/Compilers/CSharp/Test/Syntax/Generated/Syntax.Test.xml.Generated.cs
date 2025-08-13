@@ -446,7 +446,7 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
             => InternalSyntaxFactory.SwitchExpressionArm(GenerateDiscardPattern(), null, InternalSyntaxFactory.Token(SyntaxKind.EqualsGreaterThanToken), GenerateIdentifierName());
 
         private static Syntax.InternalSyntax.SqlStatementSyntax GenerateSqlStatement()
-            => InternalSyntaxFactory.SqlStatement(new Microsoft.CodeAnalysis.Syntax.InternalSyntax.SyntaxList<Syntax.InternalSyntax.AttributeListSyntax>(), InternalSyntaxFactory.Token(SyntaxKind.SqlKeyword), GenerateBlock());
+            => InternalSyntaxFactory.SqlStatement(new Microsoft.CodeAnalysis.Syntax.InternalSyntax.SyntaxList<Syntax.InternalSyntax.AttributeListSyntax>(), InternalSyntaxFactory.Token(SyntaxKind.SqlKeyword), InternalSyntaxFactory.Token(SyntaxKind.OpenBraceToken), InternalSyntaxFactory.Token(SyntaxKind.SqlTextLiteralToken), InternalSyntaxFactory.Token(SyntaxKind.CloseBraceToken));
 
         private static Syntax.InternalSyntax.TryStatementSyntax GenerateTryStatement()
             => InternalSyntaxFactory.TryStatement(new Microsoft.CodeAnalysis.Syntax.InternalSyntax.SyntaxList<Syntax.InternalSyntax.AttributeListSyntax>(), InternalSyntaxFactory.Token(SyntaxKind.TryKeyword), GenerateBlock(), new Microsoft.CodeAnalysis.Syntax.InternalSyntax.SyntaxList<Syntax.InternalSyntax.CatchClauseSyntax>(), null);
@@ -2536,7 +2536,9 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
 
             Assert.Equal(default, node.AttributeLists);
             Assert.Equal(SyntaxKind.SqlKeyword, node.SqlKeyword.Kind);
-            Assert.NotNull(node.Block);
+            Assert.Equal(SyntaxKind.OpenBraceToken, node.SqlOpenBraceToken.Kind);
+            Assert.Equal(SyntaxKind.SqlTextLiteralToken, node.SqlTextToken.Kind);
+            Assert.Equal(SyntaxKind.CloseBraceToken, node.SqlCloseBraceToken.Kind);
 
             AttachAndCheckDiagnostics(node);
         }
@@ -10793,7 +10795,7 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
             => SyntaxFactory.SwitchExpressionArm(GenerateDiscardPattern(), default(WhenClauseSyntax), SyntaxFactory.Token(SyntaxKind.EqualsGreaterThanToken), GenerateIdentifierName());
 
         private static SqlStatementSyntax GenerateSqlStatement()
-            => SyntaxFactory.SqlStatement(new SyntaxList<AttributeListSyntax>(), SyntaxFactory.Token(SyntaxKind.SqlKeyword), GenerateBlock());
+            => SyntaxFactory.SqlStatement(new SyntaxList<AttributeListSyntax>(), SyntaxFactory.Token(SyntaxKind.SqlKeyword), SyntaxFactory.Token(SyntaxKind.OpenBraceToken), SyntaxFactory.Token(SyntaxKind.SqlTextLiteralToken), SyntaxFactory.Token(SyntaxKind.CloseBraceToken));
 
         private static TryStatementSyntax GenerateTryStatement()
             => SyntaxFactory.TryStatement(new SyntaxList<AttributeListSyntax>(), SyntaxFactory.Token(SyntaxKind.TryKeyword), GenerateBlock(), new SyntaxList<CatchClauseSyntax>(), default(FinallyClauseSyntax));
@@ -12883,8 +12885,10 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
 
             Assert.Equal(default, node.AttributeLists);
             Assert.Equal(SyntaxKind.SqlKeyword, node.SqlKeyword.Kind());
-            Assert.NotNull(node.Block);
-            var newNode = node.WithAttributeLists(node.AttributeLists).WithSqlKeyword(node.SqlKeyword).WithBlock(node.Block);
+            Assert.Equal(SyntaxKind.OpenBraceToken, node.SqlOpenBraceToken.Kind());
+            Assert.Equal(SyntaxKind.SqlTextLiteralToken, node.SqlTextToken.Kind());
+            Assert.Equal(SyntaxKind.CloseBraceToken, node.SqlCloseBraceToken.Kind());
+            var newNode = node.WithAttributeLists(node.AttributeLists).WithSqlKeyword(node.SqlKeyword).WithSqlOpenBraceToken(node.SqlOpenBraceToken).WithSqlTextToken(node.SqlTextToken).WithSqlCloseBraceToken(node.SqlCloseBraceToken);
             Assert.Equal(node, newNode);
         }
 

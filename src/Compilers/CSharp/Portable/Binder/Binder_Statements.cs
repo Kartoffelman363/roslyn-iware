@@ -3230,13 +3230,45 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
             Debug.Assert(node != null);
 
-            var sqlBlock = BindEmbeddedBlock(node.Block, diagnostics);
-            /*
-            var catchBlocks = BindCatchBlocks(node.Catches, diagnostics);
-            var finallyBlockOpt = (node.Finally != null) ? BindEmbeddedBlock(node.Finally.Block, diagnostics) : null;
-            */
-            return new BoundSqlStatement(node, sqlBlock/*, catchBlocks, finallyBlockOpt*/);
+            //var sqlBlock = BindEmbeddedBlock(node.Block, diagnostics);
+
+            //var sqlText = node.Block.GetText().ToString();
+
+            // throw new Exception($"This is what I'm talking about: {sqlText}");
+
+            //var catchBlocks = BindCatchBlocks(node.Catches, diagnostics);
+            //var finallyBlockOpt = (node.Finally != null) ? BindEmbeddedBlock(node.Finally.Block, diagnostics) : null;
+
+            // sqlBlock, catchBlocks, finallyBlockOpt
+            return new BoundSqlStatement(node, node.SqlTextToken.ValueText);
         }
+        /*
+        private BoundSqlStatement BindSqlStatement(SqlStatementSyntax node, BindingDiagnosticBag diagnostics)
+        {
+            var sqlText = node.Block.GetText().ToString();
+
+            var sqlLiteralSyntax = SyntaxFactory.LiteralExpression(
+                SyntaxKind.StringLiteralExpression,
+                SyntaxFactory.Literal(sqlText));
+
+            var invocationSyntax = SyntaxFactory.InvocationExpression(
+                SyntaxFactory.IdentifierName("MySqlFunction"),
+                SyntaxFactory.ArgumentList(
+                    SyntaxFactory.SingletonSeparatedList(
+                        SyntaxFactory.Argument(sqlLiteralSyntax))));
+
+            var boundInvocation = BindExpression(invocationSyntax, diagnostics);
+
+            var boundStatement = new BoundExpressionStatement(invocationSyntax, boundInvocation);
+
+            // Create a block containing just the invocation
+            var block = new BoundBlock(node.Block, locals: ImmutableArray<LocalSymbol>.Empty, statements: [boundStatement]);
+
+            //throw new Exception($"This is my block {block.Syntax.ToFullString()}");
+
+            return new BoundSqlStatement(node, block);
+        }
+        */
 
         private ImmutableArray<BoundCatchBlock> BindCatchBlocks(SyntaxList<CatchClauseSyntax> catchClauses, BindingDiagnosticBag diagnostics)
         {

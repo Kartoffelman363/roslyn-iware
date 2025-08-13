@@ -1680,22 +1680,25 @@ namespace Microsoft.CodeAnalysis.CSharp.CodeGen
             return node.Update(tryBlock, catchBlocks, finallyBlock, finallyLabelOpt: node.FinallyLabelOpt, node.PreferFaultHandler);
         }
 
+        //TODO-aljaz do I need Optimizer VisitSqlStatement?
+        /*
         public override BoundNode VisitSqlStatement(BoundSqlStatement node)
         {
             EnsureOnlyEvalStack();
             var sqlBlock = (BoundBlock)this.Visit(node.SqlBlock);
 
-            /*
-            var catchBlocks = this.VisitList(node.CatchBlocks);
+            //var catchBlocks = this.VisitList(node.CatchBlocks);
+
+            //EnsureOnlyEvalStack();
+            //var finallyBlock = (BoundBlock)this.Visit(node.FinallyBlockOpt);
 
             EnsureOnlyEvalStack();
-            var finallyBlock = (BoundBlock)this.Visit(node.FinallyBlockOpt);
-            */
 
-            EnsureOnlyEvalStack();
-
-            return node.Update(sqlBlock/*, catchBlocks, finallyBlock, finallyLabelOpt: node.FinallyLabelOpt, node.PreferFaultHandler*/);
+            return node.Update(sqlBlock
+                //, catchBlocks, finallyBlock, finallyLabelOpt: node.FinallyLabelOpt, node.PreferFaultHandler
+                );
         }
+        */
 
         public override BoundNode VisitCatchBlock(BoundCatchBlock node)
         {

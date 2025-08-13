@@ -1343,7 +1343,8 @@
   </Node>
 
   <Node Name="BoundSqlStatement" Base="BoundStatement">
-    <Field Name="SqlBlock" Type="BoundBlock"/>
+    <!--Field Name="SqlBlock" Type="BoundBlock"/-->
+    <Field Name="SqlContents" Type="string"/>
     <!--
     <Field Name="CatchBlocks" Type="ImmutableArray&lt;BoundCatchBlock&gt;"/>
     <Field Name="FinallyBlockOpt" Type="BoundBlock?"/>

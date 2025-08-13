@@ -74,8 +74,12 @@ namespace Microsoft.CodeAnalysis.CSharp
                     case BoundSqlStatement sqlStatement:
                         {
                             appendLine("sql");
-                            appendSource(sqlStatement.SqlBlock);
-
+                            if (sqlStatement.SqlContents is not null)
+                            {
+                                appendLine("{");
+                                appendLine(sqlStatement.SqlContents);
+                                appendLine("}");
+                            }
                             /*
                             var catchBlocks = tryStatement.CatchBlocks;
                             if (catchBlocks != null)
