@@ -1153,7 +1153,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             // Create a bound call to MySqlFunction(string)
             var mySqlMethod = tryLookupMySqlFunction(node.Syntax);
-            Debug.Assert(mySqlMethod is not null, "IWare.Sql.MySqlFunction is missing");
+            Debug.Assert(mySqlMethod is not null, "iWare.Database.SqlCommands.SqlCommand is missing");
             // ^ you'll need to resolve the symbol for MySqlFunction here (see note below)
 
             var boundCall = _factory.Call(
@@ -1167,9 +1167,9 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             MethodSymbol? tryLookupMySqlFunction(SyntaxNode syntax)
             {
-                var type = _compilation.GetTypeByMetadataName("IWare.Sql");
+                var type = _compilation.GetTypeByMetadataName("iWare.Database.SqlCommands");
                 var mySqlFunction = type?
-                    .GetMembers("MySqlFunction")
+                    .GetMembers("SqlCommand")
                     .OfType<MethodSymbol>()
                     .FirstOrDefault(m => m.Parameters.Length == 1 && m.Parameters[0].Type.SpecialType == SpecialType.System_String);
                 return mySqlFunction;
