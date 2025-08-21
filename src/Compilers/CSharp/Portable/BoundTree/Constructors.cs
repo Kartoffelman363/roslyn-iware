@@ -5,6 +5,7 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
 using Microsoft.CodeAnalysis.CSharp.Symbols;
+using Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Microsoft.CodeAnalysis.CSharp
@@ -652,19 +653,16 @@ namespace Microsoft.CodeAnalysis.CSharp
         }
     }
 
-    /*
     internal partial class BoundSqlStatement
     {
-        public BoundSqlStatement(SyntaxNode syntax, string sqlContents
-            //, ImmutableArray<BoundCatchBlock> catchBlocks, BoundBlock? finallyBlockOpt, LabelSymbol? finallyLabelOpt = null
+        public BoundSqlStatement(SyntaxNode syntax, string sqlContents, BoundSqlDoBlock sqlDoOpt
                 )
-            : this(syntax, sqlContents
+            : this(syntax, sqlContents, sqlDoOpt
                   //, catchBlocks, finallyBlockOpt, finallyLabelOpt, preferFaultHandler: false
                   , hasErrors: false)
         {
         }
     }
-    */
 
     internal partial class BoundAddressOfOperator
     {

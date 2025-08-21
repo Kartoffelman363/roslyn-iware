@@ -3230,6 +3230,14 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
             Debug.Assert(node != null);
 
+            //BoundExpression sqlDoBoundExpression = null;
+            BoundSqlDoBlock? sqlDoBoundBlock = null;
+            if (node.SqlDo is not null)
+            {
+                //sqlDoBoundExpression = BindExpression(sqlDo, diagnostics);
+                sqlDoBoundBlock = BindSqlDoBlock(node.SqlDo, diagnostics);
+            }
+
             //var sqlBlock = BindEmbeddedBlock(node.Block, diagnostics);
 
             //var sqlText = node.Block.GetText().ToString();
@@ -3240,35 +3248,15 @@ namespace Microsoft.CodeAnalysis.CSharp
             //var finallyBlockOpt = (node.Finally != null) ? BindEmbeddedBlock(node.Finally.Block, diagnostics) : null;
 
             // sqlBlock, catchBlocks, finallyBlockOpt
-            return new BoundSqlStatement(node, node.SqlTextToken.ValueText);
+            //return new BoundSqlStatement(node, node.SqlTextToken.ValueText, sqlDoBoundExpression);
+            return new BoundSqlStatement(node, node.SqlTextToken.ValueText, sqlDoBoundBlock);
         }
-        /*
-        private BoundSqlStatement BindSqlStatement(SqlStatementSyntax node, BindingDiagnosticBag diagnostics)
+
+        private BoundSqlDoBlock BindSqlDoBlock(SqlDoClauseSyntax node, BindingDiagnosticBag diagnostics)
         {
-            var sqlText = node.Block.GetText().ToString();
-
-            var sqlLiteralSyntax = SyntaxFactory.LiteralExpression(
-                SyntaxKind.StringLiteralExpression,
-                SyntaxFactory.Literal(sqlText));
-
-            var invocationSyntax = SyntaxFactory.InvocationExpression(
-                SyntaxFactory.IdentifierName("MySqlFunction"),
-                SyntaxFactory.ArgumentList(
-                    SyntaxFactory.SingletonSeparatedList(
-                        SyntaxFactory.Argument(sqlLiteralSyntax))));
-
-            var boundInvocation = BindExpression(invocationSyntax, diagnostics);
-
-            var boundStatement = new BoundExpressionStatement(invocationSyntax, boundInvocation);
-
-            // Create a block containing just the invocation
-            var block = new BoundBlock(node.Block, locals: ImmutableArray<LocalSymbol>.Empty, statements: [boundStatement]);
-
-            //throw new Exception($"This is my block {block.Syntax.ToFullString()}");
-
-            return new BoundSqlStatement(node, block);
+            var body = BindBlock(node.Block, diagnostics);
+            return new BoundSqlDoBlock(node, body);
         }
-        */
 
         private ImmutableArray<BoundCatchBlock> BindCatchBlocks(SyntaxList<CatchClauseSyntax> catchClauses, BindingDiagnosticBag diagnostics)
         {

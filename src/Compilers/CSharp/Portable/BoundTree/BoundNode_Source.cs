@@ -80,47 +80,11 @@ namespace Microsoft.CodeAnalysis.CSharp
                                 appendLine(sqlStatement.SqlContents);
                                 appendLine("}");
                             }
-                            /*
-                            var catchBlocks = tryStatement.CatchBlocks;
-                            if (catchBlocks != null)
+                            if (sqlStatement.SqlDoOpt is not null)
                             {
-                                foreach (var catchBlock in catchBlocks)
-                                {
-                                    append("catch (");
-                                    append(catchBlock.ExceptionTypeOpt?.Name);
-                                    append(" ");
-                                    appendSource(catchBlock.ExceptionSourceOpt);
-                                    append(")");
-                                    if (catchBlock.ExceptionFilterOpt is { } exceptionFilter)
-                                    {
-                                        if (catchBlock.ExceptionFilterPrologueOpt is { } exceptionFilterPrologue)
-                                        {
-                                            appendLine("");
-                                            appendLine("{");
-                                            appendSource(exceptionFilterPrologue);
-                                            appendLine("}");
-                                        }
-                                        else
-                                        {
-                                            append(" ");
-                                        }
-                                        append("when (");
-                                        appendSource(exceptionFilter);
-                                        append(")");
-                                    }
-                                    appendLine("");
-
-                                    appendSource(catchBlock.Body);
-                                }
+                                appendLine("sqlDo");
+                                appendSource(sqlStatement.SqlDoOpt);
                             }
-
-                            var finallyBlock = tryStatement.FinallyBlockOpt;
-                            if (finallyBlock != null)
-                            {
-                                appendLine("finally");
-                                appendSource(finallyBlock);
-                            }
-                            */
                             break;
                         }
                     case BoundThrowStatement throwStatement:

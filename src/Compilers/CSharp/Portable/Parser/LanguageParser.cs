@@ -14,6 +14,7 @@ using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
 {
+    using Microsoft.Cci;
     using Microsoft.CodeAnalysis.Shared.Collections;
     using Microsoft.CodeAnalysis.Syntax.InternalSyntax;
 
@@ -9012,96 +9013,45 @@ done:
 
         private SqlStatementSyntax ParseSqlStatement(SyntaxList<AttributeListSyntax> attributes)
         {
+            // PS ne pozabi dodati keyworde v "Is*" (e.g. IsPartialType) izjave!
             Debug.Assert(this.CurrentToken.Kind is SyntaxKind.SqlKeyword or SyntaxKind.SqlDoKeyword or SyntaxKind.SqlEmptyKeyword or SyntaxKind.SqlEndKeyword);
 
+            // sql
             var @sql = this.EatToken(SyntaxKind.SqlKeyword);
-
-            //string sqlContents = null;
             SyntaxToken openBrace = null;
             SyntaxToken closeBrace = null;
             SyntaxToken sqlContents = null;
             if (this.CurrentToken.Kind == SyntaxKind.OpenBraceToken)
             {
                 openBrace = this.EatToken(SyntaxKind.OpenBraceToken);
-                //sqlContents = LexSqlTextLiteral();
                 sqlContents = this.ParseSqlBlock();
                 closeBrace = this.EatToken(SyntaxKind.CloseBraceToken);
                 //sqlBlock = this.ParsePossiblyAttributedBlock();
             }
-            // If I want to make sql "SELECT ..." statements valid
-            //else if (this.CurrentToken.Kind == SyntaxKind.DoubleQuoteToken)
-            //{}
             else
             {
                 Debug.Assert(false);
             }
 
-            /*
-             * // TODO-aljaz add SqlDo, SqlEmpty and SqlEnd clauses
-             * // PS ne pozabi dodati keyworde v "Is*" (e.g. IsPartialType) izjave!
-            */
+            // sqlDo -- from block to lambda
+            //AnonymousMethodExpressionSyntax sqlDo = null;
+            SqlDoClauseSyntax sqlDo = null;
+            if (this.CurrentToken.Kind == SyntaxKind.SqlDoKeyword)
+            {
+                sqlDo = ParseSqlDoClause();
+            }
 
             return _syntaxFactory.SqlStatement(
                 attributes,
                 @sql,
                 openBrace,
                 sqlContents,
-                closeBrace);
-
-            //BlockSyntax missingBlock()
-            //    => _syntaxFactory.Block(
-            //        attributeLists: default,
-            //        SyntaxFactory.MissingToken(SyntaxKind.OpenBraceToken),
-            //        statements: default,
-            //        SyntaxFactory.MissingToken(SyntaxKind.CloseBraceToken));
+                closeBrace,
+                sqlDo);
         }
-
-        /*
-        private SyntaxToken LexSqlTextLiteral()
-        {
-            var start = this.lexer.TextWindow.Position;
-            int braceDepth = 1;
-            while (true)
-            {
-                char ch = this.lexer.TextWindow.PeekChar();
-                //TODO-aljaz add ignore curly braces in comments
-                //throw new Exception($"Goes at least once :{(int)ch}:");
-                if (ch == '{')
-                {
-                    braceDepth++;
-                }
-                else if (ch == '}')
-                {
-                    braceDepth--;
-                }
-                if (braceDepth < 1 || ch == '\0')
-                {
-                    break;
-                }
-                this.lexer.TextWindow.AdvanceChar();
-            }
-            var text = this.lexer.TextWindow.GetText(intern: true);
-            return SyntaxFactory.Token(
-                    leading: null,
-                    kind: SyntaxKind.SqlTextLiteralToken,
-                    text: text,
-                    valueText: text,
-                    trailing: null
-                );
-        }
-        */
 
         private SyntaxToken ParseSqlBlock()
         {
-            //while (this.CurrentToken.Kind == SyntaxKind.WhitespaceTrivia)
-            //{
-            //    this.EatToken(SyntaxKind.WhitespaceTrivia);
-            //}
-            //throw new Exception($"We're here :{this.CurrentToken.ToFullString()}:");
-            //Debug.Assert(this.CurrentToken.Kind == SyntaxKind.OpenBraceToken);
-            //this.EatToken(SyntaxKind.OpenBraceToken);
-
-            //var rawTokens = new List<SyntaxToken>();
             var pooled = PooledStringBuilder.GetInstance();
             var stringBuilder = pooled.Builder;
             //TODO-aljaz add ignore curly braces in comments
@@ -9121,12 +9071,10 @@ done:
                     }
                 }
 
-                //rawTokens.Add(token);
                 stringBuilder.Append(this.CurrentToken.ToFullString());
                 this.EatToken();
             }
-            //return string.Concat(rawTokens.SelectAsArray(c => c.Text));
-            //return pooled.ToStringAndFree();
+
             var text = pooled.ToStringAndFree();
             return SyntaxFactory.Token(
                     leading: null,
@@ -9136,6 +9084,57 @@ done:
                     trailing: null
                 );
         }
+
+        private SqlDoClauseSyntax ParseSqlDoClause()
+        {
+            Debug.Assert(this.CurrentToken.Kind == SyntaxKind.SqlDoKeyword, "SqlDo missing keyword");
+            var sqlDoKeyword = EatToken(SyntaxKind.SqlDoKeyword);
+            Debug.Assert(this.CurrentToken.Kind == SyntaxKind.OpenBraceToken, "SqlDo missing block");
+            var sqlDoBlock = ParsePossiblyAttributedBlock();
+            return SyntaxFactory.SqlDoClause(sqlDoKeyword, sqlDoBlock);
+        }
+
+        /*
+        private AnonymousMethodExpressionSyntax ParseSqlDoClause()
+        {
+            var sqlDo = this.EatToken(SyntaxKind.SqlDoKeyword);
+            BlockSyntax block = ParsePossiblyAttributedBlock();
+
+            SyntaxList<SyntaxToken> modifiers = null; // SyntaxFactory.List<SyntaxToken>();
+            SyntaxToken delegateKeyword = SyntaxFactory.MissingToken(SyntaxKind.DelegateKeyword);
+
+            var par1 = _syntaxFactory.Parameter(
+                attributeLists: null,
+                modifiers: null,
+                //_syntaxFactory.IdentifierName(SyntaxFactory.Identifier("IDataRecord")),
+                //type: _syntaxFactory.IdentifierName(SyntaxFactory.MissingToken(SyntaxKind.IDataRecordWord)),
+                type: null,
+                //ConvertToIdentifier(SyntaxFactory.MissingToken(SyntaxKind.RecordWord)),
+                //CreateMissingIdentifierToken(),
+                identifier: null,
+                @default: null);
+            var par2 = _syntaxFactory.Parameter(
+                null,
+                null,
+                //SyntaxFactory.IdentifierName(SyntaxFactory.Identifier("bool")),
+                null,
+                //SyntaxFactory.Identifier("firstLine"),
+                null,
+                null);
+            var paramSeparatorToken = SyntaxFactory.MissingToken(SyntaxKind.CommaToken);
+            ParameterListSyntax parameterList = SyntaxFactory.ParameterList(
+                SyntaxFactory.MissingToken(SyntaxKind.OpenParenToken),
+                SyntaxFactory.SeparatedList<ParameterSyntax>([par1, paramSeparatorToken, par2]),
+                SyntaxFactory.MissingToken(SyntaxKind.CloseParenToken));
+
+            return _syntaxFactory.AnonymousMethodExpression(
+                default,
+                delegateKeyword,
+                parameterList,
+                block,
+                null);
+        }
+        */
 
         private TryStatementSyntax ParseTryStatement(SyntaxList<AttributeListSyntax> attributes)
         {

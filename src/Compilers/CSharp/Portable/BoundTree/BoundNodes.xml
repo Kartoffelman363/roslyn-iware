@@ -1343,14 +1343,12 @@
   </Node>
 
   <Node Name="BoundSqlStatement" Base="BoundStatement">
-    <!--Field Name="SqlBlock" Type="BoundBlock"/-->
     <Field Name="SqlContents" Type="string"/>
-    <!--
-    <Field Name="CatchBlocks" Type="ImmutableArray&lt;BoundCatchBlock&gt;"/>
-    <Field Name="FinallyBlockOpt" Type="BoundBlock?"/>
-    -->
+    <Field Name="SqlDoOpt" Type="BoundSqlDoBlock?" />
+  </Node>
 
-    <!--Field Name="FinallyLabelOpt" Type="LabelSymbol?"/-->
+  <Node Name="BoundSqlDoBlock" Base="BoundStatement">
+    <Field Name="Body" Type="BoundBlock" />
   </Node>
 
   <Node Name="BoundCatchBlock" Base="BoundNode">

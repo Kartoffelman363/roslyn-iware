@@ -1148,8 +1148,28 @@ namespace Microsoft.CodeAnalysis.CSharp
                 SyntaxKind.StringLiteralExpression,
                 SyntaxFactory.Literal(sqlText));
 
-            // Bind that literal to get a BoundExpression
-            var boundLiteral = _factory.Literal(sqlText);
+            // Types
+            var sqlTextBoundLiteral = _factory.Literal(sqlText);
+            var iDataRecordType = _compilation.GetTypeByMetadataName("System.Data.IDataRecord");
+            Debug.Assert(iDataRecordType is not null, "Could not find type System.Data.IDataRecord");
+            var sqlDoType = _compilation.GetWellKnownType(WellKnownType.System_Action_T2).Construct(
+                    iDataRecordType,
+                    _compilation.GetSpecialType(SpecialType.System_Boolean));
+
+            // sqlDo
+            BoundExpression sqlDoBoundLiteral = _factory.Null(sqlDoType);
+            if (node.SqlDoOpt is not null)
+            {
+                //var sqlDoBody = (BoundBlock?)Visit(node.SqlDoOpt.Body);
+                var sqlDoBody = node.SqlDoOpt.Body;
+                Debug.Assert(sqlDoBody is not null, "");
+                //var lam = SyntaxFactory.ParenthesizedLambdaExpression(sqlDoBody);
+                //SyntaxFactory.AnonymousMethodExpression
+            }
+            //var sqlDoBoundLiteral = _factory.Null(sqlDoType);
+            var sqlEmptyType = _compilation.GetWellKnownType(WellKnownType.System_Action);
+            var sqlEmptyBoundLiteral = _factory.Null(sqlEmptyType);
+            var sqlEndBoundLiteral = _factory.Null(sqlEmptyType);
 
             // Create a bound call to MySqlFunction(string)
             var mySqlMethod = tryLookupMySqlFunction(node.Syntax);
@@ -1159,7 +1179,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             var boundCall = _factory.Call(
                 receiver: null,
                 method: mySqlMethod,
-                args: ImmutableArray.Create<BoundExpression>(boundLiteral)
+                args: ImmutableArray.Create<BoundExpression>(sqlTextBoundLiteral, sqlDoBoundLiteral, sqlEmptyBoundLiteral, sqlEndBoundLiteral)
                 );
 
             // Return as a normal expression statement so later passes/emit see a call
@@ -1171,9 +1191,18 @@ namespace Microsoft.CodeAnalysis.CSharp
                 var mySqlFunction = type?
                     .GetMembers("SqlCommand")
                     .OfType<MethodSymbol>()
-                    .FirstOrDefault(m => m.Parameters.Length == 1 && m.Parameters[0].Type.SpecialType == SpecialType.System_String);
+                    .FirstOrDefault(m => m.Parameters.Length == 4 && m.Parameters[0].Type.SpecialType == SpecialType.System_String);
                 return mySqlFunction;
             }
+        }
+
+        public override BoundNode? VisitSqlDoBlock(BoundSqlDoBlock node)
+        {
+            Debug.Assert(false, "Here");
+            var body = Visit(node.Body);
+            Debug.Assert(body is not null && body.Kind == BoundKind.Block, $"SqlDoBlock.Body is {(body is null ? "null" : $"incorrect kind: {body.Kind.ToString()}")}");
+            var loweredBody = (BoundBlock)body!;
+            return new BoundSqlDoBlock(node.Syntax, loweredBody);
         }
 
 #if DEBUG

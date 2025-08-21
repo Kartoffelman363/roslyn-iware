@@ -3019,12 +3019,21 @@
     <Field Name="SqlCloseBraceToken" Type="SyntaxToken">
       <Kind Name="CloseBraceToken"/>
     </Field>
+    <Field Name="SqlDo" Type="SqlDoClauseSyntax" Optional="true"/>
     <!--Field Name="Block" Type="BlockSyntax"  Optional="true" /-->
     <!--Field Name="SqlContents" Type="string" Optional="true" /-->
     <!--might also need Override idk what it is-->
     <!--Kind Name="StringLiteralToken" /-->
     <!--/Field-->
   </Node>
+  <Node Name="SqlDoClauseSyntax" Base="CSharpSyntaxNode">
+    <Kind Name="SqlDoClause"/>
+    <Field Name="SqlDoKeyword" Type="SyntaxToken">
+      <Kind Name="SqlDoKeyword"/>
+    </Field>
+    <Field Name="Block" Type="BlockSyntax"/>
+  </Node>
+
 
   <Node Name="TryStatementSyntax" Base="StatementSyntax">
     <Kind Name="TryStatement"/>
