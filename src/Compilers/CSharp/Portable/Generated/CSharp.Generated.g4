@@ -560,11 +560,7 @@ return_statement
   ;
 
 sql_statement
-  : attribute_list* 'sql' '{' sql_text_literal_token '}' sql_do_clause?
-  ;
-
-sql_do_clause
-  : 'sqlDo' block
+  : attribute_list* 'sql' '{' sql_text_literal_token '}' expression?
   ;
 
 switch_statement

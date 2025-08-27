@@ -61,6 +61,14 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax
             }
         }
 
+        class SqlSyntaxRewriter : CSharpSyntaxRewriter
+        {
+            public override SyntaxNode? VisitSqlStatement(SqlStatementSyntax node)
+            {
+                return base.VisitSqlStatement(node);
+            }
+        }
+
         private class Replacer<TNode> : CSharpSyntaxRewriter where TNode : SyntaxNode
         {
             private readonly Func<TNode, TNode, SyntaxNode>? _computeReplacementNode;

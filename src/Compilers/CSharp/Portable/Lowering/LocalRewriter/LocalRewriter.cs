@@ -1160,12 +1160,22 @@ namespace Microsoft.CodeAnalysis.CSharp
             BoundExpression sqlDoBoundLiteral = _factory.Null(sqlDoType);
             if (node.SqlDoOpt is not null)
             {
-                //var sqlDoBody = (BoundBlock?)Visit(node.SqlDoOpt.Body);
-                var sqlDoBody = node.SqlDoOpt.Body;
-                Debug.Assert(sqlDoBody is not null, "");
-                //var lam = SyntaxFactory.ParenthesizedLambdaExpression(sqlDoBody);
-                //SyntaxFactory.AnonymousMethodExpression
+                ////var sqlDoBody = (BoundBlock?)Visit(node.SqlDoOpt.Body);
+                ////var sqlDoBody = node.SqlDoOpt.Body;
+                //var sqlDoLambda = node.SqlDoOpt; // (UnboundLambda?)VisitUnboundLambda(node.SqlDoOpt);
+                //Debug.Assert(sqlDoLambda is not null, "Zoinks");
+                ////var lam = SyntaxFactory.ParenthesizedLambdaExpression(sqlDoBody);
+                ////SyntaxFactory.AnonymousMethodExpression
+                ////var n = VisitUnboundLambda(node.SqlDoOpt);
+                ////var sqlDoBoundLambda = sqlDoLambda.Bind(sqlDoType, false);
+                //var visited = /*(BoundExpression?)Visit(sqlDoLambda);*/new BoundDelegateCreationExpression(sqlDoLambda.Syntax, sqlDoLambda, null, false, true, sqlDoType);
+                ////Debug.Assert(visited is not null);
+                //var visited = (BoundExpression?)Visit(node.SqlDoOpt);
+                //Debug.Assert(visited is not null);
+                Debug.Assert(node.SqlDoOpt.Kind != BoundKind.UnboundLambda, "Can't be an unbound lambda");
+                sqlDoBoundLiteral = (BoundExpression)Visit(node.SqlDoOpt)!;
             }
+
             //var sqlDoBoundLiteral = _factory.Null(sqlDoType);
             var sqlEmptyType = _compilation.GetWellKnownType(WellKnownType.System_Action);
             var sqlEmptyBoundLiteral = _factory.Null(sqlEmptyType);
@@ -1174,7 +1184,6 @@ namespace Microsoft.CodeAnalysis.CSharp
             // Create a bound call to MySqlFunction(string)
             var mySqlMethod = tryLookupMySqlFunction(node.Syntax);
             Debug.Assert(mySqlMethod is not null, "iWare.Database.SqlCommands.SqlCommand is missing");
-            // ^ you'll need to resolve the symbol for MySqlFunction here (see note below)
 
             var boundCall = _factory.Call(
                 receiver: null,
@@ -1196,14 +1205,14 @@ namespace Microsoft.CodeAnalysis.CSharp
             }
         }
 
-        public override BoundNode? VisitSqlDoBlock(BoundSqlDoBlock node)
-        {
-            Debug.Assert(false, "Here");
-            var body = Visit(node.Body);
-            Debug.Assert(body is not null && body.Kind == BoundKind.Block, $"SqlDoBlock.Body is {(body is null ? "null" : $"incorrect kind: {body.Kind.ToString()}")}");
-            var loweredBody = (BoundBlock)body!;
-            return new BoundSqlDoBlock(node.Syntax, loweredBody);
-        }
+        //public override BoundNode? VisitSqlDoBlock(BoundSqlDoBlock node)
+        //{
+        //    Debug.Assert(false, "Here");
+        //    var body = Visit(node.Body);
+        //    Debug.Assert(body is not null && body.Kind == BoundKind.Block, $"SqlDoBlock.Body is {(body is null ? "null" : $"incorrect kind: {body.Kind.ToString()}")}");
+        //    var loweredBody = (BoundBlock)body!;
+        //    return new BoundSqlDoBlock(node.Syntax, loweredBody);
+        //}
 
 #if DEBUG
         /// <summary>

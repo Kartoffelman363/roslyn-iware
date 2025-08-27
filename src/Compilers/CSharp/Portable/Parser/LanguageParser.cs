@@ -9030,16 +9030,19 @@ done:
             }
             else
             {
-                Debug.Assert(false);
+                Debug.Fail("sql statement cannot be empty");
             }
 
+            //TODO-aljaz rewrite block as lambda?
+
+
             // sqlDo -- from block to lambda
-            //AnonymousMethodExpressionSyntax sqlDo = null;
-            SqlDoClauseSyntax sqlDo = null;
-            if (this.CurrentToken.Kind == SyntaxKind.SqlDoKeyword)
-            {
+            ExpressionSyntax sqlDo = null;
+            //SqlDoClauseSyntax sqlDo = null;
+            //if (this.CurrentToken.Kind == SyntaxKind.SqlDoKeyword)
+            //{
                 sqlDo = ParseSqlDoClause();
-            }
+            //}
 
             return _syntaxFactory.SqlStatement(
                 attributes,
@@ -9085,14 +9088,23 @@ done:
                 );
         }
 
-        private SqlDoClauseSyntax ParseSqlDoClause()
+        private ParenthesizedLambdaExpressionSyntax ParseSqlDoClause()
         {
-            Debug.Assert(this.CurrentToken.Kind == SyntaxKind.SqlDoKeyword, "SqlDo missing keyword");
-            var sqlDoKeyword = EatToken(SyntaxKind.SqlDoKeyword);
-            Debug.Assert(this.CurrentToken.Kind == SyntaxKind.OpenBraceToken, "SqlDo missing block");
-            var sqlDoBlock = ParsePossiblyAttributedBlock();
-            return SyntaxFactory.SqlDoClause(sqlDoKeyword, sqlDoBlock);
+            //var sqlDoKeywordToken = EatToken(SyntaxKind.SqlDoKeyword);
+            var paramList = ParseParenthesizedParameterList(false);
+            var arrowToken = EatToken(SyntaxKind.EqualsGreaterThanToken);
+            var block = ParsePossiblyAttributedBlock();
+            return SyntaxFactory.ParenthesizedLambdaExpression(null, null, null, paramList, arrowToken, block, null);
         }
+
+        //private SqlDoClauseSyntax ParseSqlDoClause()
+        //{
+        //    Debug.Assert(this.CurrentToken.Kind == SyntaxKind.SqlDoKeyword, "SqlDo missing keyword");
+        //    var sqlDoKeyword = EatToken(SyntaxKind.SqlDoKeyword);
+        //    Debug.Assert(this.CurrentToken.Kind == SyntaxKind.OpenBraceToken, "SqlDo missing block");
+        //    var sqlDoBlock = ParsePossiblyAttributedBlock();
+        //    return _syntaxFactory.SqlDoClause(sqlDoKeyword, sqlDoBlock);
+        //}
 
         /*
         private AnonymousMethodExpressionSyntax ParseSqlDoClause()
@@ -9138,8 +9150,6 @@ done:
 
         private TryStatementSyntax ParseTryStatement(SyntaxList<AttributeListSyntax> attributes)
         {
-            Debug.Assert(this.CurrentToken.Kind is SyntaxKind.TryKeyword or SyntaxKind.CatchKeyword or SyntaxKind.FinallyKeyword);
-
             // We are called into on try/catch/finally, so eating the try may actually fail.
             var @try = this.EatToken(SyntaxKind.TryKeyword);
 

@@ -1344,12 +1344,12 @@
 
   <Node Name="BoundSqlStatement" Base="BoundStatement">
     <Field Name="SqlContents" Type="string"/>
-    <Field Name="SqlDoOpt" Type="BoundSqlDoBlock?" />
+    <Field Name="SqlDoOpt" Type="BoundExpression?" />
   </Node>
 
-  <Node Name="BoundSqlDoBlock" Base="BoundStatement">
+  <!--Node Name="BoundSqlDoBlock" Base="BoundStatement">
     <Field Name="Body" Type="BoundBlock" />
-  </Node>
+  </Node-->
 
   <Node Name="BoundCatchBlock" Base="BoundNode">
     <!-- 

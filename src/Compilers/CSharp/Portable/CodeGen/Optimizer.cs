@@ -565,7 +565,7 @@ namespace Microsoft.CodeAnalysis.CSharp.CodeGen
 
         public BoundNode VisitStatement(BoundNode node)
         {
-            Debug.Assert(node == null || EvalStackIsEmpty());
+            Debug.Assert(node == null || EvalStackIsEmpty(), $"node kind ::{node.Kind.ToString()}::\nnode ::{node.Syntax.ToFullString()}::");
             return VisitSideEffect(node);
         }
 
@@ -1683,13 +1683,15 @@ namespace Microsoft.CodeAnalysis.CSharp.CodeGen
         //TODO-aljaz do I need Optimizer VisitSqlStatement?
         public override BoundNode VisitSqlStatement(BoundSqlStatement node)
         {
+            Debug.Fail("What");
             EnsureOnlyEvalStack();
             var sqlText = node.SqlContents;
             //var sqlBlock = (BoundBlock)this.Visit(node.SqlBlock);
-            BoundSqlDoBlock? sqlDoBlock = null;
+            //BoundSqlDoBlock? sqlDoBlock = null;
+            BoundLambda? sqlDoBlock = null;
             if (node.SqlDoOpt is not null)
             {
-                sqlDoBlock = (BoundSqlDoBlock)this.Visit(node.SqlDoOpt);
+                sqlDoBlock = (BoundLambda)this.Visit(node.SqlDoOpt);
             }
 
             //var catchBlocks = this.VisitList(node.CatchBlocks);

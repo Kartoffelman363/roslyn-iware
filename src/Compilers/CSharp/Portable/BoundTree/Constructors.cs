@@ -655,7 +655,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
     internal partial class BoundSqlStatement
     {
-        public BoundSqlStatement(SyntaxNode syntax, string sqlContents, BoundSqlDoBlock sqlDoOpt
+        public BoundSqlStatement(SyntaxNode syntax, string sqlContents, BoundLambda sqlDoOpt
                 )
             : this(syntax, sqlContents, sqlDoOpt
                   //, catchBlocks, finallyBlockOpt, finallyLabelOpt, preferFaultHandler: false

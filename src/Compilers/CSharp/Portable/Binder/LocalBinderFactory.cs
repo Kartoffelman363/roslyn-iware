@@ -851,23 +851,29 @@ namespace Microsoft.CodeAnalysis.CSharp
 
         public override void VisitSqlStatement(SqlStatementSyntax node)
         {
-            Visit(node.SqlDo, _enclosing);
+            //var x = new WithLambdaParametersBinder(node.SqlDo, _enclosing);
+            //var sqlDoBlockBinder = new BlockBinder(_enclosing, node.SqlDo.Block);
+            //AddToMap(node.SqlDo, sqlDoBlockBinder);
+            //Visit(node.SqlDo.Body, sqlDoBlockBinder);
+            //Visit(node.SqlDo.ParameterList);
+            Visit(node.SqlDo);
         }
 
-        public override void VisitSqlDoClause(SqlDoClauseSyntax node)
-        {
-            var sqlDoBlockBinder = new BlockBinder(_enclosing, node.Block);
-            AddToMap(node, sqlDoBlockBinder);
-            Visit(node.Block, sqlDoBlockBinder);
-            /*
-            foreach (var statement in node.Block.Statements)
-            {
-                var sqlDoStatementBinder = new EmbeddedStatementBinder(_enclosing, statement);
-                AddToMap(statement, sqlDoStatementBinder);
-                Visit(statement, sqlDoStatementBinder);
-            }
-            */
-        }
+        //public override void VisitSqlDoClause(SqlDoClauseSyntax node)
+        //{
+        //    //var sqlDoBlockBinder = new BlockBinder(_enclosing, node.Block);
+        //    var sqlDoClauseBinder = new SqlDoClauseBinder(_enclosing, node);
+        //    AddToMap(node, sqlDoClauseBinder);
+        //    Visit(node.Block, sqlDoClauseBinder);
+        //    /*
+        //    foreach (var statement in node.Block.Statements)
+        //    {
+        //        var sqlDoStatementBinder = new EmbeddedStatementBinder(_enclosing, statement);
+        //        AddToMap(statement, sqlDoStatementBinder);
+        //        Visit(statement, sqlDoStatementBinder);
+        //    }
+        //    */
+        //}
 
         public override void VisitTryStatement(TryStatementSyntax node)
         {

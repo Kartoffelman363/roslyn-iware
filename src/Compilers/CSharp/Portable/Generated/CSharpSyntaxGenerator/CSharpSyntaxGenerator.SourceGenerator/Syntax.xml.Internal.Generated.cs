@@ -14397,9 +14397,9 @@ internal sealed partial class SqlStatementSyntax : StatementSyntax
     internal readonly SyntaxToken sqlOpenBraceToken;
     internal readonly SyntaxToken sqlTextToken;
     internal readonly SyntaxToken sqlCloseBraceToken;
-    internal readonly SqlDoClauseSyntax? sqlDo;
+    internal readonly ExpressionSyntax? sqlDo;
 
-    internal SqlStatementSyntax(SyntaxKind kind, GreenNode? attributeLists, SyntaxToken sqlKeyword, SyntaxToken sqlOpenBraceToken, SyntaxToken sqlTextToken, SyntaxToken sqlCloseBraceToken, SqlDoClauseSyntax? sqlDo, DiagnosticInfo[]? diagnostics, SyntaxAnnotation[]? annotations)
+    internal SqlStatementSyntax(SyntaxKind kind, GreenNode? attributeLists, SyntaxToken sqlKeyword, SyntaxToken sqlOpenBraceToken, SyntaxToken sqlTextToken, SyntaxToken sqlCloseBraceToken, ExpressionSyntax? sqlDo, DiagnosticInfo[]? diagnostics, SyntaxAnnotation[]? annotations)
       : base(kind, diagnostics, annotations)
     {
         this.SlotCount = 6;
@@ -14423,7 +14423,7 @@ internal sealed partial class SqlStatementSyntax : StatementSyntax
         }
     }
 
-    internal SqlStatementSyntax(SyntaxKind kind, GreenNode? attributeLists, SyntaxToken sqlKeyword, SyntaxToken sqlOpenBraceToken, SyntaxToken sqlTextToken, SyntaxToken sqlCloseBraceToken, SqlDoClauseSyntax? sqlDo, SyntaxFactoryContext context)
+    internal SqlStatementSyntax(SyntaxKind kind, GreenNode? attributeLists, SyntaxToken sqlKeyword, SyntaxToken sqlOpenBraceToken, SyntaxToken sqlTextToken, SyntaxToken sqlCloseBraceToken, ExpressionSyntax? sqlDo, SyntaxFactoryContext context)
       : base(kind)
     {
         this.SetFactoryContext(context);
@@ -14448,7 +14448,7 @@ internal sealed partial class SqlStatementSyntax : StatementSyntax
         }
     }
 
-    internal SqlStatementSyntax(SyntaxKind kind, GreenNode? attributeLists, SyntaxToken sqlKeyword, SyntaxToken sqlOpenBraceToken, SyntaxToken sqlTextToken, SyntaxToken sqlCloseBraceToken, SqlDoClauseSyntax? sqlDo)
+    internal SqlStatementSyntax(SyntaxKind kind, GreenNode? attributeLists, SyntaxToken sqlKeyword, SyntaxToken sqlOpenBraceToken, SyntaxToken sqlTextToken, SyntaxToken sqlCloseBraceToken, ExpressionSyntax? sqlDo)
       : base(kind)
     {
         this.SlotCount = 6;
@@ -14477,7 +14477,7 @@ internal sealed partial class SqlStatementSyntax : StatementSyntax
     public SyntaxToken SqlOpenBraceToken => this.sqlOpenBraceToken;
     public SyntaxToken SqlTextToken => this.sqlTextToken;
     public SyntaxToken SqlCloseBraceToken => this.sqlCloseBraceToken;
-    public SqlDoClauseSyntax? SqlDo => this.sqlDo;
+    public ExpressionSyntax? SqlDo => this.sqlDo;
 
     internal override GreenNode? GetSlot(int index)
         => index switch
@@ -14496,7 +14496,7 @@ internal sealed partial class SqlStatementSyntax : StatementSyntax
     public override void Accept(CSharpSyntaxVisitor visitor) => visitor.VisitSqlStatement(this);
     public override TResult Accept<TResult>(CSharpSyntaxVisitor<TResult> visitor) => visitor.VisitSqlStatement(this);
 
-    public SqlStatementSyntax Update(CoreSyntax.SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken sqlKeyword, SyntaxToken sqlOpenBraceToken, SyntaxToken sqlTextToken, SyntaxToken sqlCloseBraceToken, SqlDoClauseSyntax sqlDo)
+    public SqlStatementSyntax Update(CoreSyntax.SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken sqlKeyword, SyntaxToken sqlOpenBraceToken, SyntaxToken sqlTextToken, SyntaxToken sqlCloseBraceToken, ExpressionSyntax sqlDo)
     {
         if (attributeLists != this.AttributeLists || sqlKeyword != this.SqlKeyword || sqlOpenBraceToken != this.SqlOpenBraceToken || sqlTextToken != this.SqlTextToken || sqlCloseBraceToken != this.SqlCloseBraceToken || sqlDo != this.SqlDo)
         {
@@ -14518,82 +14518,6 @@ internal sealed partial class SqlStatementSyntax : StatementSyntax
 
     internal override GreenNode SetAnnotations(SyntaxAnnotation[]? annotations)
         => new SqlStatementSyntax(this.Kind, this.attributeLists, this.sqlKeyword, this.sqlOpenBraceToken, this.sqlTextToken, this.sqlCloseBraceToken, this.sqlDo, GetDiagnostics(), annotations);
-}
-
-internal sealed partial class SqlDoClauseSyntax : CSharpSyntaxNode
-{
-    internal readonly SyntaxToken sqlDoKeyword;
-    internal readonly BlockSyntax block;
-
-    internal SqlDoClauseSyntax(SyntaxKind kind, SyntaxToken sqlDoKeyword, BlockSyntax block, DiagnosticInfo[]? diagnostics, SyntaxAnnotation[]? annotations)
-      : base(kind, diagnostics, annotations)
-    {
-        this.SlotCount = 2;
-        this.AdjustFlagsAndWidth(sqlDoKeyword);
-        this.sqlDoKeyword = sqlDoKeyword;
-        this.AdjustFlagsAndWidth(block);
-        this.block = block;
-    }
-
-    internal SqlDoClauseSyntax(SyntaxKind kind, SyntaxToken sqlDoKeyword, BlockSyntax block, SyntaxFactoryContext context)
-      : base(kind)
-    {
-        this.SetFactoryContext(context);
-        this.SlotCount = 2;
-        this.AdjustFlagsAndWidth(sqlDoKeyword);
-        this.sqlDoKeyword = sqlDoKeyword;
-        this.AdjustFlagsAndWidth(block);
-        this.block = block;
-    }
-
-    internal SqlDoClauseSyntax(SyntaxKind kind, SyntaxToken sqlDoKeyword, BlockSyntax block)
-      : base(kind)
-    {
-        this.SlotCount = 2;
-        this.AdjustFlagsAndWidth(sqlDoKeyword);
-        this.sqlDoKeyword = sqlDoKeyword;
-        this.AdjustFlagsAndWidth(block);
-        this.block = block;
-    }
-
-    public SyntaxToken SqlDoKeyword => this.sqlDoKeyword;
-    public BlockSyntax Block => this.block;
-
-    internal override GreenNode? GetSlot(int index)
-        => index switch
-        {
-            0 => this.sqlDoKeyword,
-            1 => this.block,
-            _ => null,
-        };
-
-    internal override SyntaxNode CreateRed(SyntaxNode? parent, int position) => new CSharp.Syntax.SqlDoClauseSyntax(this, parent, position);
-
-    public override void Accept(CSharpSyntaxVisitor visitor) => visitor.VisitSqlDoClause(this);
-    public override TResult Accept<TResult>(CSharpSyntaxVisitor<TResult> visitor) => visitor.VisitSqlDoClause(this);
-
-    public SqlDoClauseSyntax Update(SyntaxToken sqlDoKeyword, BlockSyntax block)
-    {
-        if (sqlDoKeyword != this.SqlDoKeyword || block != this.Block)
-        {
-            var newNode = SyntaxFactory.SqlDoClause(sqlDoKeyword, block);
-            var diags = GetDiagnostics();
-            if (diags?.Length > 0)
-                newNode = newNode.WithDiagnosticsGreen(diags);
-            var annotations = GetAnnotations();
-            if (annotations?.Length > 0)
-                newNode = newNode.WithAnnotationsGreen(annotations);
-            return newNode;
-        }
-
-        return this;
-    }
-
-    internal override GreenNode SetDiagnostics(DiagnosticInfo[]? diagnostics)
-        => new SqlDoClauseSyntax(this.Kind, this.sqlDoKeyword, this.block, diagnostics, GetAnnotations());
-
-    internal override GreenNode SetAnnotations(SyntaxAnnotation[]? annotations)
-        => new SqlDoClauseSyntax(this.Kind, this.sqlDoKeyword, this.block, GetDiagnostics(), annotations);
 }
 
 internal sealed partial class TryStatementSyntax : StatementSyntax
@@ -27165,7 +27089,6 @@ internal partial class CSharpSyntaxVisitor<TResult>
     public virtual TResult VisitSwitchExpression(SwitchExpressionSyntax node) => this.DefaultVisit(node);
     public virtual TResult VisitSwitchExpressionArm(SwitchExpressionArmSyntax node) => this.DefaultVisit(node);
     public virtual TResult VisitSqlStatement(SqlStatementSyntax node) => this.DefaultVisit(node);
-    public virtual TResult VisitSqlDoClause(SqlDoClauseSyntax node) => this.DefaultVisit(node);
     public virtual TResult VisitTryStatement(TryStatementSyntax node) => this.DefaultVisit(node);
     public virtual TResult VisitCatchClause(CatchClauseSyntax node) => this.DefaultVisit(node);
     public virtual TResult VisitCatchDeclaration(CatchDeclarationSyntax node) => this.DefaultVisit(node);
@@ -27417,7 +27340,6 @@ internal partial class CSharpSyntaxVisitor
     public virtual void VisitSwitchExpression(SwitchExpressionSyntax node) => this.DefaultVisit(node);
     public virtual void VisitSwitchExpressionArm(SwitchExpressionArmSyntax node) => this.DefaultVisit(node);
     public virtual void VisitSqlStatement(SqlStatementSyntax node) => this.DefaultVisit(node);
-    public virtual void VisitSqlDoClause(SqlDoClauseSyntax node) => this.DefaultVisit(node);
     public virtual void VisitTryStatement(TryStatementSyntax node) => this.DefaultVisit(node);
     public virtual void VisitCatchClause(CatchClauseSyntax node) => this.DefaultVisit(node);
     public virtual void VisitCatchDeclaration(CatchDeclarationSyntax node) => this.DefaultVisit(node);
@@ -27959,10 +27881,7 @@ internal partial class CSharpSyntaxRewriter : CSharpSyntaxVisitor<CSharpSyntaxNo
         => node.Update((PatternSyntax)Visit(node.Pattern), (WhenClauseSyntax)Visit(node.WhenClause), (SyntaxToken)Visit(node.EqualsGreaterThanToken), (ExpressionSyntax)Visit(node.Expression));
 
     public override CSharpSyntaxNode VisitSqlStatement(SqlStatementSyntax node)
-        => node.Update(VisitList(node.AttributeLists), (SyntaxToken)Visit(node.SqlKeyword), (SyntaxToken)Visit(node.SqlOpenBraceToken), (SyntaxToken)Visit(node.SqlTextToken), (SyntaxToken)Visit(node.SqlCloseBraceToken), (SqlDoClauseSyntax)Visit(node.SqlDo));
-
-    public override CSharpSyntaxNode VisitSqlDoClause(SqlDoClauseSyntax node)
-        => node.Update((SyntaxToken)Visit(node.SqlDoKeyword), (BlockSyntax)Visit(node.Block));
+        => node.Update(VisitList(node.AttributeLists), (SyntaxToken)Visit(node.SqlKeyword), (SyntaxToken)Visit(node.SqlOpenBraceToken), (SyntaxToken)Visit(node.SqlTextToken), (SyntaxToken)Visit(node.SqlCloseBraceToken), (ExpressionSyntax)Visit(node.SqlDo));
 
     public override CSharpSyntaxNode VisitTryStatement(TryStatementSyntax node)
         => node.Update(VisitList(node.AttributeLists), (SyntaxToken)Visit(node.TryKeyword), (BlockSyntax)Visit(node.Block), VisitList(node.Catches), (FinallyClauseSyntax)Visit(node.Finally));
@@ -31396,7 +31315,7 @@ internal partial class ContextAwareSyntax
         return new SwitchExpressionArmSyntax(SyntaxKind.SwitchExpressionArm, pattern, whenClause, equalsGreaterThanToken, expression, this.context);
     }
 
-    public SqlStatementSyntax SqlStatement(CoreSyntax.SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken sqlKeyword, SyntaxToken sqlOpenBraceToken, SyntaxToken sqlTextToken, SyntaxToken sqlCloseBraceToken, SqlDoClauseSyntax? sqlDo)
+    public SqlStatementSyntax SqlStatement(CoreSyntax.SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken sqlKeyword, SyntaxToken sqlOpenBraceToken, SyntaxToken sqlTextToken, SyntaxToken sqlCloseBraceToken, ExpressionSyntax? sqlDo)
     {
 #if DEBUG
         if (sqlKeyword == null) throw new ArgumentNullException(nameof(sqlKeyword));
@@ -31410,27 +31329,6 @@ internal partial class ContextAwareSyntax
 #endif
 
         return new SqlStatementSyntax(SyntaxKind.SqlStatement, attributeLists.Node, sqlKeyword, sqlOpenBraceToken, sqlTextToken, sqlCloseBraceToken, sqlDo, this.context);
-    }
-
-    public SqlDoClauseSyntax SqlDoClause(SyntaxToken sqlDoKeyword, BlockSyntax block)
-    {
-#if DEBUG
-        if (sqlDoKeyword == null) throw new ArgumentNullException(nameof(sqlDoKeyword));
-        if (sqlDoKeyword.Kind != SyntaxKind.SqlDoKeyword) throw new ArgumentException(nameof(sqlDoKeyword));
-        if (block == null) throw new ArgumentNullException(nameof(block));
-#endif
-
-        int hash;
-        var cached = CSharpSyntaxNodeCache.TryGetNode((int)SyntaxKind.SqlDoClause, sqlDoKeyword, block, this.context, out hash);
-        if (cached != null) return (SqlDoClauseSyntax)cached;
-
-        var result = new SqlDoClauseSyntax(SyntaxKind.SqlDoClause, sqlDoKeyword, block, this.context);
-        if (hash >= 0)
-        {
-            SyntaxNodeCache.AddNode(result, hash);
-        }
-
-        return result;
     }
 
     public TryStatementSyntax TryStatement(CoreSyntax.SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken tryKeyword, BlockSyntax block, CoreSyntax.SyntaxList<CatchClauseSyntax> catches, FinallyClauseSyntax? @finally)
@@ -36755,7 +36653,7 @@ internal static partial class SyntaxFactory
         return new SwitchExpressionArmSyntax(SyntaxKind.SwitchExpressionArm, pattern, whenClause, equalsGreaterThanToken, expression);
     }
 
-    public static SqlStatementSyntax SqlStatement(CoreSyntax.SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken sqlKeyword, SyntaxToken sqlOpenBraceToken, SyntaxToken sqlTextToken, SyntaxToken sqlCloseBraceToken, SqlDoClauseSyntax? sqlDo)
+    public static SqlStatementSyntax SqlStatement(CoreSyntax.SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken sqlKeyword, SyntaxToken sqlOpenBraceToken, SyntaxToken sqlTextToken, SyntaxToken sqlCloseBraceToken, ExpressionSyntax? sqlDo)
     {
 #if DEBUG
         if (sqlKeyword == null) throw new ArgumentNullException(nameof(sqlKeyword));
@@ -36769,27 +36667,6 @@ internal static partial class SyntaxFactory
 #endif
 
         return new SqlStatementSyntax(SyntaxKind.SqlStatement, attributeLists.Node, sqlKeyword, sqlOpenBraceToken, sqlTextToken, sqlCloseBraceToken, sqlDo);
-    }
-
-    public static SqlDoClauseSyntax SqlDoClause(SyntaxToken sqlDoKeyword, BlockSyntax block)
-    {
-#if DEBUG
-        if (sqlDoKeyword == null) throw new ArgumentNullException(nameof(sqlDoKeyword));
-        if (sqlDoKeyword.Kind != SyntaxKind.SqlDoKeyword) throw new ArgumentException(nameof(sqlDoKeyword));
-        if (block == null) throw new ArgumentNullException(nameof(block));
-#endif
-
-        int hash;
-        var cached = SyntaxNodeCache.TryGetNode((int)SyntaxKind.SqlDoClause, sqlDoKeyword, block, out hash);
-        if (cached != null) return (SqlDoClauseSyntax)cached;
-
-        var result = new SqlDoClauseSyntax(SyntaxKind.SqlDoClause, sqlDoKeyword, block);
-        if (hash >= 0)
-        {
-            SyntaxNodeCache.AddNode(result, hash);
-        }
-
-        return result;
     }
 
     public static TryStatementSyntax TryStatement(CoreSyntax.SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken tryKeyword, BlockSyntax block, CoreSyntax.SyntaxList<CatchClauseSyntax> catches, FinallyClauseSyntax? @finally)

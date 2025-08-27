@@ -3757,6 +3757,7 @@
         <summary>The SQL SELECT statement</summary>
       </Comments>
     </Property>
+    
     <!--Property Name="Catches" Type="ImmutableArray&lt;ICatchClauseOperation&gt;">
       <Comments>
         <summary>Catch clauses of the try.</summary>

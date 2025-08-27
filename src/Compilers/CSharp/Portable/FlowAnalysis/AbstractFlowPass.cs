@@ -1917,17 +1917,18 @@ namespace Microsoft.CodeAnalysis.CSharp
             //return Visit(node.SqlBlock);
             if (node.SqlDoOpt is not null)
             {
-                VisitSqlDoBlock(node.SqlDoOpt);
+                //VisitSqlDoBlock(node.SqlDoOpt);
+                Visit(node.SqlDoOpt);
             }
             return null;
         }
 
-        public override BoundNode VisitSqlDoBlock(BoundSqlDoBlock node)
-        {
-            VisitBlock(node.Body);
-
-            return null;
-        }
+        //public override BoundNode VisitSqlDoBlock(BoundSqlDoBlock node)
+        //{
+        //    VisitBlock(node.Body);
+        //
+        //    return null;
+        //}
 
         protected Optional<TLocalState> NonMonotonicState;
 
