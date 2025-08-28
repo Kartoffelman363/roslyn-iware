@@ -3522,6 +3522,12 @@ namespace Microsoft.CodeAnalysis.CSharp
             return base.VisitWhileStatement(node);
         }
 
+        public override BoundNode? VisitSqlDoClause(BoundSqlDoClause node)
+        {
+            //DeclareLocals(node.Locals); TODO-aljaz don't forget this little guy when you do local variables ;)
+            return base.VisitSqlDoClause(node);
+        }
+
         public override BoundNode? VisitWithExpression(BoundWithExpression withExpr)
         {
             Debug.Assert(!IsConditionalState);

@@ -32,7 +32,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax
 {
     public partial class SqlStatementSyntax
     {
-        public SqlStatementSyntax Update(SyntaxToken sqlKeyword, SyntaxToken sqlOpenBraceToken, SyntaxToken sqlContents, SyntaxToken sqlCloseBraceToken, ExpressionSyntax? sqlDo
+        public SqlStatementSyntax Update(SyntaxToken sqlKeyword, SyntaxToken sqlOpenBraceToken, SyntaxToken sqlContents, SyntaxToken sqlCloseBraceToken, SqlDoClauseSyntax? sqlDo
             //, SyntaxList<CatchClauseSyntax> catches, FinallyClauseSyntax @finally
             )
             => Update(AttributeLists, sqlKeyword, sqlOpenBraceToken, sqlContents, sqlCloseBraceToken, sqlDo
@@ -46,14 +46,14 @@ namespace Microsoft.CodeAnalysis.CSharp
 {
     public partial class SyntaxFactory
     {
-        public static SqlStatementSyntax SqlStatement(SyntaxToken sqlContents, ExpressionSyntax? sqlDo
+        public static SqlStatementSyntax SqlStatement(SyntaxToken sqlContents, SqlDoClauseSyntax? sqlDo
         //, SyntaxList<CatchClauseSyntax> catches, FinallyClauseSyntax? @finally
         )
             => SqlStatement(attributeLists: default, sqlContents, sqlDo
         //, catches, @finally
         );
 
-        public static SqlStatementSyntax SqlStatement(SyntaxToken sqlKeyword, SyntaxToken sqlOpenBraceToken, SyntaxToken sqlContents, SyntaxToken sqlCloseBraceToken, ExpressionSyntax sqlDo
+        public static SqlStatementSyntax SqlStatement(SyntaxToken sqlKeyword, SyntaxToken sqlOpenBraceToken, SyntaxToken sqlContents, SyntaxToken sqlCloseBraceToken, SqlDoClauseSyntax sqlDo
             //BlockSyntax block, SyntaxList<CatchClauseSyntax> catches, FinallyClauseSyntax? @finally
             )
             => SqlStatement(attributeLists: default, sqlKeyword, sqlOpenBraceToken, sqlContents, sqlCloseBraceToken, sqlDo/*, catches, @finally*/);

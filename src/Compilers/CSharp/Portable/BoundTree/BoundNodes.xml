@@ -1344,12 +1344,15 @@
 
   <Node Name="BoundSqlStatement" Base="BoundStatement">
     <Field Name="SqlContents" Type="string"/>
-    <Field Name="SqlDoOpt" Type="BoundExpression?" />
+    <Field Name="SqlDoOpt" Type="BoundSqlDoClause?" />
   </Node>
 
-  <!--Node Name="BoundSqlDoBlock" Base="BoundStatement">
-    <Field Name="Body" Type="BoundBlock" />
-  </Node-->
+  <Node Name="BoundSqlDoClause" Base="BoundStatement">
+    <!-- Will most likely need later to store variables declared in scope -->
+    <!--Field Name="Locals" Type="ImmutableArray&lt;LocalSymbol&gt;"/-->
+    <!--Field Name="Body" Type="BoundBlock" /-->
+    <Field Name="Body" Type="BoundStatement"/>
+  </Node>
 
   <Node Name="BoundCatchBlock" Base="BoundNode">
     <!-- 

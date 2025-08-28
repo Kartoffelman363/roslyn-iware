@@ -179,7 +179,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             out string? normalizedFilePath)
         {
 #if DEBUG
-            if (file.Path == "C:\\Users\\aljaz.roglic\\aaplikacije\\roslyn-sql-extended\\test\\DemoTry.cs")
+            if (file.Path.Contains("DemoTry.cs"))
                 Debugger.Launch();
 #endif
             var fileDiagnostics = new List<DiagnosticInfo>();

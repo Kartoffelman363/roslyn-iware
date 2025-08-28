@@ -9035,14 +9035,13 @@ done:
 
             //TODO-aljaz rewrite block as lambda?
 
-
             // sqlDo -- from block to lambda
-            ExpressionSyntax sqlDo = null;
+            SqlDoClauseSyntax sqlDo = null;
             //SqlDoClauseSyntax sqlDo = null;
-            //if (this.CurrentToken.Kind == SyntaxKind.SqlDoKeyword)
-            //{
+            if (this.CurrentToken.Kind == SyntaxKind.SqlDoKeyword)
+            {
                 sqlDo = ParseSqlDoClause();
-            //}
+            }
 
             return _syntaxFactory.SqlStatement(
                 attributes,
@@ -9088,23 +9087,50 @@ done:
                 );
         }
 
-        private ParenthesizedLambdaExpressionSyntax ParseSqlDoClause()
-        {
-            //var sqlDoKeywordToken = EatToken(SyntaxKind.SqlDoKeyword);
-            var paramList = ParseParenthesizedParameterList(false);
-            var arrowToken = EatToken(SyntaxKind.EqualsGreaterThanToken);
-            var block = ParsePossiblyAttributedBlock();
-            return SyntaxFactory.ParenthesizedLambdaExpression(null, null, null, paramList, arrowToken, block, null);
-        }
-
         //private SqlDoClauseSyntax ParseSqlDoClause()
         //{
-        //    Debug.Assert(this.CurrentToken.Kind == SyntaxKind.SqlDoKeyword, "SqlDo missing keyword");
-        //    var sqlDoKeyword = EatToken(SyntaxKind.SqlDoKeyword);
-        //    Debug.Assert(this.CurrentToken.Kind == SyntaxKind.OpenBraceToken, "SqlDo missing block");
-        //    var sqlDoBlock = ParsePossiblyAttributedBlock();
-        //    return _syntaxFactory.SqlDoClause(sqlDoKeyword, sqlDoBlock);
+        //    var sqlDoKeywordToken = EatToken(SyntaxKind.SqlDoKeyword);
+        //    //var paramList = ParseParenthesizedParameterList(false);
+        //    //var arrowToken = EatToken(SyntaxKind.EqualsGreaterThanToken);
+        //    TypeSyntax recordType = _syntaxFactory.QualifiedName(
+        //        _syntaxFactory.QualifiedName(
+        //            _syntaxFactory.IdentifierName(SyntaxFactory.Identifier("System")),
+        //            SyntaxFactory.Token(SyntaxKind.DotToken),
+        //            _syntaxFactory.IdentifierName(SyntaxFactory.Identifier("Data"))),
+        //        SyntaxFactory.Token(SyntaxKind.DotToken),
+        //        _syntaxFactory.IdentifierName((SyntaxToken)SyntaxFactory.Identifier("IDataRecord").WithTrailingTrivia(SyntaxFactory.Space)));
+        //    SyntaxToken recordIdentifier = SyntaxFactory.Identifier("record");
+        //    TypeSyntax firstLineType = _syntaxFactory.PredefinedType((SyntaxToken)SyntaxFactory.Token(SyntaxKind.BoolKeyword).WithTrailingTrivia(SyntaxFactory.Space));
+        //    SyntaxToken firstLineIdentifier = SyntaxFactory.Identifier("firstLine");
+        //
+        //    var parameters = _pool.AllocateSeparated<ParameterSyntax>();
+        //    parameters.Add(_syntaxFactory.Parameter(null, null, recordType, recordIdentifier, null));
+        //    parameters.AddSeparator(SyntaxFactory.Token(SyntaxKind.CommaToken));
+        //    parameters.Add(_syntaxFactory.Parameter(null, null, firstLineType, firstLineIdentifier, null));
+        //
+        //    var paramList = _syntaxFactory.ParameterList(
+        //        SyntaxFactory.Token(SyntaxKind.OpenParenToken),
+        //        parameters.ToList(),
+        //        SyntaxFactory.Token(SyntaxKind.CloseParenToken));
+        //    _pool.Free(parameters);
+        //    var arrowToken = SyntaxFactory.Token(SyntaxKind.EqualsGreaterThanToken);
+        //    var block = ParsePossiblyAttributedBlock();
+        //    var lam = _syntaxFactory.ParenthesizedLambdaExpression(null, null, null, paramList, arrowToken, block, null);
+        //    //var lam = SyntaxFactory.ParenthesizedLambdaExpression(null, null, null, paramList, arrowToken, block, null);
+        //    //return SyntaxFactory.SqlDoClause(sqlDoKeywordToken, lam);
+        //    //var n = SyntaxReplacer.Replace<ParenthesizedLambdaExpressionSyntax>()
+        //    return _syntaxFactory.SqlDoClause(sqlDoKeywordToken, lam);
         //}
+
+        private SqlDoClauseSyntax ParseSqlDoClause()
+        {
+            Debug.Assert(this.CurrentToken.Kind == SyntaxKind.SqlDoKeyword, "SqlDo missing keyword");
+            var sqlDoKeyword = EatToken(SyntaxKind.SqlDoKeyword);
+            Debug.Assert(this.CurrentToken.Kind == SyntaxKind.OpenBraceToken, "SqlDo missing block");
+            var sqlDoBlock = ParsePossiblyAttributedBlock();
+            //var n = SyntaxReplacer.Replace<ParenthesizedLambdaExpressionSyntax>()
+            return _syntaxFactory.SqlDoClause(sqlDoKeyword, sqlDoBlock);
+        }
 
         /*
         private AnonymousMethodExpressionSyntax ParseSqlDoClause()

@@ -859,21 +859,25 @@ namespace Microsoft.CodeAnalysis.CSharp
             Visit(node.SqlDo);
         }
 
-        //public override void VisitSqlDoClause(SqlDoClauseSyntax node)
-        //{
-        //    //var sqlDoBlockBinder = new BlockBinder(_enclosing, node.Block);
-        //    var sqlDoClauseBinder = new SqlDoClauseBinder(_enclosing, node);
-        //    AddToMap(node, sqlDoClauseBinder);
-        //    Visit(node.Block, sqlDoClauseBinder);
-        //    /*
-        //    foreach (var statement in node.Block.Statements)
-        //    {
-        //        var sqlDoStatementBinder = new EmbeddedStatementBinder(_enclosing, statement);
-        //        AddToMap(statement, sqlDoStatementBinder);
-        //        Visit(statement, sqlDoStatementBinder);
-        //    }
-        //    */
-        //}
+        public override void VisitSqlDoClause(SqlDoClauseSyntax node)
+        {
+            Debug.Assert((object)_containingMemberOrLambda == _enclosing.ContainingMemberOrLambda);
+            var sqlDoBinder = new SqlDoClauseBinder(_enclosing, node);
+            AddToMap(node, sqlDoBinder);
+
+            VisitPossibleEmbeddedStatement(node.Statement, sqlDoBinder);
+        }
+        /*
+         *public override void VisitWhileStatement(WhileStatementSyntax node)
+         *{
+         *    Debug.Assert((object)_containingMemberOrLambda == _enclosing.ContainingMemberOrLambda);
+         *    var whileBinder = new WhileBinder(_enclosing, node);
+         *    AddToMap(node, whileBinder);
+         *
+         *    Visit(node.Condition, whileBinder);
+         *    VisitPossibleEmbeddedStatement(node.Statement, whileBinder);
+         *}
+         */
 
         public override void VisitTryStatement(TryStatementSyntax node)
         {

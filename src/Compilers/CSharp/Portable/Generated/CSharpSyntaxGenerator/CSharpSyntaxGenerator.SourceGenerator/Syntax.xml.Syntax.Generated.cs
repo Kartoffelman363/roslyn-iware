@@ -8954,7 +8954,7 @@ public sealed partial class SwitchExpressionArmSyntax : CSharpSyntaxNode
 public sealed partial class SqlStatementSyntax : StatementSyntax
 {
     private SyntaxNode? attributeLists;
-    private ExpressionSyntax? sqlDo;
+    private SqlDoClauseSyntax? sqlDo;
 
     internal SqlStatementSyntax(InternalSyntax.CSharpSyntaxNode green, SyntaxNode? parent, int position)
       : base(green, parent, position)
@@ -8971,7 +8971,7 @@ public sealed partial class SqlStatementSyntax : StatementSyntax
 
     public SyntaxToken SqlCloseBraceToken => new SyntaxToken(this, ((InternalSyntax.SqlStatementSyntax)this.Green).sqlCloseBraceToken, GetChildPosition(4), GetChildIndex(4));
 
-    public ExpressionSyntax? SqlDo => GetRed(ref this.sqlDo, 5);
+    public SqlDoClauseSyntax? SqlDo => GetRed(ref this.sqlDo, 5);
 
     internal override SyntaxNode? GetNodeSlot(int index)
         => index switch
@@ -8992,7 +8992,7 @@ public sealed partial class SqlStatementSyntax : StatementSyntax
     public override void Accept(CSharpSyntaxVisitor visitor) => visitor.VisitSqlStatement(this);
     public override TResult? Accept<TResult>(CSharpSyntaxVisitor<TResult> visitor) where TResult : default => visitor.VisitSqlStatement(this);
 
-    public SqlStatementSyntax Update(SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken sqlKeyword, SyntaxToken sqlOpenBraceToken, SyntaxToken sqlTextToken, SyntaxToken sqlCloseBraceToken, ExpressionSyntax? sqlDo)
+    public SqlStatementSyntax Update(SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken sqlKeyword, SyntaxToken sqlOpenBraceToken, SyntaxToken sqlTextToken, SyntaxToken sqlCloseBraceToken, SqlDoClauseSyntax? sqlDo)
     {
         if (attributeLists != this.AttributeLists || sqlKeyword != this.SqlKeyword || sqlOpenBraceToken != this.SqlOpenBraceToken || sqlTextToken != this.SqlTextToken || sqlCloseBraceToken != this.SqlCloseBraceToken || sqlDo != this.SqlDo)
         {
@@ -9010,10 +9010,52 @@ public sealed partial class SqlStatementSyntax : StatementSyntax
     public SqlStatementSyntax WithSqlOpenBraceToken(SyntaxToken sqlOpenBraceToken) => Update(this.AttributeLists, this.SqlKeyword, sqlOpenBraceToken, this.SqlTextToken, this.SqlCloseBraceToken, this.SqlDo);
     public SqlStatementSyntax WithSqlTextToken(SyntaxToken sqlTextToken) => Update(this.AttributeLists, this.SqlKeyword, this.SqlOpenBraceToken, sqlTextToken, this.SqlCloseBraceToken, this.SqlDo);
     public SqlStatementSyntax WithSqlCloseBraceToken(SyntaxToken sqlCloseBraceToken) => Update(this.AttributeLists, this.SqlKeyword, this.SqlOpenBraceToken, this.SqlTextToken, sqlCloseBraceToken, this.SqlDo);
-    public SqlStatementSyntax WithSqlDo(ExpressionSyntax? sqlDo) => Update(this.AttributeLists, this.SqlKeyword, this.SqlOpenBraceToken, this.SqlTextToken, this.SqlCloseBraceToken, sqlDo);
+    public SqlStatementSyntax WithSqlDo(SqlDoClauseSyntax? sqlDo) => Update(this.AttributeLists, this.SqlKeyword, this.SqlOpenBraceToken, this.SqlTextToken, this.SqlCloseBraceToken, sqlDo);
 
     internal override StatementSyntax AddAttributeListsCore(params AttributeListSyntax[] items) => AddAttributeLists(items);
     public new SqlStatementSyntax AddAttributeLists(params AttributeListSyntax[] items) => WithAttributeLists(this.AttributeLists.AddRange(items));
+}
+
+/// <remarks>
+/// <para>This node is associated with the following syntax kinds:</para>
+/// <list type="bullet">
+/// <item><description><see cref="SyntaxKind.SqlDoClause"/></description></item>
+/// </list>
+/// </remarks>
+public sealed partial class SqlDoClauseSyntax : CSharpSyntaxNode
+{
+    private StatementSyntax? statement;
+
+    internal SqlDoClauseSyntax(InternalSyntax.CSharpSyntaxNode green, SyntaxNode? parent, int position)
+      : base(green, parent, position)
+    {
+    }
+
+    public SyntaxToken SqlDoKeyword => new SyntaxToken(this, ((InternalSyntax.SqlDoClauseSyntax)this.Green).sqlDoKeyword, Position, 0);
+
+    public StatementSyntax Statement => GetRed(ref this.statement, 1)!;
+
+    internal override SyntaxNode? GetNodeSlot(int index) => index == 1 ? GetRed(ref this.statement, 1)! : null;
+
+    internal override SyntaxNode? GetCachedSlot(int index) => index == 1 ? this.statement : null;
+
+    public override void Accept(CSharpSyntaxVisitor visitor) => visitor.VisitSqlDoClause(this);
+    public override TResult? Accept<TResult>(CSharpSyntaxVisitor<TResult> visitor) where TResult : default => visitor.VisitSqlDoClause(this);
+
+    public SqlDoClauseSyntax Update(SyntaxToken sqlDoKeyword, StatementSyntax statement)
+    {
+        if (sqlDoKeyword != this.SqlDoKeyword || statement != this.Statement)
+        {
+            var newNode = SyntaxFactory.SqlDoClause(sqlDoKeyword, statement);
+            var annotations = GetAnnotations();
+            return annotations?.Length > 0 ? newNode.WithAnnotations(annotations) : newNode;
+        }
+
+        return this;
+    }
+
+    public SqlDoClauseSyntax WithSqlDoKeyword(SyntaxToken sqlDoKeyword) => Update(sqlDoKeyword, this.Statement);
+    public SqlDoClauseSyntax WithStatement(StatementSyntax statement) => Update(this.SqlDoKeyword, statement);
 }
 
 /// <remarks>

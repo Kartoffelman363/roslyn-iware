@@ -1918,15 +1918,28 @@ namespace Microsoft.CodeAnalysis.CSharp
             if (node.SqlDoOpt is not null)
             {
                 //VisitSqlDoBlock(node.SqlDoOpt);
-                Visit(node.SqlDoOpt);
+                VisitSqlDoClause(node.SqlDoOpt);
             }
             return null;
         }
 
-        //public override BoundNode VisitSqlDoBlock(BoundSqlDoBlock node)
+        public override BoundNode VisitSqlDoClause(BoundSqlDoClause node)
+        {
+            VisitStatement(node.Body);
+            return null;
+        }
+        //public override BoundNode VisitWhileStatement(BoundWhileStatement node)
         //{
-        //    VisitBlock(node.Body);
-        //
+        //    // while (node.Condition) { node.Body; node.ContinueLabel: } node.BreakLabel:
+        //    LoopHead(node);
+        //    VisitCondition(node.Condition);
+        //    TLocalState bodyState = StateWhenTrue;
+        //    TLocalState breakState = StateWhenFalse;
+        //    SetState(bodyState);
+        //    VisitStatement(node.Body);
+        //    ResolveContinues(node.ContinueLabel);
+        //    LoopTail(node);
+        //    ResolveBreaks(breakState, node.BreakLabel);
         //    return null;
         //}
 

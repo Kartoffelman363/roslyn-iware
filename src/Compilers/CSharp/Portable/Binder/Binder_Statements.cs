@@ -9,6 +9,7 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Xml.Linq;
 using Microsoft.CodeAnalysis.CSharp.Symbols;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -3233,7 +3234,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             //BoundExpression sqlDoBoundExpression = null;
             //BoundLambda sqlDoBoundLambda = null;
-            BoundExpression sqlDoBoundLambda = null;
+            BoundSqlDoClause boundSqlDoClause = null;
             if (node.SqlDo is not null)
             {
                 //////sqlDoBoundExpression = BindExpression(sqlDo, diagnostics);
@@ -3267,8 +3268,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 //    SyntaxFactory.QualifiedName(
                 //    SyntaxFactory.IdentifierName("System"),
                 //    SyntaxFactory.IdentifierName("Data")),
-                //    SyntaxFactory.IdentifierName("IDataRecord"))
-                //        .WithTrailingTrivia(SyntaxFactory.Space);
+                //    SyntaxFactory.IdentifierName("IDataRecord").WithTrailingTrivia(SyntaxFactory.Space));
                 //TypeSyntax firstLineType = SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.BoolKeyword).WithTrailingTrivia(SyntaxFactory.Space));
                 //ParameterListSyntax parameterList = SyntaxFactory.ParameterList([
                 //    SyntaxFactory.Parameter(default, default, recordType, SyntaxFactory.Identifier("record"), null),
@@ -3278,13 +3278,15 @@ namespace Microsoft.CodeAnalysis.CSharp
                 ////////sqlDoBoundLambda = unboundLambda.Bind(node.SqlDo.ParameterList, false);
                 ////var lambdaSyntax = SyntaxFactory.AnonymousMethodExpression(node.SqlDo.Block);
                 //var lambdaSyntax = SyntaxFactory.ParenthesizedLambdaExpression(default, parameterList, arrowToken, node.SqlDo.Block);
-                var unboundLambda = BindAnonymousFunction((ParenthesizedLambdaExpressionSyntax)node.SqlDo, diagnostics);
+                //var unboundLambda = BindAnonymousFunction(lambdaSyntax, diagnostics);
                 //var sqlDoType = Compilation.GetWellKnownType(WellKnownType.System_Action_T2).Construct(
                 //    Compilation.GetTypeByMetadataName("System.Data.IDataRecord"),
                 //    Compilation.GetSpecialType(SpecialType.System_Boolean));
                 //sqlDoBoundLambda = unboundLambda.Bind(sqlDoType, false);
                 //BindValue(lambdaSyntax, diagnostics, BindValueKind.);
-                sqlDoBoundLambda = BindToInferredDelegateType(unboundLambda, diagnostics);
+                boundSqlDoClause = BindSqlDoClause(node.SqlDo, diagnostics);
+                //var unboundLambda = BindAnonymousFunction((ParenthesizedLambdaExpressionSyntax)node.SqlDo.Expression, diagnostics);
+                //sqlDoBoundLambda = BindToInferredDelegateType(unboundLambda, diagnostics);
             }
 
             //var sqlBlock = BindEmbeddedBlock(node.Block, diagnostics);
@@ -3298,14 +3300,42 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             // sqlBlock, catchBlocks, finallyBlockOpt
             //return new BoundSqlStatement(node, node.SqlTextToken.ValueText, sqlDoBoundExpression);
-            return new BoundSqlStatement(node, node.SqlTextToken.ValueText, sqlDoBoundLambda);
+            return new BoundSqlStatement(node, node.SqlTextToken.ValueText, boundSqlDoClause);
         }
 
-        //private BoundSqlDoBlock BindSqlDoBlock(SqlDoClauseSyntax node, BindingDiagnosticBag diagnostics)
-        //{
-        //    var body = BindBlock(node.Block, diagnostics);
-        //    return new BoundSqlDoBlock(node, body);
-        //}
+        private BoundSqlDoClause BindSqlDoClause(SqlDoClauseSyntax node, BindingDiagnosticBag diagnostics)
+        {
+            Debug.Assert(node != null);
+
+            var sqlDoBinder = this.GetBinder(node);
+            Debug.Assert(sqlDoBinder != null);
+            //
+            //ImmutableArray<LocalSymbol> locals = binder.GetDeclaredLocalsForScope(node);
+            //BoundExpression exceptionSource = null;
+            //LocalSymbol local = locals.FirstOrDefault();
+            //
+            //if (local?.DeclarationKind == LocalDeclarationKind.CatchVariable)
+            //{
+            //    Debug.Assert(local.Type.IsErrorType() || (TypeSymbol.Equals(local.Type, type, TypeCompareKind.ConsiderEverything2)));
+            //
+            //    ReportFieldContextualKeywordConflictIfAny(local, declaration, declaration.Identifier, diagnostics);
+            //
+            //    // Check for local variable conflicts in the *enclosing* binder, not the *current* binder;
+            //    // obviously we will find a local of the given name in the current binder.
+            //    hasError |= this.ValidateDeclarationNameConflictsInScope(local, diagnostics);
+            //
+            //    exceptionSource = new BoundLocal(declaration, local, ConstantValue.NotAvailable, local.Type);
+            //}
+
+            //var block = BindEmbeddedBlock(node.Statement, diagnostics);
+            //return new BoundSqlDoClause(node, block);
+            return sqlDoBinder.BindSqlDoParts(diagnostics, sqlDoBinder);
+        }
+
+        internal virtual BoundSqlDoClause BindSqlDoParts(BindingDiagnosticBag diagnostics, Binder originalBinder)
+        {
+            return this.Next.BindSqlDoParts(diagnostics, originalBinder);
+        }
 
         private ImmutableArray<BoundCatchBlock> BindCatchBlocks(SyntaxList<CatchClauseSyntax> catchClauses, BindingDiagnosticBag diagnostics)
         {
