@@ -9128,51 +9128,105 @@ done:
             var sqlDoKeyword = EatToken(SyntaxKind.SqlDoKeyword);
             Debug.Assert(this.CurrentToken.Kind == SyntaxKind.OpenBraceToken, "SqlDo missing block");
             var sqlDoBlock = ParsePossiblyAttributedBlock();
-            //var n = SyntaxReplacer.Replace<ParenthesizedLambdaExpressionSyntax>()
+
             return _syntaxFactory.SqlDoClause(sqlDoKeyword, sqlDoBlock);
+            //SyntaxList<SyntaxToken> modifiers = null; // SyntaxFactory.List<SyntaxToken>();
+            //SyntaxToken delegateKeyword = SyntaxFactory.MissingToken(SyntaxKind.DelegateKeyword);
+            //
+            //var par1 = _syntaxFactory.Parameter(
+            //    attributeLists: null,
+            //    modifiers: null,
+            //    //_syntaxFactory.IdentifierName(SyntaxFactory.Identifier("IDataRecord")),
+            //    //type: _syntaxFactory.IdentifierName(SyntaxFactory.MissingToken(SyntaxKind.IDataRecordWord)),
+            //    type: null,
+            //    //ConvertToIdentifier(SyntaxFactory.MissingToken(SyntaxKind.RecordWord)),
+            //    //CreateMissingIdentifierToken(),
+            //    identifier: null,
+            //    @default: null);
+            //var par2 = _syntaxFactory.Parameter(
+            //    null,
+            //    null,
+            //    //SyntaxFactory.IdentifierName(SyntaxFactory.Identifier("bool")),
+            //    null,
+            //    //SyntaxFactory.Identifier("firstLine"),
+            //    null,
+            //    null);
+            //var paramSeparatorToken = SyntaxFactory.MissingToken(SyntaxKind.CommaToken);
+            //ParameterListSyntax parameterList = SyntaxFactory.ParameterList(
+            //    SyntaxFactory.MissingToken(SyntaxKind.OpenParenToken),
+            //    SyntaxFactory.SeparatedList<ParameterSyntax>([par1, paramSeparatorToken, par2]),
+            //    SyntaxFactory.MissingToken(SyntaxKind.CloseParenToken));
+            //
+            //var sqlDoExpression = _syntaxFactory.AnonymousMethodExpression(
+            //    default,
+            //    delegateKeyword,
+            //    parameterList,
+            //    sqlDoBlock,
+            //    null);
+            //
+            ////var n = SyntaxReplacer.Replace<ParenthesizedLambdaExpressionSyntax>()
+            //return _syntaxFactory.SqlDoClause(sqlDoKeyword, sqlDoBlock, sqlDoExpression);
+            ////ExpressionSyntax missingExpression() {
+            ////    var parameters = _pool.AllocateSeparated<ParameterSyntax>();
+            ////    return _syntaxFactory.ParenthesizedLambdaExpression(
+            ////        attributeLists: default,
+            ////        modifiers: default,
+            ////        returnType: null,
+            ////        _syntaxFactory.ParameterList(
+            ////            SyntaxFactory.MissingToken(SyntaxKind.OpenParenToken),
+            ////            parameters.ToList(),
+            ////            SyntaxFactory.MissingToken(SyntaxKind.CloseParenToken)),
+            ////        SyntaxFactory.MissingToken(SyntaxKind.EqualsGreaterThanToken),
+            ////        missingBlock(),
+            ////        null);
+            ////}
+            ////BlockSyntax missingBlock()
+            ////    => _syntaxFactory.Block(
+            ////        attributeLists: default,
+            ////        SyntaxFactory.MissingToken(SyntaxKind.OpenBraceToken),
+            ////        statements: default,
+            ////        SyntaxFactory.MissingToken(SyntaxKind.CloseBraceToken));
         }
 
-        /*
-        private AnonymousMethodExpressionSyntax ParseSqlDoClause()
-        {
-            var sqlDo = this.EatToken(SyntaxKind.SqlDoKeyword);
-            BlockSyntax block = ParsePossiblyAttributedBlock();
-
-            SyntaxList<SyntaxToken> modifiers = null; // SyntaxFactory.List<SyntaxToken>();
-            SyntaxToken delegateKeyword = SyntaxFactory.MissingToken(SyntaxKind.DelegateKeyword);
-
-            var par1 = _syntaxFactory.Parameter(
-                attributeLists: null,
-                modifiers: null,
-                //_syntaxFactory.IdentifierName(SyntaxFactory.Identifier("IDataRecord")),
-                //type: _syntaxFactory.IdentifierName(SyntaxFactory.MissingToken(SyntaxKind.IDataRecordWord)),
-                type: null,
-                //ConvertToIdentifier(SyntaxFactory.MissingToken(SyntaxKind.RecordWord)),
-                //CreateMissingIdentifierToken(),
-                identifier: null,
-                @default: null);
-            var par2 = _syntaxFactory.Parameter(
-                null,
-                null,
-                //SyntaxFactory.IdentifierName(SyntaxFactory.Identifier("bool")),
-                null,
-                //SyntaxFactory.Identifier("firstLine"),
-                null,
-                null);
-            var paramSeparatorToken = SyntaxFactory.MissingToken(SyntaxKind.CommaToken);
-            ParameterListSyntax parameterList = SyntaxFactory.ParameterList(
-                SyntaxFactory.MissingToken(SyntaxKind.OpenParenToken),
-                SyntaxFactory.SeparatedList<ParameterSyntax>([par1, paramSeparatorToken, par2]),
-                SyntaxFactory.MissingToken(SyntaxKind.CloseParenToken));
-
-            return _syntaxFactory.AnonymousMethodExpression(
-                default,
-                delegateKeyword,
-                parameterList,
-                block,
-                null);
-        }
-        */
+        //private AnonymousMethodExpressionSyntax ParseSqlDoBlock()
+        //{
+        //    var sqlDo = this.EatToken(SyntaxKind.SqlDoKeyword);
+        //    BlockSyntax block = ParsePossiblyAttributedBlock();
+        //
+        //    SyntaxList<SyntaxToken> modifiers = null; // SyntaxFactory.List<SyntaxToken>();
+        //    SyntaxToken delegateKeyword = SyntaxFactory.MissingToken(SyntaxKind.DelegateKeyword);
+        //
+        //    var par1 = _syntaxFactory.Parameter(
+        //        attributeLists: null,
+        //        modifiers: null,
+        //        //_syntaxFactory.IdentifierName(SyntaxFactory.Identifier("IDataRecord")),
+        //        //type: _syntaxFactory.IdentifierName(SyntaxFactory.MissingToken(SyntaxKind.IDataRecordWord)),
+        //        type: null,
+        //        //ConvertToIdentifier(SyntaxFactory.MissingToken(SyntaxKind.RecordWord)),
+        //        //CreateMissingIdentifierToken(),
+        //        identifier: null,
+        //        @default: null);
+        //    var par2 = _syntaxFactory.Parameter(
+        //        null,
+        //        null,
+        //        //SyntaxFactory.IdentifierName(SyntaxFactory.Identifier("bool")),
+        //        null,
+        //        //SyntaxFactory.Identifier("firstLine"),
+        //        null,
+        //        null);
+        //    var paramSeparatorToken = SyntaxFactory.MissingToken(SyntaxKind.CommaToken);
+        //    ParameterListSyntax parameterList = SyntaxFactory.ParameterList(
+        //        SyntaxFactory.MissingToken(SyntaxKind.OpenParenToken),
+        //        SyntaxFactory.SeparatedList<ParameterSyntax>([par1, paramSeparatorToken, par2]),
+        //        SyntaxFactory.MissingToken(SyntaxKind.CloseParenToken));
+        //
+        //    return _syntaxFactory.AnonymousMethodExpression(
+        //        default,
+        //        delegateKeyword,
+        //        parameterList,
+        //        block,
+        //        null);
+        //}
 
         private TryStatementSyntax ParseTryStatement(SyntaxList<AttributeListSyntax> attributes)
         {

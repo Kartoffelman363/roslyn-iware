@@ -26,7 +26,30 @@ namespace Microsoft.CodeAnalysis.CSharp
 
         internal override BoundSqlDoClause BindSqlDoParts(BindingDiagnosticBag diagnostics, Binder originalBinder)
         {
+            //var body = SyntaxFactory.Block(new [] { _syntax.Statement });
+            //var arrowToken = SyntaxFactory.Token(SyntaxKind.EqualsGreaterThanToken);
+            //var asyncToken = SyntaxFactory.Token(SyntaxKind.None);
+            ////var recordParam = SyntaxFactory.Parameter()
+            //TypeSyntax recordType = SyntaxFactory.QualifiedName(
+            //    SyntaxFactory.QualifiedName(
+            //        SyntaxFactory.IdentifierName("System"),
+            //        SyntaxFactory.IdentifierName("Data")),
+            //    SyntaxFactory.IdentifierName("IDataRecord").WithTrailingTrivia(SyntaxFactory.Space));
+            //TypeSyntax firstLineType = SyntaxFactory.PredefinedType(SyntaxFactory.Token//(SyntaxKind.BoolKeyword).WithTrailingTrivia(SyntaxFactory.Space));
+            //ParameterListSyntax parameterList = SyntaxFactory.ParameterList([
+            //    SyntaxFactory.Parameter(default, default, recordType, SyntaxFactory.Identifier("record"), null),
+            //    SyntaxFactory.Parameter(default, default, firstLineType, SyntaxFactory.Identifier("firstLine"), null)
+            //    ]);
+            //
             var body = originalBinder.BindPossibleEmbeddedStatement(_syntax.Statement, diagnostics);
+            //var lambdaSyntax = SyntaxFactory.ParenthesizedLambdaExpression(
+            //    asyncToken,
+            //    parameterList,
+            //    arrowToken,
+            //    body,
+            //    null);
+            //var unboundLambda = BindExpression(lambdaSyntax, diagnostics);
+            //var boundLambda = 
             //Debug.Assert(this.Locals == this.GetDeclaredLocalsForScope(node));
             return new BoundSqlDoClause(_syntax, /*this.Locals, */body);
         }

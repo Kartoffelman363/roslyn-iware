@@ -3286,7 +3286,48 @@ namespace Microsoft.CodeAnalysis.CSharp
                 //BindValue(lambdaSyntax, diagnostics, BindValueKind.);
                 boundSqlDoClause = BindSqlDoClause(node.SqlDo, diagnostics);
                 //var unboundLambda = BindAnonymousFunction((ParenthesizedLambdaExpressionSyntax)node.SqlDo.Expression, diagnostics);
-                //sqlDoBoundLambda = BindToInferredDelegateType(unboundLambda, diagnostics);
+                //var sqlDoBoundLambda = BindToInferredDelegateType(unboundLambda, diagnostics);
+
+                //BlockSyntax body;
+                //if (node.SqlDo.Statement.Kind() == SyntaxKind.Block)
+                //{
+                //    body = (BlockSyntax)node.SqlDo.Statement;
+                //}
+                //else
+                //{
+                //    body = SyntaxFactory.Block(new[] { node.SqlDo.Statement });
+                //}
+                //var arrowToken = SyntaxFactory.Token(SyntaxKind.EqualsGreaterThanToken);
+                //var asyncToken = SyntaxFactory.Token(SyntaxKind.None);
+                ////var recordParam = SyntaxFactory.Parameter()
+                //TypeSyntax recordType = SyntaxFactory.QualifiedName(
+                //    SyntaxFactory.QualifiedName(
+                //        SyntaxFactory.IdentifierName("System"),
+                //        SyntaxFactory.IdentifierName("Data")),
+                //    SyntaxFactory.IdentifierName("IDataRecord").WithTrailingTrivia(SyntaxFactory.Space));
+                //TypeSyntax firstLineType = SyntaxFactory.PredefinedType(SyntaxFactory.Token//(SyntaxKind.BoolKeyword).WithTrailingTrivia(SyntaxFactory.Space));
+                //ParameterListSyntax parameterList = SyntaxFactory.ParameterList([
+                //    SyntaxFactory.Parameter(default, default, recordType, SyntaxFactory.Identifier("record"), null),
+                //SyntaxFactory.Parameter(default, default, firstLineType, SyntaxFactory.Identifier("firstLine"), null)
+                //    ]);
+                //
+                ////var body = originalBinder.BindPossibleEmbeddedStatement(_syntax.Statement, diagnostics);
+                //var lambdaSyntax = SyntaxFactory.ParenthesizedLambdaExpression(
+                //    asyncToken,
+                //    parameterList,
+                //    arrowToken,
+                //    body,
+                //    null);
+                //var oldRoot = node.SyntaxTree.GetRoot();
+                //var newRoot = oldRoot.ReplaceNode(node.SqlDo.Expression, lambdaSyntax);
+                //var unboundLambda = (UnboundLambda)BindExpression(lambdaSyntax, diagnostics);
+                ////var boundLambda = BindToInferredDelegateType(unboundLambda, diagnostics);
+                //var boundBody = BindBlock(body, diagnostics);
+                //var iDataRecord = Compilation.GetTypeByMetadataName("System.Data.IDataRecord");
+                //var sqlDoType = Compilation.GetWellKnownType(WellKnownType.System_Action_T2)
+                //    .Construct(iDataRecord, Compilation.GetSpecialType(SpecialType.System_Boolean));
+                //var nlam = new BoundLambda(body, unboundLambda, boundBody, diagnostics.ToReadOnly(), null, sqlDoType, //default);
+                //boundSqlDoClause = new BoundSqlDoClause(node.SqlDo, /*this.Locals, */nlam);
             }
 
             //var sqlBlock = BindEmbeddedBlock(node.Block, diagnostics);

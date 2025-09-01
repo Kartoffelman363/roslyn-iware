@@ -1925,7 +1925,8 @@ namespace Microsoft.CodeAnalysis.CSharp
 
         public override BoundNode VisitSqlDoClause(BoundSqlDoClause node)
         {
-            VisitStatement(node.Body);
+            //VisitStatement(node.Body);
+            Visit(node.Body);
             return null;
         }
         //public override BoundNode VisitWhileStatement(BoundWhileStatement node)

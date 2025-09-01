@@ -1681,30 +1681,41 @@ namespace Microsoft.CodeAnalysis.CSharp.CodeGen
         }
 
         //TODO-aljaz do I need Optimizer VisitSqlStatement?
-        //public override BoundNode VisitSqlStatement(BoundSqlStatement node)
-        //{
-        //    Debug.Fail("What");
-        //    EnsureOnlyEvalStack();
-        //    var sqlText = node.SqlContents;
-        //    //var sqlBlock = (BoundBlock)this.Visit(node.SqlBlock);
-        //    //BoundSqlDoBlock? sqlDoBlock = null;
-        //    BoundLambda? sqlDoBlock = null;
-        //    if (node.SqlDoOpt is not null)
-        //    {
-        //        sqlDoBlock = (BoundLambda)this.Visit(node.SqlDoOpt);
-        //    }
-        //
-        //    //var catchBlocks = this.VisitList(node.CatchBlocks);
-        //
-        //    //EnsureOnlyEvalStack();
-        //    //var finallyBlock = (BoundBlock)this.Visit(node.FinallyBlockOpt);
-        //
-        //    EnsureOnlyEvalStack();
-        //
-        //    return node.Update(sqlText, sqlDoBlock
-        //        //, catchBlocks, finallyBlock, finallyLabelOpt: node.FinallyLabelOpt, node.PreferFaultHandler
-        //        );
-        //}
+        public override BoundNode VisitSqlStatement(BoundSqlStatement node)
+        {
+            EnsureOnlyEvalStack();
+            var sqlText = node.SqlContents;
+            var sqlDoClause = (BoundSqlDoClause)this.Visit(node.SqlDoOpt);
+            //BoundSqlDoBlock? sqlDoBlock = null;
+            //BoundLambda? sqlDoBlock = null;
+            //if (node.SqlDoOpt is not null)
+            //{
+            //    sqlDoBlock = (BoundLambda)this.Visit(node.SqlDoOpt);
+            //}
+
+            //var catchBlocks = this.VisitList(node.CatchBlocks);
+
+            //EnsureOnlyEvalStack();
+            //var finallyBlock = (BoundBlock)this.Visit(node.FinallyBlockOpt);
+
+            //EnsureOnlyEvalStack();
+
+            return node.Update(
+                sqlText,
+                sqlDoClause
+            //catchBlocks,
+            //finallyBlock,
+            //finallyLabelOpt: node.FinallyLabelOpt,
+            //node.PreferFaultHandler
+            );
+        }
+
+        public override BoundNode VisitSqlDoClause(BoundSqlDoClause node)
+        {
+            EnsureOnlyEvalStack();
+            var body = (BoundStatement)this.VisitStatement(node.Body);
+            return node.Update(body);
+        }
 
         public override BoundNode VisitCatchBlock(BoundCatchBlock node)
         {
