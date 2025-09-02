@@ -1348,10 +1348,11 @@
   </Node>
 
   <Node Name="BoundSqlDoClause" Base="BoundStatement">
-    <!-- Will most likely need later to store variables declared in scope -->
+    <!--Will most likely need later to store variables declared in scope-->
     <!--Field Name="Locals" Type="ImmutableArray&lt;LocalSymbol&gt;"/-->
     <!--Field Name="Body" Type="BoundBlock" /-->
-    <Field Name="Body" Type="BoundStatement"/>
+    <Field Name="Body" Type="BoundBlock"/>
+    <Field Name="Locals" Type="ImmutableArray&lt;LocalSymbol&gt;"/>
   </Node>
 
   <Node Name="BoundCatchBlock" Base="BoundNode">

@@ -564,7 +564,7 @@ sql_statement
   ;
 
 sql_do_clause
-  : 'sqlDo' statement
+  : 'sqlDo' block
   ;
 
 switch_statement

@@ -3235,7 +3235,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             //BoundExpression sqlDoBoundExpression = null;
             //BoundLambda sqlDoBoundLambda = null;
             BoundSqlDoClause boundSqlDoClause = null;
-            if (node.SqlDo is not null)
+            if (node.SqlDoClause is not null)
             {
                 //////sqlDoBoundExpression = BindExpression(sqlDo, diagnostics);
                 //////sqlDoBoundBlock = BindSqlDoBlock(node.SqlDo, diagnostics);
@@ -3284,7 +3284,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 //    Compilation.GetSpecialType(SpecialType.System_Boolean));
                 //sqlDoBoundLambda = unboundLambda.Bind(sqlDoType, false);
                 //BindValue(lambdaSyntax, diagnostics, BindValueKind.);
-                boundSqlDoClause = BindSqlDoClause(node.SqlDo, diagnostics);
+                boundSqlDoClause = BindSqlDoClause(node.SqlDoClause, diagnostics);
                 //var unboundLambda = BindAnonymousFunction((ParenthesizedLambdaExpressionSyntax)node.SqlDo.Expression, diagnostics);
                 //var sqlDoBoundLambda = BindToInferredDelegateType(unboundLambda, diagnostics);
 

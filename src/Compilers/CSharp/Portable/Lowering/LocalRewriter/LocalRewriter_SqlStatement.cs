@@ -3,124 +3,44 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Immutable;
-using System.Data;
-using System.Data.SqlTypes;
 using System.Diagnostics;
 using System.Linq;
 using Microsoft.CodeAnalysis.CSharp.Symbols;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.Operations;
-using Microsoft.CodeAnalysis.Text;
 using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.CSharp
 {
     internal sealed partial class LocalRewriter
     {
-        //public override BoundNode? VisitSqlStatement(BoundSqlStatement node)
-        //{
-        //    return base.VisitSqlStatement(node);
-        //}
 
         public override BoundNode? VisitSqlStatement(BoundSqlStatement node)
         {
             var sqlTextBoundLiteral = _factory.Literal(node.SqlContents);
 
-            BoundStatement? sqlDoBoundLiteral = null;
+            BoundBlock? sqlDoBoundLiteral = null;
+            ImmutableArray<LocalSymbol>? sqlDoSymbols = null;
             if (node.SqlDoOpt is not null)
             {
-                //if (node.SqlDoOpt.Body.Kind == BoundKind.Block)
-                //{
-                //    sqlDoBoundLiteral = (BoundStatement)VisitBlock((BoundBlock)node.SqlDoOpt.Body);
-                //}
-                //else if (node.SqlDoOpt.Body.Kind == BoundKind.ExpressionStatement)
-                //{
-                //    sqlDoBoundLiteral = (BoundStatement)VisitExpressionStatement((BoundExpressionStatement)node.SqlDoOpt.Body);
-                //}
-                sqlDoBoundLiteral = VisitStatement(node.SqlDoOpt.Body);
+                sqlDoBoundLiteral = (BoundBlock)VisitBlock(node.SqlDoOpt.Body);
+                sqlDoSymbols = node.SqlDoOpt.Locals;
             }
 
-            return RewriteSqlStatement(node, sqlTextBoundLiteral, sqlDoBoundLiteral, null, null);
-
-            //// Types
-            //var sqlEmptyType = _compilation.GetWellKnownType(WellKnownType.System_Action);
-            //var iDataRecordType = _compilation.GetTypeByMetadataName("System.Data.IDataRecord");
-            //var boolType = _compilation.GetSpecialType(SpecialType.System_Boolean);
-            //Debug.Assert(iDataRecordType is not null, "Could not find type System.Data.IDataRecord");
-            //var sqlDoType = _compilation.GetWellKnownType(WellKnownType.System_Action_T2).Construct(
-            //        iDataRecordType,
-            //        boolType);
-            //
-            //// sqlDo
-            //BoundExpression sqlDoBoundLiteral = _factory.Null(sqlDoType);
-            //if (node.SqlDoOpt is not null)
-            //{
-            //    //    Debug.Assert(node.SqlDoOpt.Kind != BoundKind.UnboundLambda, "Can't be an unbound lambda");
-            //    //    sqlDoBoundLiteral = (BoundExpression)Visit(node.SqlDoOpt)!;
-            //    var sqlDoBlock = _factory.Block(node.SqlDoOpt.Body);
-            //    var recordParam = _factory.SynthesizedParameter(iDataRecordType, "record");
-            //    var firstLineParam = _factory.SynthesizedParameter(boolType, "firstLine");
-            //    //var snyLamSym = _factory.fun
-            //    //var n = LambdaSymbol.sy
-            //    //var n = _compilation.GetBinder();
-            //    //var p = new BoundDelegateCreationExpression(
-            //    //    );
-            //    var actionFunctionType = new FunctionTypeSymbol(sqlDoType);
-            //    var actionMethodSymbol = _compilation
-            //        .GetWellKnownType(WellKnownType.System_Action_T2)
-            //        .GetMembers()
-            //        .OfType<MethodSymbol>()
-            //        .FirstOrDefault();
-            //    var lams = new ConstructedMethodSymbol(
-            //        actionMethodSymbol,
-            //        new ImmutableArray<TypeWithAnnotations>());
-            //    var ulam = new UnboundLambda(
-            //        node.SqlDoOpt.Syntax,
-            //        null,
-            //        actionFunctionType,
-            //        false,
-            //        false);
-            //    //var mlam = UnboundLambda.Create(
-            //    //    node.SqlDoOpt.Syntax,
-            //    //    n,
-            //    //    )
-            //    var lam = new BoundLambda(
-            //        node.SqlDoOpt.Syntax,
-            //        null,
-            //        lams,
-            //        sqlDoBlock,
-            //        ReadOnlyBindingDiagnostic<AssemblySymbol>.Empty,
-            //        null,
-            //        null
-            //        );
-            //}
-            //
-            //var sqlEmptyBoundLiteral = _factory.Null(sqlEmptyType);
-            //var sqlEndBoundLiteral = _factory.Null(sqlEmptyType);
-            //
-            //var mySqlMethod = tryLookupMySqlFunction(node.Syntax);
-            //Debug.Assert(mySqlMethod is not null, "iWare.Database.SqlCommands.SqlCommand is missing");
-            //
-            //var boundCall = _factory.Call(
-            //    receiver: null,
-            //    method: mySqlMethod,
-            //    args: ImmutableArray.Create(sqlTextBoundLiteral, sqlDoBoundLiteral, sqlEmptyBoundLiteral, sqlEndBoundLiteral)
-            //    );
-            //
-            //return new BoundExpressionStatement(node.Syntax, boundCall);
-            //
-            //MethodSymbol? tryLookupMySqlFunction(SyntaxNode syntax)
-            //{
-            //    return TryLookupFunction(syntax, "iWare.Database.SqlCommands", "SqlCommand");
-            //}
+            return RewriteSqlStatement(
+                node,
+                sqlTextBoundLiteral,
+                sqlDoBoundLiteral,
+                null,
+                null,
+                sqlDoSymbols);
         }
 
         private BoundStatement RewriteSqlStatement(
             BoundNode node,
             BoundLiteral sqlTextBoundLiteral,
-            BoundStatement? sqlDoBlock,
-            BoundStatement? sqlEmptyBlock,
-            BoundStatement? sqlEndBlock)
+            BoundBlock? sqlDoBlock,
+            BoundBlock? sqlEmptyBlock,
+            BoundBlock? sqlEndBlock,
+            ImmutableArray<LocalSymbol>? sqlDoSymbols)
         {
             var syntax = node.Syntax;
 
@@ -196,27 +116,24 @@ namespace Microsoft.CodeAnalysis.CSharp
             //     }
             // }
 
-            //var lab = new GeneratedLabelSymbol("");
-
             // SqlDataReader? sqlReader = null;
-            var readerLocalSymbol = _factory.SynthesizedLocal(sqlDataReaderType, syntax);
-            var readerLocal = _factory.Local(readerLocalSymbol);
+            var readerLocalSymbol = _factory.SynthesizedLocal(sqlDataReaderType);
             var sqlReaderAssignmentStatement = _factory.ExpressionStatement(
                 _factory.AssignmentExpression(
-                    readerLocal,
+                    _factory.Local(readerLocalSymbol),
                     _factory.Null(sqlDataReaderType)));
 
             // sqlReader = Connect(/*QUERY*/);
             var sqlReaderConnectStatement = _factory.ExpressionStatement(
                 _factory.AssignmentExpression(
-                    readerLocal,
+                    _factory.Local(readerLocalSymbol),
                     _factory.Call(
                         null,
                         connectMethodSymbol,
                         ImmutableArray.Create<BoundExpression>(sqlTextBoundLiteral))));
 
             // sqlReader.Read()
-            var readCall = _factory.Call(readerLocal, readMethodSymbol);
+            var readCall = _factory.Call(_factory.Local(readerLocalSymbol), readMethodSymbol);
 
             // do
             // {
@@ -227,13 +144,35 @@ namespace Microsoft.CodeAnalysis.CSharp
             BoundStatement sqlDoLoop;
             if (sqlDoBlock != null)
             {
+                Debug.Assert(sqlDoSymbols is not null, "recordSymbol should be defined if sqlDoBlock is not null");
+                //var recordSymbol = ((ImmutableArray<LocalSymbol>)sqlDoSymbols).First();
+                var recordTemp = _factory.SynthesizedLocal(iDataRecordType);
+                //var assignRecord = _factory.ExpressionStatement(
+                //    _factory.AssignmentExpression(
+                //        _factory.Local(recordSymbol),
+                //        _factory.Convert(
+                //            iDataRecordType,
+                //            _factory.Local(readerLocalSymbol))));
+                var assignRecord = _factory.ExpressionStatement(
+                    _factory.AssignmentExpression(
+                        _factory.Local(recordTemp),
+                        _factory.Convert(
+                            iDataRecordType,
+                            _factory.Local(readerLocalSymbol))));
+                //BoundStatement rewrittenDoBlock = RewriteBoundBlock(
+                //    sqlDoBlock,
+                //    recordSymbol,
+                //    recordTemp);
+
                 var startLabel = new GeneratedLabelSymbol("sqlDoStart");
                 var conditionalGoto = _factory.ConditionalGoto(
                     readCall,
                     startLabel,
                     true);
                 sqlDoLoop = _factory.Block(
+                    [recordTemp],
                     ImmutableArray.Create(
+                        assignRecord,
                         _factory.Label(startLabel),
                         sqlDoBlock,
                         conditionalGoto));
@@ -263,7 +202,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 _factory.Call(
                     null,
                     disconnectMethodSymbol,
-                    ImmutableArray.Create<BoundExpression>(readerLocal)));
+                    ImmutableArray.Create<BoundExpression>(_factory.Local(readerLocalSymbol))));
 
             // /*ALWAYS RUN*/
             // or empty block if sqlEnd is null
@@ -283,11 +222,6 @@ namespace Microsoft.CodeAnalysis.CSharp
             var finallyLabel = new GeneratedLabelSymbol("sqlFinally");
             var tryFinallyStatement = _factory.Try(tryBlock, [], finallyBlock, finallyLabel);
 
-            //return _factory.Block(
-            //    [readerLocalSymbol],
-            //    sqlReaderAssignmentStatement,
-            //    tryFinallyStatement);
-
             return BoundStatementList.Synthesized(
                 node.Syntax,
                 new BoundBlock(
@@ -299,6 +233,39 @@ namespace Microsoft.CodeAnalysis.CSharp
                     ]));
         }
 
+        private BoundStatement RewriteBoundBlock(
+            BoundBlock block,
+            LocalSymbol placeholder,
+            LocalSymbol replacement)
+        {
+            var rewriter = new ReplaceLocalRewriter(placeholder, replacement, _factory);
+            return (BoundBlock)rewriter.VisitBlock(block)!;
+        }
+
+        private class ReplaceLocalRewriter(LocalSymbol placeholder, LocalSymbol replacement, SyntheticBoundNodeFactory factory) : BoundTreeRewriter
+        {
+            private readonly LocalSymbol _placeholder = placeholder;
+            private readonly LocalSymbol _replacement = replacement;
+            private readonly SyntheticBoundNodeFactory _factory = factory;
+
+            public override BoundNode? VisitLocal(BoundLocal node)
+            {
+                if (node.LocalSymbol == _placeholder)
+                {
+                    return _factory.Local(_replacement);
+                }
+
+                return base.VisitLocal(node);
+            }
+
+            protected override BoundNode? VisitExpressionOrPatternWithoutStackGuard(BoundNode node)
+            {
+                throw new System.NotImplementedException();
+            }
+        }
+
+
+
         private MethodSymbol? TryLookupFunction(SyntaxNode syntax, string @namespace, string functionName)
         {
             var type = _compilation.GetTypeByMetadataName(@namespace);
@@ -308,46 +275,5 @@ namespace Microsoft.CodeAnalysis.CSharp
                 .FirstOrDefault();
             return myFunction;
         }
-
-        /*
-        private BoundExpression RewriteSqlDoClause(
-            BoundSqlDoClause sqlDo,
-            //ImmutableArray<LocalSymbol> locals,
-            //BoundStatement rewrittenBody,
-            bool hasErrors)
-        {
-            var syntax = sqlDo.Syntax;
-            //    Debug.Assert(node.SqlDoOpt.Kind != BoundKind.UnboundLambda, "Can't be an unbound lambda");
-            //sqlDoBoundLiteral = (BoundExpression)Visit(sqlDo)!;
-        
-            var iDataRecordType = _compilation.GetTypeByMetadataName("System.Data.IDataRecord");
-            Debug.Assert(iDataRecordType is not null, "Could not findtype System.Data.IDataRecord");
-            var sqlDoType = _compilation.GetWellKnownType(WellKnownType.System_Action_T2).Construct(
-                    iDataRecordType,
-                    _compilation.GetSpecialType(SpecialType.System_Boolean));
-        
-        
-            //var ulam = new UnboundLambda(
-            //    syntax,
-            //    null,
-            //    sqlDoType,
-            //    false);
-            //var blam = new BoundLambda(syntax, ulam, sqlDo.Body, di);
-            var blk = BoundBlock.Synthesized(
-                syntax,
-                ImmutableArray.Create(sqlDo.Body));
-            var x = new BoundLambda(syntax, null, blk, )
-            return BoundCall.Synthesized(syntax, sqlDo.Body, ThreeState.Unknown, MethodSymbol.None);
-        }
-        */
-
-        //public override BoundNode? VisitSqlDoBlock(BoundSqlDoBlock node)
-        //{
-        //    Debug.Assert(false, "Here");
-        //    var body = Visit(node.Body);
-        //    Debug.Assert(body is not null && body.Kind == BoundKind.Block, $"SqlDoBlock.Body is {(body is null ? "null" : $"incorrect kind: {body.Kind.ToString()}")}");
-        //    var loweredBody = (BoundBlock)body!;
-        //    return new BoundSqlDoBlock(node.Syntax, loweredBody);
-        //}
     }
 }

@@ -6,10 +6,10 @@
 
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Microsoft.CodeAnalysis.CSharp.Symbols;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.PooledObjects;
-using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.CSharp
 {
@@ -26,55 +26,40 @@ namespace Microsoft.CodeAnalysis.CSharp
 
         internal override BoundSqlDoClause BindSqlDoParts(BindingDiagnosticBag diagnostics, Binder originalBinder)
         {
-            //var body = SyntaxFactory.Block(new [] { _syntax.Statement });
-            //var arrowToken = SyntaxFactory.Token(SyntaxKind.EqualsGreaterThanToken);
-            //var asyncToken = SyntaxFactory.Token(SyntaxKind.None);
-            ////var recordParam = SyntaxFactory.Parameter()
-            //TypeSyntax recordType = SyntaxFactory.QualifiedName(
+            //var body = originalBinder.BindPossibleEmbeddedStatement(_syntax.Statement, diagnostics);
+            var body = this.BindEmbeddedBlock(_syntax.Block, diagnostics);
+
+            var iDataRecordType = Compilation.GetTypeByMetadataName("System.Data.IDataRecord");
+
+            return new BoundSqlDoClause(_syntax, /*this.Locals, */body, this.Locals);
+        }
+
+        protected override ImmutableArray<LocalSymbol> BuildLocals()
+        {
+            //var _recordType = SyntaxFactory.QualifiedName(
             //    SyntaxFactory.QualifiedName(
             //        SyntaxFactory.IdentifierName("System"),
             //        SyntaxFactory.IdentifierName("Data")),
             //    SyntaxFactory.IdentifierName("IDataRecord").WithTrailingTrivia(SyntaxFactory.Space));
-            //TypeSyntax firstLineType = SyntaxFactory.PredefinedType(SyntaxFactory.Token//(SyntaxKind.BoolKeyword).WithTrailingTrivia(SyntaxFactory.Space));
-            //ParameterListSyntax parameterList = SyntaxFactory.ParameterList([
-            //    SyntaxFactory.Parameter(default, default, recordType, SyntaxFactory.Identifier("record"), null),
-            //    SyntaxFactory.Parameter(default, default, firstLineType, SyntaxFactory.Identifier("firstLine"), null)
-            //    ]);
-            //
-            var body = originalBinder.BindPossibleEmbeddedStatement(_syntax.Statement, diagnostics);
-            //var lambdaSyntax = SyntaxFactory.ParenthesizedLambdaExpression(
-            //    asyncToken,
-            //    parameterList,
-            //    arrowToken,
-            //    body,
-            //    null);
-            //var unboundLambda = BindExpression(lambdaSyntax, diagnostics);
-            //var boundLambda = 
-            //Debug.Assert(this.Locals == this.GetDeclaredLocalsForScope(node));
-            return new BoundSqlDoClause(_syntax, /*this.Locals, */body);
-        }
 
-        //internal override ImmutableArray<LocalSymbol> GetDeclaredLocalsForScope(SyntaxNode scopeDesignator)
-        //{
-        //    if (_syntax == scopeDesignator)
-        //    {
-        //        return this.Locals;
-        //    }
-        //
-        //    throw ExceptionUtilities.Unreachable();
-        //}
-        //
-        //internal override ImmutableArray<LocalFunctionSymbol> GetDeclaredLocalFunctionsForScope(CSharpSyntaxNode scopeDesignator)
-        //{
-        //    throw ExceptionUtilities.Unreachable();
-        //}
-        //
-        //internal override SyntaxNode ScopeDesignator
-        //{
-        //    get
-        //    {
-        //        return _syntax;
-        //    }
-        //}
+            //var recordType = Compilation.GetTypeByMetadataName("System.Data.IDataRecord");
+            var recordType = SyntaxFactory.ParseTypeName("System.Data.IDataRecord");
+
+            var locals = ArrayBuilder<LocalSymbol>.GetInstance();
+            var recordLocal = SourceLocalSymbol.MakeLocal(
+                containingSymbol: this.ContainingMemberOrLambda,
+                scopeBinder: this,
+                allowRefKind: false,
+                allowScoped: false,
+                typeSyntax: recordType,
+                identifierToken: SyntaxFactory.Identifier("record"),
+                declarationKind: LocalDeclarationKind.RegularVariable,
+                initializer: null
+            );
+            locals.Add(recordLocal);
+
+            //originalBinder.Locals.Add(recordLocal);
+            return locals.ToImmutableAndFree();
+        }
     }
 }

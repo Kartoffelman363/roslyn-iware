@@ -856,7 +856,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             //AddToMap(node.SqlDo, sqlDoBlockBinder);
             //Visit(node.SqlDo.Body, sqlDoBlockBinder);
             //Visit(node.SqlDo.ParameterList);
-            Visit(node.SqlDo);
+            Visit(node.SqlDoClause);
         }
 
         public override void VisitSqlDoClause(SqlDoClauseSyntax node)
@@ -865,7 +865,8 @@ namespace Microsoft.CodeAnalysis.CSharp
             var sqlDoBinder = new SqlDoClauseBinder(_enclosing, node);
             AddToMap(node, sqlDoBinder);
 
-            VisitPossibleEmbeddedStatement(node.Statement, sqlDoBinder);
+            VisitBlock(node.Block);
+            //VisitPossibleEmbeddedStatement(node.Block, sqlDoBinder);
         }
         /*
          *public override void VisitWhileStatement(WhileStatementSyntax node)

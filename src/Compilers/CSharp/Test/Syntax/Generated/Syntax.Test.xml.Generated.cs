@@ -2542,7 +2542,7 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
             Assert.Equal(SyntaxKind.OpenBraceToken, node.SqlOpenBraceToken.Kind);
             Assert.Equal(SyntaxKind.SqlTextLiteralToken, node.SqlTextToken.Kind);
             Assert.Equal(SyntaxKind.CloseBraceToken, node.SqlCloseBraceToken.Kind);
-            Assert.Null(node.SqlDo);
+            Assert.Null(node.SqlDoClause);
 
             AttachAndCheckDiagnostics(node);
         }
@@ -2553,7 +2553,7 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
             var node = GenerateSqlDoClause();
 
             Assert.Equal(SyntaxKind.SqlDoKeyword, node.SqlDoKeyword.Kind);
-            Assert.NotNull(node.Statement);
+            Assert.NotNull(node.Block);
 
             AttachAndCheckDiagnostics(node);
         }
@@ -12932,8 +12932,8 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
             Assert.Equal(SyntaxKind.OpenBraceToken, node.SqlOpenBraceToken.Kind());
             Assert.Equal(SyntaxKind.SqlTextLiteralToken, node.SqlTextToken.Kind());
             Assert.Equal(SyntaxKind.CloseBraceToken, node.SqlCloseBraceToken.Kind());
-            Assert.Null(node.SqlDo);
-            var newNode = node.WithAttributeLists(node.AttributeLists).WithSqlKeyword(node.SqlKeyword).WithSqlOpenBraceToken(node.SqlOpenBraceToken).WithSqlTextToken(node.SqlTextToken).WithSqlCloseBraceToken(node.SqlCloseBraceToken).WithSqlDo(node.SqlDo);
+            Assert.Null(node.SqlDoClause);
+            var newNode = node.WithAttributeLists(node.AttributeLists).WithSqlKeyword(node.SqlKeyword).WithSqlOpenBraceToken(node.SqlOpenBraceToken).WithSqlTextToken(node.SqlTextToken).WithSqlCloseBraceToken(node.SqlCloseBraceToken).WithSqlDoClause(node.SqlDoClause);
             Assert.Equal(node, newNode);
         }
 
@@ -12943,8 +12943,8 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
             var node = GenerateSqlDoClause();
 
             Assert.Equal(SyntaxKind.SqlDoKeyword, node.SqlDoKeyword.Kind());
-            Assert.NotNull(node.Statement);
-            var newNode = node.WithSqlDoKeyword(node.SqlDoKeyword).WithStatement(node.Statement);
+            Assert.NotNull(node.Block);
+            var newNode = node.WithSqlDoKeyword(node.SqlDoKeyword).WithBlock(node.Block);
             Assert.Equal(node, newNode);
         }
 

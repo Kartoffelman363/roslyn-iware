@@ -1713,8 +1713,8 @@ namespace Microsoft.CodeAnalysis.CSharp.CodeGen
         public override BoundNode VisitSqlDoClause(BoundSqlDoClause node)
         {
             EnsureOnlyEvalStack();
-            var body = (BoundStatement)this.VisitStatement(node.Body);
-            return node.Update(body);
+            var body = (BoundBlock)this.VisitBlock(node.Body);
+            return node.Update(body, node.Locals);
         }
 
         public override BoundNode VisitCatchBlock(BoundCatchBlock node)

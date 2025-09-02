@@ -4287,25 +4287,28 @@ namespace Microsoft.CodeAnalysis.CSharp
 
     internal sealed partial class BoundSqlDoClause : BoundStatement
     {
-        public BoundSqlDoClause(SyntaxNode syntax, BoundStatement body, bool hasErrors = false)
+        public BoundSqlDoClause(SyntaxNode syntax, BoundBlock body, ImmutableArray<LocalSymbol> locals, bool hasErrors = false)
             : base(BoundKind.SqlDoClause, syntax, hasErrors || body.HasErrors())
         {
 
             RoslynDebug.Assert(body is object, "Field 'body' cannot be null (make the type nullable in BoundNodes.xml to remove this check)");
+            RoslynDebug.Assert(!locals.IsDefault, "Field 'locals' cannot be null (use Null=\"allow\" in BoundNodes.xml to remove this check)");
 
             this.Body = body;
+            this.Locals = locals;
         }
 
-        public BoundStatement Body { get; }
+        public BoundBlock Body { get; }
+        public ImmutableArray<LocalSymbol> Locals { get; }
 
         [DebuggerStepThrough]
         public override BoundNode? Accept(BoundTreeVisitor visitor) => visitor.VisitSqlDoClause(this);
 
-        public BoundSqlDoClause Update(BoundStatement body)
+        public BoundSqlDoClause Update(BoundBlock body, ImmutableArray<LocalSymbol> locals)
         {
-            if (body != this.Body)
+            if (body != this.Body || locals != this.Locals)
             {
-                var result = new BoundSqlDoClause(this.Syntax, body, this.HasErrors);
+                var result = new BoundSqlDoClause(this.Syntax, body, locals, this.HasErrors);
                 result.CopyAttributes(this);
                 return result;
             }
@@ -11621,8 +11624,9 @@ namespace Microsoft.CodeAnalysis.CSharp
         }
         public override BoundNode? VisitSqlDoClause(BoundSqlDoClause node)
         {
-            BoundStatement body = (BoundStatement)this.Visit(node.Body);
-            return node.Update(body);
+            ImmutableArray<LocalSymbol> locals = this.VisitLocals(node.Locals);
+            BoundBlock body = (BoundBlock)this.Visit(node.Body);
+            return node.Update(body, locals);
         }
         public override BoundNode? VisitCatchBlock(BoundCatchBlock node)
         {
@@ -13724,6 +13728,13 @@ namespace Microsoft.CodeAnalysis.CSharp
             BoundMultipleLocalDeclarations declarations = (BoundMultipleLocalDeclarations)this.Visit(node.Declarations);
             BoundStatement body = (BoundStatement)this.Visit(node.Body);
             return node.Update(locals, declarations, body);
+        }
+
+        public override BoundNode? VisitSqlDoClause(BoundSqlDoClause node)
+        {
+            ImmutableArray<LocalSymbol> locals = GetUpdatedArray(node, node.Locals);
+            BoundBlock body = (BoundBlock)this.Visit(node.Body);
+            return node.Update(body, locals);
         }
 
         public override BoundNode? VisitCatchBlock(BoundCatchBlock node)
@@ -16204,6 +16215,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         public override TreeDumperNode VisitSqlDoClause(BoundSqlDoClause node, object? arg) => new TreeDumperNode("sqlDoClause", null, new TreeDumperNode[]
         {
             new TreeDumperNode("body", null, new TreeDumperNode[] { Visit(node.Body, null) }),
+            new TreeDumperNode("locals", node.Locals, null),
             new TreeDumperNode("hasErrors", node.HasErrors, null)
         }
         );
