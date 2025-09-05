@@ -4257,27 +4257,33 @@ namespace Microsoft.CodeAnalysis.CSharp
 
     internal sealed partial class BoundSqlStatement : BoundStatement
     {
-        public BoundSqlStatement(SyntaxNode syntax, string sqlContents, BoundSqlDoClause? sqlDoOpt, bool hasErrors = false)
+        public BoundSqlStatement(SyntaxNode syntax, string sqlContents, BoundSqlDoClause? sqlDoOpt, Dictionary<string, Symbol> querySymbols, Dictionary<string, string> queryNames, bool hasErrors = false)
             : base(BoundKind.SqlStatement, syntax, hasErrors || sqlDoOpt.HasErrors())
         {
 
             RoslynDebug.Assert(sqlContents is object, "Field 'sqlContents' cannot be null (make the type nullable in BoundNodes.xml to remove this check)");
+            RoslynDebug.Assert(querySymbols is object, "Field 'querySymbols' cannot be null (make the type nullable in BoundNodes.xml to remove this check)");
+            RoslynDebug.Assert(queryNames is object, "Field 'queryNames' cannot be null (make the type nullable in BoundNodes.xml to remove this check)");
 
             this.SqlContents = sqlContents;
             this.SqlDoOpt = sqlDoOpt;
+            this.querySymbols = querySymbols;
+            this.queryNames = queryNames;
         }
 
         public string SqlContents { get; }
         public BoundSqlDoClause? SqlDoOpt { get; }
+        public Dictionary<string, Symbol> querySymbols { get; }
+        public Dictionary<string, string> queryNames { get; }
 
         [DebuggerStepThrough]
         public override BoundNode? Accept(BoundTreeVisitor visitor) => visitor.VisitSqlStatement(this);
 
-        public BoundSqlStatement Update(string sqlContents, BoundSqlDoClause? sqlDoOpt)
+        public BoundSqlStatement Update(string sqlContents, BoundSqlDoClause? sqlDoOpt, Dictionary<string, Symbol> querySymbols, Dictionary<string, string> queryNames)
         {
-            if (sqlContents != this.SqlContents || sqlDoOpt != this.SqlDoOpt)
+            if (sqlContents != this.SqlContents || sqlDoOpt != this.SqlDoOpt || querySymbols != this.querySymbols || queryNames != this.queryNames)
             {
-                var result = new BoundSqlStatement(this.Syntax, sqlContents, sqlDoOpt, this.HasErrors);
+                var result = new BoundSqlStatement(this.Syntax, sqlContents, sqlDoOpt, querySymbols, queryNames, this.HasErrors);
                 result.CopyAttributes(this);
                 return result;
             }
@@ -11620,7 +11626,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         public override BoundNode? VisitSqlStatement(BoundSqlStatement node)
         {
             BoundSqlDoClause? sqlDoOpt = (BoundSqlDoClause?)this.Visit(node.SqlDoOpt);
-            return node.Update(node.SqlContents, sqlDoOpt);
+            return node.Update(node.SqlContents, sqlDoOpt, node.querySymbols, node.queryNames);
         }
         public override BoundNode? VisitSqlDoClause(BoundSqlDoClause node)
         {
@@ -16209,6 +16215,8 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
             new TreeDumperNode("sqlContents", node.SqlContents, null),
             new TreeDumperNode("sqlDoOpt", null, new TreeDumperNode[] { Visit(node.SqlDoOpt, null) }),
+            new TreeDumperNode("querySymbols", node.querySymbols, null),
+            new TreeDumperNode("queryNames", node.queryNames, null),
             new TreeDumperNode("hasErrors", node.HasErrors, null)
         }
         );

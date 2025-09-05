@@ -3014,7 +3014,7 @@
       <Kind Name="OpenBraceToken"/>
     </Field>
     <Field Name="SqlTextToken" Type="SyntaxToken">
-      <Kind Name="SqlTextLiteralToken" />
+      <Kind Name="SqlTextLiteralToken"/>
     </Field>
     <Field Name="SqlCloseBraceToken" Type="SyntaxToken">
       <Kind Name="CloseBraceToken"/>

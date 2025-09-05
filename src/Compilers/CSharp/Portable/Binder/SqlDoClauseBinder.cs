@@ -29,37 +29,37 @@ namespace Microsoft.CodeAnalysis.CSharp
             //var body = originalBinder.BindPossibleEmbeddedStatement(_syntax.Statement, diagnostics);
             var body = this.BindEmbeddedBlock(_syntax.Block, diagnostics);
 
-            var iDataRecordType = Compilation.GetTypeByMetadataName("System.Data.IDataRecord");
+            //var iDataRecordType = Compilation.GetTypeByMetadataName("System.Data.IDataRecord");
 
             return new BoundSqlDoClause(_syntax, /*this.Locals, */body, this.Locals);
         }
 
-        protected override ImmutableArray<LocalSymbol> BuildLocals()
-        {
-            //var _recordType = SyntaxFactory.QualifiedName(
-            //    SyntaxFactory.QualifiedName(
-            //        SyntaxFactory.IdentifierName("System"),
-            //        SyntaxFactory.IdentifierName("Data")),
-            //    SyntaxFactory.IdentifierName("IDataRecord").WithTrailingTrivia(SyntaxFactory.Space));
-
-            //var recordType = Compilation.GetTypeByMetadataName("System.Data.IDataRecord");
-            var recordType = SyntaxFactory.ParseTypeName("System.Data.IDataRecord");
-
-            var locals = ArrayBuilder<LocalSymbol>.GetInstance();
-            var recordLocal = SourceLocalSymbol.MakeLocal(
-                containingSymbol: this.ContainingMemberOrLambda,
-                scopeBinder: this,
-                allowRefKind: false,
-                allowScoped: false,
-                typeSyntax: recordType,
-                identifierToken: SyntaxFactory.Identifier("record"),
-                declarationKind: LocalDeclarationKind.RegularVariable,
-                initializer: null
-            );
-            locals.Add(recordLocal);
-
-            //originalBinder.Locals.Add(recordLocal);
-            return locals.ToImmutableAndFree();
-        }
+        //protected override ImmutableArray<LocalSymbol> BuildLocals()
+        //{
+        //    //var _recordType = SyntaxFactory.QualifiedName(
+        //    //    SyntaxFactory.QualifiedName(
+        //    //        SyntaxFactory.IdentifierName("System"),
+        //    //        SyntaxFactory.IdentifierName("Data")),
+        //    //    SyntaxFactory.IdentifierName("IDataRecord").WithTrailingTrivia(SyntaxFactory.Space));
+        //
+        //    //var recordType = Compilation.GetTypeByMetadataName("System.Data.IDataRecord");
+        //    var recordType = SyntaxFactory.ParseTypeName("System.Data.IDataRecord");
+        //
+        //    var locals = ArrayBuilder<LocalSymbol>.GetInstance();
+        //    var recordLocal = SourceLocalSymbol.MakeLocal(
+        //        containingSymbol: this.ContainingMemberOrLambda,
+        //        scopeBinder: this,
+        //        allowRefKind: false,
+        //        allowScoped: false,
+        //        typeSyntax: recordType,
+        //        identifierToken: SyntaxFactory.Identifier("record"),
+        //        declarationKind: LocalDeclarationKind.RegularVariable,
+        //        initializer: null
+        //    );
+        //    locals.Add(recordLocal);
+        //
+        //    //originalBinder.Locals.Add(recordLocal);
+        //    return locals.ToImmutableAndFree();
+        //}
     }
 }

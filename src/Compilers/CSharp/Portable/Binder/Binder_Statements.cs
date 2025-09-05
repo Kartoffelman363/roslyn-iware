@@ -5,15 +5,14 @@
 #nullable disable
 
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Xml.Linq;
 using Microsoft.CodeAnalysis.CSharp.Symbols;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.PooledObjects;
-using Microsoft.VisualBasic;
 using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.CSharp
@@ -3231,117 +3230,124 @@ namespace Microsoft.CodeAnalysis.CSharp
         private BoundSqlStatement BindSqlStatement(SqlStatementSyntax node, BindingDiagnosticBag diagnostics)
         {
             Debug.Assert(node != null);
+            var sqlText = node.SqlTextToken.ValueText;
+            var useSiteInfo = CompoundUseSiteInfo<AssemblySymbol>.Discarded;
 
-            //BoundExpression sqlDoBoundExpression = null;
-            //BoundLambda sqlDoBoundLambda = null;
+            var names = getNamesFromSqlText();
+
+            Dictionary<string, Symbol> symbols = new();
+            foreach (var name in names)
+            {
+                var lookupResult = LookupResult.GetInstance();
+                LookupSymbolsWithFallback(
+                    lookupResult,
+                    name.Key,
+                    0,
+                    ref useSiteInfo);
+                symbols.Add(name.Key, lookupResult.Symbols.FirstOrDefault());
+                lookupResult.Free();
+            }
+
             BoundSqlDoClause boundSqlDoClause = null;
             if (node.SqlDoClause is not null)
             {
-                //////sqlDoBoundExpression = BindExpression(sqlDo, diagnostics);
-                //////sqlDoBoundBlock = BindSqlDoBlock(node.SqlDo, diagnostics);
-                ////var sqlDoUnboundLambda = BindAnonymousFunction(node.SqlDo, diagnostics);
-                ////var iDataRecord = Compilation.GetTypeByMetadataName("System.Data.IDataRecord");
-                ////var sqlDoType = Compilation.GetWellKnownType(WellKnownType.System_Action_T2)
-                ////    .Construct(iDataRecord, Compilation.GetSpecialType(SpecialType.System_Boolean));
-                //////sqlDoBoundLambda = sqlDoUnboundLambda.Bind(sqlDoType, false);
-                ////sqlDoBoundLambda = new BoundConversion(
-                ////    syntax: node.SqlDo,
-                ////    operand: sqlDoUnboundLambda,
-                ////    conversion: Conversion.AnonymousFunction,
-                ////    isBaseConversion: false,
-                ////    @checked: false,
-                ////    explicitCastInCode: false,
-                ////    constantValueOpt: null,
-                ////    conversionGroupOpt: null,
-                ////    type: sqlDoType);
-                //////sqlDoBoundLambda = new BoundConversion(
-                //////    node.SqlDo,
-                //////    sqlDoUnboundLambda,
-                //////    Conversion.AnonymousFunction,
-                //////    false,
-                //////    false,
-                //////    null,
-                //////    null,
-                //////    sqlDoType);
-                ////Debug.Assert(sqlDoBoundLambda is not null && sqlDoBoundLambda.Kind != BoundKind.UnboundLambda, "Cannot be null or unbound lambda");
-                //TypeSyntax recordType = SyntaxFactory.QualifiedName(
-                //    SyntaxFactory.QualifiedName(
-                //    SyntaxFactory.IdentifierName("System"),
-                //    SyntaxFactory.IdentifierName("Data")),
-                //    SyntaxFactory.IdentifierName("IDataRecord").WithTrailingTrivia(SyntaxFactory.Space));
-                //TypeSyntax firstLineType = SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.BoolKeyword).WithTrailingTrivia(SyntaxFactory.Space));
-                //ParameterListSyntax parameterList = SyntaxFactory.ParameterList([
-                //    SyntaxFactory.Parameter(default, default, recordType, SyntaxFactory.Identifier("record"), null),
-                //    SyntaxFactory.Parameter(default, default, firstLineType, SyntaxFactory.Identifier("firstLine"), null)
-                //    ]);
-                //var arrowToken = SyntaxFactory.Token(SyntaxKind.EqualsGreaterThanToken);
-                ////////sqlDoBoundLambda = unboundLambda.Bind(node.SqlDo.ParameterList, false);
-                ////var lambdaSyntax = SyntaxFactory.AnonymousMethodExpression(node.SqlDo.Block);
-                //var lambdaSyntax = SyntaxFactory.ParenthesizedLambdaExpression(default, parameterList, arrowToken, node.SqlDo.Block);
-                //var unboundLambda = BindAnonymousFunction(lambdaSyntax, diagnostics);
-                //var sqlDoType = Compilation.GetWellKnownType(WellKnownType.System_Action_T2).Construct(
-                //    Compilation.GetTypeByMetadataName("System.Data.IDataRecord"),
-                //    Compilation.GetSpecialType(SpecialType.System_Boolean));
-                //sqlDoBoundLambda = unboundLambda.Bind(sqlDoType, false);
-                //BindValue(lambdaSyntax, diagnostics, BindValueKind.);
                 boundSqlDoClause = BindSqlDoClause(node.SqlDoClause, diagnostics);
-                //var unboundLambda = BindAnonymousFunction((ParenthesizedLambdaExpressionSyntax)node.SqlDo.Expression, diagnostics);
-                //var sqlDoBoundLambda = BindToInferredDelegateType(unboundLambda, diagnostics);
-
-                //BlockSyntax body;
-                //if (node.SqlDo.Statement.Kind() == SyntaxKind.Block)
-                //{
-                //    body = (BlockSyntax)node.SqlDo.Statement;
-                //}
-                //else
-                //{
-                //    body = SyntaxFactory.Block(new[] { node.SqlDo.Statement });
-                //}
-                //var arrowToken = SyntaxFactory.Token(SyntaxKind.EqualsGreaterThanToken);
-                //var asyncToken = SyntaxFactory.Token(SyntaxKind.None);
-                ////var recordParam = SyntaxFactory.Parameter()
-                //TypeSyntax recordType = SyntaxFactory.QualifiedName(
-                //    SyntaxFactory.QualifiedName(
-                //        SyntaxFactory.IdentifierName("System"),
-                //        SyntaxFactory.IdentifierName("Data")),
-                //    SyntaxFactory.IdentifierName("IDataRecord").WithTrailingTrivia(SyntaxFactory.Space));
-                //TypeSyntax firstLineType = SyntaxFactory.PredefinedType(SyntaxFactory.Token//(SyntaxKind.BoolKeyword).WithTrailingTrivia(SyntaxFactory.Space));
-                //ParameterListSyntax parameterList = SyntaxFactory.ParameterList([
-                //    SyntaxFactory.Parameter(default, default, recordType, SyntaxFactory.Identifier("record"), null),
-                //SyntaxFactory.Parameter(default, default, firstLineType, SyntaxFactory.Identifier("firstLine"), null)
-                //    ]);
-                //
-                ////var body = originalBinder.BindPossibleEmbeddedStatement(_syntax.Statement, diagnostics);
-                //var lambdaSyntax = SyntaxFactory.ParenthesizedLambdaExpression(
-                //    asyncToken,
-                //    parameterList,
-                //    arrowToken,
-                //    body,
-                //    null);
-                //var oldRoot = node.SyntaxTree.GetRoot();
-                //var newRoot = oldRoot.ReplaceNode(node.SqlDo.Expression, lambdaSyntax);
-                //var unboundLambda = (UnboundLambda)BindExpression(lambdaSyntax, diagnostics);
-                ////var boundLambda = BindToInferredDelegateType(unboundLambda, diagnostics);
-                //var boundBody = BindBlock(body, diagnostics);
-                //var iDataRecord = Compilation.GetTypeByMetadataName("System.Data.IDataRecord");
-                //var sqlDoType = Compilation.GetWellKnownType(WellKnownType.System_Action_T2)
-                //    .Construct(iDataRecord, Compilation.GetSpecialType(SpecialType.System_Boolean));
-                //var nlam = new BoundLambda(body, unboundLambda, boundBody, diagnostics.ToReadOnly(), null, sqlDoType, //default);
-                //boundSqlDoClause = new BoundSqlDoClause(node.SqlDo, /*this.Locals, */nlam);
             }
+            return new BoundSqlStatement(node, sqlText, boundSqlDoClause, symbols, names);
 
-            //var sqlBlock = BindEmbeddedBlock(node.Block, diagnostics);
+            Dictionary<string, string> getNamesFromSqlText()
+            {
+                Dictionary<string, string> names = new();
+                // TODO-aljaz resolve adding variables as _cmd.Parameters.AddWithValue("@itemUMFilter", itemUMFilter);
+                for (int i = 0; i < sqlText.Length; i++)
+                {
+                    var c = look(i);
+                    // Single line comment
+                    if (c == '-' && (c = look(++i)) == '-')
+                    {
+                        // find newline or eof
+                        while ((c = look(++i)) != '\n' && c != '\0') ;
+                    }
+                    // Multi line comment
+                    if (c == '/' && (c = look(++i)) == '*')
+                    {
+                        // find */ or eof
+                        while (((c = look(++i)) != '*' || (c = look(i + 1)) != '/') && c != '\0') ;
+                    }
+                    // if char is [ look for @
+                    if (c == '[' && look(i + 1) == '@')
+                    {
+                        string name;
+                        string sqlName;
+                        var readFromPos = i + 2;
+                        var readPosLen = 0;
+                        c = look(readFromPos);
+                        while (vaildChar(c))
+                        {
+                            readPosLen++;
+                            c = look(readFromPos + readPosLen);
+                        }
+                        if (c == '\0')
+                        {
+                            continue;
+                        }
+                        if (readPosLen > 0)
+                        {
+                            name = sqlText.Substring(readFromPos, readPosLen);
+                        }
+                        else
+                        {
+                            continue;
+                        }
+                        var readFromNeg = i - 1;
+                        var readNegLen = 0;
+                        c = look(readFromNeg);
+                        while (c == ' ')
+                        {
+                            c = look(--readFromNeg);
+                        }
+                        if (c == '\0')
+                        {
+                            continue;
+                        }
+                        c = look(readFromNeg);
+                        while (vaildChar(c))
+                        {
+                            readNegLen++;
+                            c = look(readFromNeg - readNegLen);
+                        }
+                        if (c == '\0')
+                        {
+                            continue;
+                        }
+                        if (readNegLen > 0)
+                        {
+                            sqlName = sqlText.Substring(readFromNeg - readNegLen + 1, readNegLen);
+                        }
+                        else
+                        {
+                            continue;
+                        }
+                        sqlText = sqlText.Substring(0, i) + sqlText.Substring(readFromPos + readPosLen + 1);
+                        names.Add(name, sqlName);
+                    }
+                }
+                return names;
 
-            //var sqlText = node.Block.GetText().ToString();
+                char look(int index)
+                {
+                    if (index > sqlText.Length || index <= 0)
+                    {
+                        return '\0';
+                    }
+                    return sqlText[index];
+                }
 
-            // throw new Exception($"This is what I'm talking about: {sqlText}");
-
-            //var catchBlocks = BindCatchBlocks(node.Catches, diagnostics);
-            //var finallyBlockOpt = (node.Finally != null) ? BindEmbeddedBlock(node.Finally.Block, diagnostics) : null;
-
-            // sqlBlock, catchBlocks, finallyBlockOpt
-            //return new BoundSqlStatement(node, node.SqlTextToken.ValueText, sqlDoBoundExpression);
-            return new BoundSqlStatement(node, node.SqlTextToken.ValueText, boundSqlDoClause);
+                bool vaildChar(char c)
+                {
+                    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+                }
+            }
         }
 
         private BoundSqlDoClause BindSqlDoClause(SqlDoClauseSyntax node, BindingDiagnosticBag diagnostics)

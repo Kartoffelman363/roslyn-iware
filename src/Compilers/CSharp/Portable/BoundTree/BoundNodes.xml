@@ -1344,7 +1344,9 @@
 
   <Node Name="BoundSqlStatement" Base="BoundStatement">
     <Field Name="SqlContents" Type="string"/>
-    <Field Name="SqlDoOpt" Type="BoundSqlDoClause?" />
+    <Field Name="SqlDoOpt" Type="BoundSqlDoClause?"/>
+    <Field Name="querySymbols" Type="Dictionary&lt;string, Symbol&gt;"/>
+    <Field Name="queryNames" Type="Dictionary&lt;string, string&gt;"/>
   </Node>
 
   <Node Name="BoundSqlDoClause" Base="BoundStatement">

@@ -179,8 +179,8 @@ namespace Microsoft.CodeAnalysis.CSharp
             out string? normalizedFilePath)
         {
 #if DEBUG
-            if (file.Path.Contains("DemoTry.cs"))
-                Debugger.Launch();
+            //if (file.Path.Contains("DemoTry.cs"))
+            //    Debugger.Launch();
 #endif
             var fileDiagnostics = new List<DiagnosticInfo>();
             var content = TryReadFileContent(file, fileDiagnostics, out normalizedFilePath);

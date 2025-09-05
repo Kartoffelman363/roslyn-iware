@@ -1702,7 +1702,9 @@ namespace Microsoft.CodeAnalysis.CSharp.CodeGen
 
             return node.Update(
                 sqlText,
-                sqlDoClause
+                sqlDoClause,
+                node.querySymbols,
+                node.queryNames
             //catchBlocks,
             //finallyBlock,
             //finallyLabelOpt: node.FinallyLabelOpt,
