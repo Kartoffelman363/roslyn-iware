@@ -660,10 +660,13 @@ namespace Microsoft.CodeAnalysis.CSharp
             SyntaxNode syntax,
             string sqlContents,
             BoundSqlDoClause sqlDoOpt,
-            Dictionary<string, Symbol> querySymbols,
-            Dictionary<string, string> queryNames
+            BoundSqlEmptyClause sqlEmptyOpt,
+            BoundSqlEndClause sqlEndOpt,
+            ImmutableArray<Symbol> querySymbols,
+            ImmutableArray<string> queryNames,
+            ImmutableArray<string> querySqlNames
                 )
-            : this(syntax, sqlContents, sqlDoOpt, querySymbols, queryNames, hasErrors: false)
+            : this(syntax, sqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, querySymbols, queryNames, querySqlNames, hasErrors: false)
         {
         }
     }

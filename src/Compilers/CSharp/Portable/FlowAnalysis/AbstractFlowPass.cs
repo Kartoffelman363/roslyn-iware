@@ -1910,39 +1910,38 @@ namespace Microsoft.CodeAnalysis.CSharp
          */
         public override BoundNode VisitSqlStatement(BoundSqlStatement node)
         {
-            /*
-             * Visit(node.SqlBlock);
-             * return null;
-             */
-            //return Visit(node.SqlBlock);
             if (node.SqlDoOpt is not null)
             {
-                //VisitSqlDoBlock(node.SqlDoOpt);
                 VisitSqlDoClause(node.SqlDoOpt);
+            }
+            if (node.SqlEmptyOpt is not null)
+            {
+                VisitSqlEmptyClause(node.SqlEmptyOpt);
+            }
+            if (node.SqlEndOpt is not null)
+            {
+                VisitSqlEndClause(node.SqlEndOpt);
             }
             return null;
         }
 
         public override BoundNode VisitSqlDoClause(BoundSqlDoClause node)
         {
-            //VisitStatement(node.Body);
             Visit(node.Body);
             return null;
         }
-        //public override BoundNode VisitWhileStatement(BoundWhileStatement node)
-        //{
-        //    // while (node.Condition) { node.Body; node.ContinueLabel: } node.BreakLabel:
-        //    LoopHead(node);
-        //    VisitCondition(node.Condition);
-        //    TLocalState bodyState = StateWhenTrue;
-        //    TLocalState breakState = StateWhenFalse;
-        //    SetState(bodyState);
-        //    VisitStatement(node.Body);
-        //    ResolveContinues(node.ContinueLabel);
-        //    LoopTail(node);
-        //    ResolveBreaks(breakState, node.BreakLabel);
-        //    return null;
-        //}
+
+        public override BoundNode VisitSqlEmptyClause(BoundSqlEmptyClause node)
+        {
+            Visit(node.Body);
+            return null;
+        }
+
+        public override BoundNode VisitSqlEndClause(BoundSqlEndClause node)
+        {
+            Visit(node.Body);
+            return null;
+        }
 
         protected Optional<TLocalState> NonMonotonicState;
 

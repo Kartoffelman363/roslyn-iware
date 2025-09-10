@@ -9,21 +9,21 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Microsoft.CodeAnalysis.CSharp
 {
-    internal sealed class SqlDoClauseBinder : LocalScopeBinder
+    internal sealed class SqlEmptyClauseBinder : LocalScopeBinder
     {
-        private readonly SqlDoClauseSyntax _syntax;
+        private readonly SqlEmptyClauseSyntax _syntax;
 
-        public SqlDoClauseBinder(Binder enclosing, SqlDoClauseSyntax syntax)
+        public SqlEmptyClauseBinder(Binder enclosing, SqlEmptyClauseSyntax syntax)
             : base(enclosing, enclosing.Flags)
         {
-            Debug.Assert(syntax != null && syntax.IsKind(SyntaxKind.SqlDoClause));
+            Debug.Assert(syntax != null && syntax.IsKind(SyntaxKind.SqlEmptyClause));
             _syntax = syntax;
         }
 
-        internal override BoundSqlDoClause BindSqlDoParts(BindingDiagnosticBag diagnostics, Binder originalBinder)
+        internal override BoundSqlEmptyClause BindSqlEmptyParts(BindingDiagnosticBag diagnostics, Binder originalBinder)
         {
             var body = this.BindEmbeddedBlock(_syntax.Block, diagnostics);
-            return new BoundSqlDoClause(_syntax, body);
+            return new BoundSqlEmptyClause(_syntax, body);
         }
     }
 }

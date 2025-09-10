@@ -3524,8 +3524,17 @@ namespace Microsoft.CodeAnalysis.CSharp
 
         public override BoundNode? VisitSqlDoClause(BoundSqlDoClause node)
         {
-            //DeclareLocals(node.Locals); TODO-aljaz don't forget this little guy when you do local variables ;)
             return base.VisitSqlDoClause(node);
+        }
+
+        public override BoundNode? VisitSqlEmptyClause(BoundSqlEmptyClause node)
+        {
+            return base.VisitSqlEmptyClause(node);
+        }
+
+        public override BoundNode? VisitSqlEndClause(BoundSqlEndClause node)
+        {
+            return base.VisitSqlEndClause(node);
         }
 
         public override BoundNode? VisitWithExpression(BoundWithExpression withExpr)

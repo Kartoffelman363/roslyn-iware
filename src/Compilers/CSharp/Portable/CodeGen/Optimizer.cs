@@ -1686,29 +1686,17 @@ namespace Microsoft.CodeAnalysis.CSharp.CodeGen
             EnsureOnlyEvalStack();
             var sqlText = node.SqlContents;
             var sqlDoClause = (BoundSqlDoClause)this.Visit(node.SqlDoOpt);
-            //BoundSqlDoBlock? sqlDoBlock = null;
-            //BoundLambda? sqlDoBlock = null;
-            //if (node.SqlDoOpt is not null)
-            //{
-            //    sqlDoBlock = (BoundLambda)this.Visit(node.SqlDoOpt);
-            //}
-
-            //var catchBlocks = this.VisitList(node.CatchBlocks);
-
-            //EnsureOnlyEvalStack();
-            //var finallyBlock = (BoundBlock)this.Visit(node.FinallyBlockOpt);
-
-            //EnsureOnlyEvalStack();
+            var sqlEmptyClause = (BoundSqlEmptyClause)this.Visit(node.SqlEmptyOpt);
+            var sqlEndClause = (BoundSqlEndClause)this.Visit(node.SqlEndOpt);
 
             return node.Update(
                 sqlText,
                 sqlDoClause,
+                sqlEmptyClause,
+                sqlEndClause,
                 node.querySymbols,
-                node.queryNames
-            //catchBlocks,
-            //finallyBlock,
-            //finallyLabelOpt: node.FinallyLabelOpt,
-            //node.PreferFaultHandler
+                node.queryNames,
+                node.querySqlNames
             );
         }
 
@@ -1716,7 +1704,21 @@ namespace Microsoft.CodeAnalysis.CSharp.CodeGen
         {
             EnsureOnlyEvalStack();
             var body = (BoundBlock)this.VisitBlock(node.Body);
-            return node.Update(body, node.Locals);
+            return node.Update(body);
+        }
+
+        public override BoundNode VisitSqlEmptyClause(BoundSqlEmptyClause node)
+        {
+            EnsureOnlyEvalStack();
+            var body = (BoundBlock)this.VisitBlock(node.Body);
+            return node.Update(body);
+        }
+
+        public override BoundNode VisitSqlEndClause(BoundSqlEndClause node)
+        {
+            EnsureOnlyEvalStack();
+            var body = (BoundBlock)this.VisitBlock(node.Body);
+            return node.Update(body);
         }
 
         public override BoundNode VisitCatchBlock(BoundCatchBlock node)

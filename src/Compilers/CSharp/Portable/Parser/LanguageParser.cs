@@ -9033,14 +9033,20 @@ done:
                 Debug.Fail("sql statement cannot be empty");
             }
 
-            //TODO-aljaz rewrite block as lambda?
-
-            // sqlDo -- from block to lambda
             SqlDoClauseSyntax sqlDo = null;
-            //SqlDoClauseSyntax sqlDo = null;
             if (this.CurrentToken.Kind == SyntaxKind.SqlDoKeyword)
             {
                 sqlDo = ParseSqlDoClause();
+            }
+            SqlEmptyClauseSyntax sqlEmpty = null;
+            if (this.CurrentToken.Kind == SyntaxKind.SqlEmptyKeyword)
+            {
+                sqlEmpty = ParseSqlEmptyClause();
+            }
+            SqlEndClauseSyntax sqlEnd = null;
+            if (this.CurrentToken.Kind == SyntaxKind.SqlEndKeyword)
+            {
+                sqlEnd = ParseSqlEndClause();
             }
 
             return _syntaxFactory.SqlStatement(
@@ -9049,7 +9055,9 @@ done:
                 openBrace,
                 sqlContents,
                 closeBrace,
-                sqlDo);
+                sqlDo,
+                sqlEmpty,
+                sqlEnd);
         }
 
         private SyntaxToken ParseSqlBlock()
@@ -9087,41 +9095,6 @@ done:
                 );
         }
 
-        //private SqlDoClauseSyntax ParseSqlDoClause()
-        //{
-        //    var sqlDoKeywordToken = EatToken(SyntaxKind.SqlDoKeyword);
-        //    //var paramList = ParseParenthesizedParameterList(false);
-        //    //var arrowToken = EatToken(SyntaxKind.EqualsGreaterThanToken);
-        //    TypeSyntax recordType = _syntaxFactory.QualifiedName(
-        //        _syntaxFactory.QualifiedName(
-        //            _syntaxFactory.IdentifierName(SyntaxFactory.Identifier("System")),
-        //            SyntaxFactory.Token(SyntaxKind.DotToken),
-        //            _syntaxFactory.IdentifierName(SyntaxFactory.Identifier("Data"))),
-        //        SyntaxFactory.Token(SyntaxKind.DotToken),
-        //        _syntaxFactory.IdentifierName((SyntaxToken)SyntaxFactory.Identifier("IDataRecord").WithTrailingTrivia(SyntaxFactory.Space)));
-        //    SyntaxToken recordIdentifier = SyntaxFactory.Identifier("record");
-        //    TypeSyntax firstLineType = _syntaxFactory.PredefinedType((SyntaxToken)SyntaxFactory.Token(SyntaxKind.BoolKeyword).WithTrailingTrivia(SyntaxFactory.Space));
-        //    SyntaxToken firstLineIdentifier = SyntaxFactory.Identifier("firstLine");
-        //
-        //    var parameters = _pool.AllocateSeparated<ParameterSyntax>();
-        //    parameters.Add(_syntaxFactory.Parameter(null, null, recordType, recordIdentifier, null));
-        //    parameters.AddSeparator(SyntaxFactory.Token(SyntaxKind.CommaToken));
-        //    parameters.Add(_syntaxFactory.Parameter(null, null, firstLineType, firstLineIdentifier, null));
-        //
-        //    var paramList = _syntaxFactory.ParameterList(
-        //        SyntaxFactory.Token(SyntaxKind.OpenParenToken),
-        //        parameters.ToList(),
-        //        SyntaxFactory.Token(SyntaxKind.CloseParenToken));
-        //    _pool.Free(parameters);
-        //    var arrowToken = SyntaxFactory.Token(SyntaxKind.EqualsGreaterThanToken);
-        //    var block = ParsePossiblyAttributedBlock();
-        //    var lam = _syntaxFactory.ParenthesizedLambdaExpression(null, null, null, paramList, arrowToken, block, null);
-        //    //var lam = SyntaxFactory.ParenthesizedLambdaExpression(null, null, null, paramList, arrowToken, block, null);
-        //    //return SyntaxFactory.SqlDoClause(sqlDoKeywordToken, lam);
-        //    //var n = SyntaxReplacer.Replace<ParenthesizedLambdaExpressionSyntax>()
-        //    return _syntaxFactory.SqlDoClause(sqlDoKeywordToken, lam);
-        //}
-
         private SqlDoClauseSyntax ParseSqlDoClause()
         {
             Debug.Assert(this.CurrentToken.Kind == SyntaxKind.SqlDoKeyword, "SqlDo missing keyword");
@@ -9130,103 +9103,27 @@ done:
             var sqlDoBlock = ParsePossiblyAttributedBlock();
 
             return _syntaxFactory.SqlDoClause(sqlDoKeyword, sqlDoBlock);
-            //SyntaxList<SyntaxToken> modifiers = null; // SyntaxFactory.List<SyntaxToken>();
-            //SyntaxToken delegateKeyword = SyntaxFactory.MissingToken(SyntaxKind.DelegateKeyword);
-            //
-            //var par1 = _syntaxFactory.Parameter(
-            //    attributeLists: null,
-            //    modifiers: null,
-            //    //_syntaxFactory.IdentifierName(SyntaxFactory.Identifier("IDataRecord")),
-            //    //type: _syntaxFactory.IdentifierName(SyntaxFactory.MissingToken(SyntaxKind.IDataRecordWord)),
-            //    type: null,
-            //    //ConvertToIdentifier(SyntaxFactory.MissingToken(SyntaxKind.RecordWord)),
-            //    //CreateMissingIdentifierToken(),
-            //    identifier: null,
-            //    @default: null);
-            //var par2 = _syntaxFactory.Parameter(
-            //    null,
-            //    null,
-            //    //SyntaxFactory.IdentifierName(SyntaxFactory.Identifier("bool")),
-            //    null,
-            //    //SyntaxFactory.Identifier("firstLine"),
-            //    null,
-            //    null);
-            //var paramSeparatorToken = SyntaxFactory.MissingToken(SyntaxKind.CommaToken);
-            //ParameterListSyntax parameterList = SyntaxFactory.ParameterList(
-            //    SyntaxFactory.MissingToken(SyntaxKind.OpenParenToken),
-            //    SyntaxFactory.SeparatedList<ParameterSyntax>([par1, paramSeparatorToken, par2]),
-            //    SyntaxFactory.MissingToken(SyntaxKind.CloseParenToken));
-            //
-            //var sqlDoExpression = _syntaxFactory.AnonymousMethodExpression(
-            //    default,
-            //    delegateKeyword,
-            //    parameterList,
-            //    sqlDoBlock,
-            //    null);
-            //
-            ////var n = SyntaxReplacer.Replace<ParenthesizedLambdaExpressionSyntax>()
-            //return _syntaxFactory.SqlDoClause(sqlDoKeyword, sqlDoBlock, sqlDoExpression);
-            ////ExpressionSyntax missingExpression() {
-            ////    var parameters = _pool.AllocateSeparated<ParameterSyntax>();
-            ////    return _syntaxFactory.ParenthesizedLambdaExpression(
-            ////        attributeLists: default,
-            ////        modifiers: default,
-            ////        returnType: null,
-            ////        _syntaxFactory.ParameterList(
-            ////            SyntaxFactory.MissingToken(SyntaxKind.OpenParenToken),
-            ////            parameters.ToList(),
-            ////            SyntaxFactory.MissingToken(SyntaxKind.CloseParenToken)),
-            ////        SyntaxFactory.MissingToken(SyntaxKind.EqualsGreaterThanToken),
-            ////        missingBlock(),
-            ////        null);
-            ////}
-            ////BlockSyntax missingBlock()
-            ////    => _syntaxFactory.Block(
-            ////        attributeLists: default,
-            ////        SyntaxFactory.MissingToken(SyntaxKind.OpenBraceToken),
-            ////        statements: default,
-            ////        SyntaxFactory.MissingToken(SyntaxKind.CloseBraceToken));
         }
 
-        //private AnonymousMethodExpressionSyntax ParseSqlDoBlock()
-        //{
-        //    var sqlDo = this.EatToken(SyntaxKind.SqlDoKeyword);
-        //    BlockSyntax block = ParsePossiblyAttributedBlock();
-        //
-        //    SyntaxList<SyntaxToken> modifiers = null; // SyntaxFactory.List<SyntaxToken>();
-        //    SyntaxToken delegateKeyword = SyntaxFactory.MissingToken(SyntaxKind.DelegateKeyword);
-        //
-        //    var par1 = _syntaxFactory.Parameter(
-        //        attributeLists: null,
-        //        modifiers: null,
-        //        //_syntaxFactory.IdentifierName(SyntaxFactory.Identifier("IDataRecord")),
-        //        //type: _syntaxFactory.IdentifierName(SyntaxFactory.MissingToken(SyntaxKind.IDataRecordWord)),
-        //        type: null,
-        //        //ConvertToIdentifier(SyntaxFactory.MissingToken(SyntaxKind.RecordWord)),
-        //        //CreateMissingIdentifierToken(),
-        //        identifier: null,
-        //        @default: null);
-        //    var par2 = _syntaxFactory.Parameter(
-        //        null,
-        //        null,
-        //        //SyntaxFactory.IdentifierName(SyntaxFactory.Identifier("bool")),
-        //        null,
-        //        //SyntaxFactory.Identifier("firstLine"),
-        //        null,
-        //        null);
-        //    var paramSeparatorToken = SyntaxFactory.MissingToken(SyntaxKind.CommaToken);
-        //    ParameterListSyntax parameterList = SyntaxFactory.ParameterList(
-        //        SyntaxFactory.MissingToken(SyntaxKind.OpenParenToken),
-        //        SyntaxFactory.SeparatedList<ParameterSyntax>([par1, paramSeparatorToken, par2]),
-        //        SyntaxFactory.MissingToken(SyntaxKind.CloseParenToken));
-        //
-        //    return _syntaxFactory.AnonymousMethodExpression(
-        //        default,
-        //        delegateKeyword,
-        //        parameterList,
-        //        block,
-        //        null);
-        //}
+        private SqlEmptyClauseSyntax ParseSqlEmptyClause()
+        {
+            Debug.Assert(this.CurrentToken.Kind == SyntaxKind.SqlEmptyKeyword, "SqlEmpty missing keyword");
+            var sqlEmptyKeyword = EatToken(SyntaxKind.SqlEmptyKeyword);
+            Debug.Assert(this.CurrentToken.Kind == SyntaxKind.OpenBraceToken, "SqlEmpty missing block");
+            var sqlEmptyBlock = ParsePossiblyAttributedBlock();
+
+            return _syntaxFactory.SqlEmptyClause(sqlEmptyKeyword, sqlEmptyBlock);
+        }
+
+        private SqlEndClauseSyntax ParseSqlEndClause()
+        {
+            Debug.Assert(this.CurrentToken.Kind == SyntaxKind.SqlEndKeyword, "SqlEnd missing keyword");
+            var sqlEndKeyword = EatToken(SyntaxKind.SqlEndKeyword);
+            Debug.Assert(this.CurrentToken.Kind == SyntaxKind.OpenBraceToken, "SqlEnd missing block");
+            var sqlEndBlock = ParsePossiblyAttributedBlock();
+
+            return _syntaxFactory.SqlEndClause(sqlEndKeyword, sqlEndBlock);
+        }
 
         private TryStatementSyntax ParseTryStatement(SyntaxList<AttributeListSyntax> attributes)
         {

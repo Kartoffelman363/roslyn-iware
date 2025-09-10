@@ -851,12 +851,9 @@ namespace Microsoft.CodeAnalysis.CSharp
 
         public override void VisitSqlStatement(SqlStatementSyntax node)
         {
-            //var x = new WithLambdaParametersBinder(node.SqlDo, _enclosing);
-            //var sqlDoBlockBinder = new BlockBinder(_enclosing, node.SqlDo.Block);
-            //AddToMap(node.SqlDo, sqlDoBlockBinder);
-            //Visit(node.SqlDo.Body, sqlDoBlockBinder);
-            //Visit(node.SqlDo.ParameterList);
             Visit(node.SqlDoClause);
+            Visit(node.SqlEmptyClause);
+            Visit(node.SqlEndClause);
         }
 
         public override void VisitSqlDoClause(SqlDoClauseSyntax node)
@@ -866,19 +863,25 @@ namespace Microsoft.CodeAnalysis.CSharp
             AddToMap(node, sqlDoBinder);
 
             VisitBlock(node.Block);
-            //VisitPossibleEmbeddedStatement(node.Block, sqlDoBinder);
         }
-        /*
-         *public override void VisitWhileStatement(WhileStatementSyntax node)
-         *{
-         *    Debug.Assert((object)_containingMemberOrLambda == _enclosing.ContainingMemberOrLambda);
-         *    var whileBinder = new WhileBinder(_enclosing, node);
-         *    AddToMap(node, whileBinder);
-         *
-         *    Visit(node.Condition, whileBinder);
-         *    VisitPossibleEmbeddedStatement(node.Statement, whileBinder);
-         *}
-         */
+
+        public override void VisitSqlEmptyClause(SqlEmptyClauseSyntax node)
+        {
+            Debug.Assert((object)_containingMemberOrLambda == _enclosing.ContainingMemberOrLambda);
+            var sqlEmptyBinder = new SqlEmptyClauseBinder(_enclosing, node);
+            AddToMap(node, sqlEmptyBinder);
+
+            VisitBlock(node.Block);
+        }
+
+        public override void VisitSqlEndClause(SqlEndClauseSyntax node)
+        {
+            Debug.Assert((object)_containingMemberOrLambda == _enclosing.ContainingMemberOrLambda);
+            var sqlEndBinder = new SqlEndClauseBinder(_enclosing, node);
+            AddToMap(node, sqlEndBinder);
+
+            VisitBlock(node.Block);
+        }
 
         public override void VisitTryStatement(TryStatementSyntax node)
         {

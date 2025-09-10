@@ -919,11 +919,11 @@ namespace Microsoft.CodeAnalysis.CSharp
                     return SyntaxKind.TryKeyword;
                 case "sql":
                     return SyntaxKind.SqlKeyword;
-                case "sqlDo":
+                case "sqldo":
                     return SyntaxKind.SqlDoKeyword;
-                case "sqlEmpty":
+                case "sqlempty":
                     return SyntaxKind.SqlEmptyKeyword;
-                case "sqlEnd":
+                case "sqlend":
                     return SyntaxKind.SqlEndKeyword;
                 case "throw":
                     return SyntaxKind.ThrowKeyword;
@@ -1578,11 +1578,11 @@ namespace Microsoft.CodeAnalysis.CSharp
                 case SyntaxKind.SqlKeyword:
                     return "sql";
                 case SyntaxKind.SqlDoKeyword:
-                    return "sqlDo";
+                    return "sqldo";
                 case SyntaxKind.SqlEmptyKeyword:
-                    return "sqlEmpty";
+                    return "sqlempty";
                 case SyntaxKind.SqlEndKeyword:
-                    return "sqlEnd";
+                    return "sqlend";
                 case SyntaxKind.CatchKeyword:
                     return "catch";
                 case SyntaxKind.FinallyKeyword:

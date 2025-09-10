@@ -3233,31 +3233,48 @@ namespace Microsoft.CodeAnalysis.CSharp
             var sqlText = node.SqlTextToken.ValueText;
             var useSiteInfo = CompoundUseSiteInfo<AssemblySymbol>.Discarded;
 
-            var names = getNamesFromSqlText();
+            ImmutableArray<string> names;
+            ImmutableArray<string> sqlNames;
+            ImmutableArray<Symbol> symbols;
+            getNamesFromSqlText(out names, out sqlNames);
+            Debug.Assert(sqlNames.Length == names.Length, "Query symbol list and output parameter list length missmatch.");
 
-            Dictionary<string, Symbol> symbols = new();
+            var symbolsBuilder = ImmutableArray.CreateBuilder<Symbol>();
             foreach (var name in names)
             {
                 var lookupResult = LookupResult.GetInstance();
                 LookupSymbolsWithFallback(
                     lookupResult,
-                    name.Key,
+                    name,
                     0,
                     ref useSiteInfo);
-                symbols.Add(name.Key, lookupResult.Symbols.FirstOrDefault());
+                symbolsBuilder.Add(lookupResult.Symbols.FirstOrDefault());
                 lookupResult.Free();
             }
+            symbols = symbolsBuilder.ToImmutableArray();
+            Debug.Assert(symbols.Length == names.Length, "Query output parameters list length missmatch.");
 
             BoundSqlDoClause boundSqlDoClause = null;
             if (node.SqlDoClause is not null)
             {
                 boundSqlDoClause = BindSqlDoClause(node.SqlDoClause, diagnostics);
             }
-            return new BoundSqlStatement(node, sqlText, boundSqlDoClause, symbols, names);
-
-            Dictionary<string, string> getNamesFromSqlText()
+            BoundSqlEmptyClause sqlEmptyClause = null;
+            if (node.SqlEmptyClause is not null)
             {
-                Dictionary<string, string> names = new();
+                sqlEmptyClause = BindSqlEmptyClause(node.SqlEmptyClause, diagnostics);
+            }
+            BoundSqlEndClause sqlEndClause = null;
+            if (node.SqlEndClause is not null)
+            {
+                sqlEndClause = BindSqlEndClause(node.SqlEndClause, diagnostics);
+            }
+            return new BoundSqlStatement(node, sqlText, boundSqlDoClause, sqlEmptyClause, sqlEndClause, symbols, names, sqlNames);
+
+            void getNamesFromSqlText(out ImmutableArray<string> names, out ImmutableArray<string> sqlNames)
+            {
+                var namesBuilder = ImmutableArray.CreateBuilder<string>();
+                var sqlNamesBuilder = ImmutableArray.CreateBuilder<string>();
                 // TODO-aljaz resolve adding variables as _cmd.Parameters.AddWithValue("@itemUMFilter", itemUMFilter);
                 for (int i = 0; i < sqlText.Length; i++)
                 {
@@ -3267,19 +3284,29 @@ namespace Microsoft.CodeAnalysis.CSharp
                     {
                         // find newline or eof
                         while ((c = look(++i)) != '\n' && c != '\0') ;
+                        continue;
                     }
                     // Multi line comment
                     if (c == '/' && (c = look(++i)) == '*')
                     {
                         // find */ or eof
                         while (((c = look(++i)) != '*' || (c = look(i + 1)) != '/') && c != '\0') ;
+                        continue;
                     }
-                    // if char is [ look for @
-                    if (c == '[' && look(i + 1) == '@')
+                    // if char is [ then parse parameter
+                    if (c == '[')
                     {
+                        // if char + 1 is @ input parameter
+                        if (look(i + 1) == '@')
+                        {
+                            //TODO implement input parameters
+                            //_cmd.Parameters.AddWithValue("@itemUMFilter", itemUMFilter);
+                            continue;
+                        }
+                        // else output parameter
                         string name;
                         string sqlName;
-                        var readFromPos = i + 2;
+                        var readFromPos = i + 1;
                         var readPosLen = 0;
                         c = look(readFromPos);
                         while (vaildChar(c))
@@ -3329,14 +3356,18 @@ namespace Microsoft.CodeAnalysis.CSharp
                             continue;
                         }
                         sqlText = sqlText.Substring(0, i) + sqlText.Substring(readFromPos + readPosLen + 1);
-                        names.Add(name, sqlName);
+                        i--;
+                        namesBuilder.Add(name);
+                        sqlNamesBuilder.Add(sqlName);
                     }
                 }
-                return names;
+                names = namesBuilder.ToImmutableArray();
+                sqlNames = sqlNamesBuilder.ToImmutable();
+                return;
 
                 char look(int index)
                 {
-                    if (index > sqlText.Length || index <= 0)
+                    if (index > sqlText.Length || index < 0)
                     {
                         return '\0';
                     }
@@ -3345,7 +3376,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
                 bool vaildChar(char c)
                 {
-                    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+                    return Char.IsLetterOrDigit(c) || c == '_';
                 }
             }
         }
@@ -3353,35 +3384,40 @@ namespace Microsoft.CodeAnalysis.CSharp
         private BoundSqlDoClause BindSqlDoClause(SqlDoClauseSyntax node, BindingDiagnosticBag diagnostics)
         {
             Debug.Assert(node != null);
-
             var sqlDoBinder = this.GetBinder(node);
             Debug.Assert(sqlDoBinder != null);
-            //
-            //ImmutableArray<LocalSymbol> locals = binder.GetDeclaredLocalsForScope(node);
-            //BoundExpression exceptionSource = null;
-            //LocalSymbol local = locals.FirstOrDefault();
-            //
-            //if (local?.DeclarationKind == LocalDeclarationKind.CatchVariable)
-            //{
-            //    Debug.Assert(local.Type.IsErrorType() || (TypeSymbol.Equals(local.Type, type, TypeCompareKind.ConsiderEverything2)));
-            //
-            //    ReportFieldContextualKeywordConflictIfAny(local, declaration, declaration.Identifier, diagnostics);
-            //
-            //    // Check for local variable conflicts in the *enclosing* binder, not the *current* binder;
-            //    // obviously we will find a local of the given name in the current binder.
-            //    hasError |= this.ValidateDeclarationNameConflictsInScope(local, diagnostics);
-            //
-            //    exceptionSource = new BoundLocal(declaration, local, ConstantValue.NotAvailable, local.Type);
-            //}
-
-            //var block = BindEmbeddedBlock(node.Statement, diagnostics);
-            //return new BoundSqlDoClause(node, block);
             return sqlDoBinder.BindSqlDoParts(diagnostics, sqlDoBinder);
+        }
+
+        private BoundSqlEmptyClause BindSqlEmptyClause(SqlEmptyClauseSyntax node, BindingDiagnosticBag diagnostics)
+        {
+            Debug.Assert(node != null);
+            var sqlEmptyBinder = this.GetBinder(node);
+            Debug.Assert(sqlEmptyBinder != null);
+            return sqlEmptyBinder.BindSqlEmptyParts(diagnostics, sqlEmptyBinder);
+        }
+
+        private BoundSqlEndClause BindSqlEndClause(SqlEndClauseSyntax node, BindingDiagnosticBag diagnostics)
+        {
+            Debug.Assert(node != null);
+            var sqlEndBinder = this.GetBinder(node);
+            Debug.Assert(sqlEndBinder != null);
+            return sqlEndBinder.BindSqlEndParts(diagnostics, sqlEndBinder);
         }
 
         internal virtual BoundSqlDoClause BindSqlDoParts(BindingDiagnosticBag diagnostics, Binder originalBinder)
         {
             return this.Next.BindSqlDoParts(diagnostics, originalBinder);
+        }
+
+        internal virtual BoundSqlEmptyClause BindSqlEmptyParts(BindingDiagnosticBag diagnostics, Binder originalBinder)
+        {
+            return this.Next.BindSqlEmptyParts(diagnostics, originalBinder);
+        }
+
+        internal virtual BoundSqlEndClause BindSqlEndParts(BindingDiagnosticBag diagnostics, Binder originalBinder)
+        {
+            return this.Next.BindSqlEndParts(diagnostics, originalBinder);
         }
 
         private ImmutableArray<BoundCatchBlock> BindCatchBlocks(SyntaxList<CatchClauseSyntax> catchClauses, BindingDiagnosticBag diagnostics)
