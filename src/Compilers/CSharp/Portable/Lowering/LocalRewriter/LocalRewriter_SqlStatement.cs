@@ -20,7 +20,6 @@ namespace Microsoft.CodeAnalysis.CSharp
         // This class is just to wrap Type and Method symbols to make things more convenient
         private class RewriteSql
         {
-            //TODO-aljaz how many of these types do I really need and which ones are only used in one context?
             // Builtin types
             private readonly NamedTypeSymbol _objectType;
             // External types
@@ -32,6 +31,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             private readonly MethodSymbol _immutableArrayOfStringsBuilderMethodSymbol;
             private readonly MethodSymbol _immutableArrayOfStringsBuilderAddMethodSymbol;
             private readonly MethodSymbol _immutableArrayOfStringsBuilderToImmutableArrayMethodSymbol;
+            //private readonly MethodSymbol _objectGetTypeMethodSymbol;
             private MethodSymbol? _arrayIsDefaultOrEmptyMethodSymbol;
             // Functions
             private readonly MethodSymbol _connectMethodSymbol;
@@ -41,18 +41,18 @@ namespace Microsoft.CodeAnalysis.CSharp
             private readonly CSharpCompilation _compilation;
             private readonly SyntheticBoundNodeFactory _factory;
             // Data
-            private readonly SyntaxNode _syntax;
             private readonly BoundLiteral _sqlTextBoundLiteral;
             private readonly BoundBlock? _sqlDoBoundBlock;
             private readonly BoundBlock? _sqlEmptyBoundBlock;
             private readonly BoundBlock? _sqlEndBoundBlock;
             private readonly ImmutableArray<Symbol> _querySymbols;
             private readonly ImmutableArray<string> _querySqlNames;
+            // Fields
+            private readonly FieldSymbol _dbNullValueProperty;
 
             public RewriteSql(CSharpCompilation compilation, SyntheticBoundNodeFactory factory, BoundSqlStatement node, LocalRewriter localRewriter)
             {
                 _compilation = compilation;
-                _syntax = node.Syntax;
                 _factory = factory;
 
                 _sqlTextBoundLiteral = _factory.Literal(node.SqlContents);
@@ -76,8 +76,6 @@ namespace Microsoft.CodeAnalysis.CSharp
                 _querySymbols = node.querySymbols;
                 _querySqlNames = node.querySqlNames;
 
-                // Types
-
                 // Builtin types
                 var stringType = _compilation.GetSpecialType(SpecialType.System_String);
                 _objectType = _compilation.GetSpecialType(SpecialType.System_Object);
@@ -86,6 +84,9 @@ namespace Microsoft.CodeAnalysis.CSharp
                 // External types
                 _sqlDataReaderType = _compilation.GetTypeByMetadataName("Microsoft.Data.SqlClient.SqlDataReader")!;
                 Debug.Assert(_sqlDataReaderType is not null, "type Microsoft.Data.SqlClient.SqlDataReader not found");
+
+                var dbNullType = _compilation.GetTypeByMetadataName("System.DBNull")!;
+                Debug.Assert(dbNullType is not null, "type System.DBNull not found");
 
                 // Combined types
                 _immutableArrayOfStringsType = immutableArrayType
@@ -115,7 +116,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                     .Single(
                         m => m.Parameters.Length == 1 &&
                         m.Parameters[0].Type.Equals(stringType));
-                Debug.Assert(_immutableArrayOfStringsBuilderAddMethodSymbol is not null, "method ImmutableArray.Builder<string>.Add() not found");
+                Debug.Assert(_immutableArrayOfStringsBuilderAddMethodSymbol is not null, "method ImmutableArray.Builder<string>.Add(string) not found");
 
                 _immutableArrayOfStringsBuilderToImmutableArrayMethodSymbol = staticImmutableArrayType
                     .GetMembers("ToImmutableArray")
@@ -128,19 +129,16 @@ namespace Microsoft.CodeAnalysis.CSharp
 
                 // Functions
                 _connectMethodSymbol = TryLookupFunction(
-                    _syntax,
                     "iWare.Database.SqlCommands2",
                     "Connect")!;
                 Debug.Assert(_connectMethodSymbol is not null, "method iWare.Database.SqlCommands2.Connect not found");
 
                 _disconnectMethodSymbol = TryLookupFunction(
-                    _syntax,
                     "iWare.Database.SqlCommands2",
                     "Disconnect")!;
                 Debug.Assert(_disconnectMethodSymbol is not null, "method iWare.Database.SqlCommands2.Disconnect not found");
 
                 _readMethodSymbol = TryLookupFunction(
-                    _syntax,
                     "iWare.Database.SqlCommands2",
                     "Read")!;
                 Debug.Assert(_readMethodSymbol is not null, "method iWare.Database.SqlCommands2.Read() not found");
@@ -149,6 +147,13 @@ namespace Microsoft.CodeAnalysis.CSharp
                     _readMethodSymbol.Parameters[0].Type.Equals(_sqlDataReaderType) &&
                     _readMethodSymbol.Parameters[1].Type.Equals(_immutableArrayOfStringsType),
                     "method iWare.Database.SqlCommands2.Read() does not match expected signature");
+
+                // Fields
+                _dbNullValueProperty = dbNullType
+                    .GetMembers("Value")
+                    .OfType<FieldSymbol>()
+                    .Single();
+                Debug.Assert(_dbNullValueProperty is not null, "property System.DBNull.Value not found");
             }
 
             public BoundStatement RewriteSqlStatement()
@@ -204,7 +209,6 @@ namespace Microsoft.CodeAnalysis.CSharp
                 //     }
                 // }
 
-                var syntax = _syntax;
                 var readMethodTargetType = _readMethodSymbol.ReturnType;
                 var connectMethodTargetType = _connectMethodSymbol.ReturnType;
                 var sideEffects = ImmutableArray.CreateBuilder<BoundStatement>();
@@ -391,9 +395,9 @@ namespace Microsoft.CodeAnalysis.CSharp
                 var tmpLocal = _factory.Local(tmpSymbol);
                 var getItemMethodSymbol =
                     readValuesLocal.Type!
-                    .GetMembers("get_Item")
-                    .OfType<MethodSymbol>()
-                    .FirstOrDefault();
+                        .GetMembers("get_Item")
+                        .OfType<MethodSymbol>()
+                        .FirstOrDefault();
                 Debug.Assert(getItemMethodSymbol is not null, "ImmutableArray<object>.get_Item() not found");
                 Debug.Assert(
                     getItemMethodSymbol.Parameters.Length == 1,
@@ -412,16 +416,24 @@ namespace Microsoft.CodeAnalysis.CSharp
                     //  var tmp = readValues[i];
                     var assignTmp = _factory.Assignment(
                         tmpLocal,
-                        _factory.Call(
-                            readValuesLocal,
-                            getItemMethodSymbol,
-                            [_factory.Literal(i)]));
+                        _factory.Convert(
+                            tmpLocal.Type,
+                            _factory.Call(
+                                readValuesLocal,
+                                getItemMethodSymbol,
+                                [_factory.Literal(i)]),
+                            Conversion.Boxing));
 
-                    //TODO-aljaz handle System.DBNull
+                    // if tmpLocal == DBNull.Value then tmpLocal = null
+                    var objConvertStatement = _factory.If(
+                        _factory.ObjectEqual(
+                            tmpLocal,
+                            _factory.Field(null, _dbNullValueProperty)),
+                        _factory.Assignment(tmpLocal, _factory.Null(tmpLocal.Type)));
                     var conversion = _factory.Convert(
                         targetType,
                         tmpLocal,
-                        Conversion.Unboxing); //_factory.Convert(_compilation.GetSpecialType(SpecialType.System_Object), tmpLocal));
+                        Conversion.Unboxing);
 
                     BoundExpression lhs = symbol switch
                     {
@@ -434,15 +446,13 @@ namespace Microsoft.CodeAnalysis.CSharp
                     // if (tmp != null)
                     sideEffects.AddRange(
                         assignTmp,
-                        _factory.If(
-                            _factory.ObjectNotEqual(tmpLocal, _factory.Null(tmpLocal.Type)),
-                            _factory.Assignment(lhs, conversion))
-                        );
+                        objConvertStatement,
+                        _factory.Assignment(lhs, conversion));
                 }
                 return _factory.Block([tmpSymbol], sideEffects.ToImmutableArray());
             }
 
-            private MethodSymbol? TryLookupFunction(SyntaxNode syntax, string @namespace, string functionName)
+            private MethodSymbol? TryLookupFunction(string @namespace, string functionName)
             {
                 var type = _compilation.GetTypeByMetadataName(@namespace);
                 var myFunction = type?

@@ -3275,6 +3275,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             {
                 var namesBuilder = ImmutableArray.CreateBuilder<string>();
                 var sqlNamesBuilder = ImmutableArray.CreateBuilder<string>();
+                var sqlVariableNamesBuilder = ImmutableArray.CreateBuilder<string>();
                 // TODO-aljaz resolve adding variables as _cmd.Parameters.AddWithValue("@itemUMFilter", itemUMFilter);
                 for (int i = 0; i < sqlText.Length; i++)
                 {
@@ -3299,7 +3300,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                         // if char + 1 is @ input parameter
                         if (look(i + 1) == '@')
                         {
-                            //TODO implement input parameters
+                            //TODO-aljaz implement input parameters
                             //_cmd.Parameters.AddWithValue("@itemUMFilter", itemUMFilter);
                             continue;
                         }
