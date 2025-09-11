@@ -2,10 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Data;
 using System.Diagnostics;
 using System.Linq;
 using Microsoft.CodeAnalysis.CSharp.Symbols;
@@ -15,459 +12,445 @@ namespace Microsoft.CodeAnalysis.CSharp
 {
     internal sealed partial class LocalRewriter
     {
-        // Builtin types
-        private NamedTypeSymbol stringType;
-        private NamedTypeSymbol objectType;
-        private NamedTypeSymbol immutableArrayType;
-        private NamedTypeSymbol nullableType;
-        // External types
-        private NamedTypeSymbol sqlDataReaderType;
-        private NamedTypeSymbol iDataReaderType;
-        // Combined types
-        private NamedTypeSymbol nullableObjectType;
-        private NamedTypeSymbol nullableImmutableArrayType;
-        private NamedTypeSymbol immutableArrayOfNullableObjectsType;
-        private NamedTypeSymbol immutableArrayOfStringsType;
-        private NamedTypeSymbol immutableArrayOfStringsBuilderType;
-        private NamedTypeSymbol immutableArrayBuilderType;
-        private NamedTypeSymbol staticImmutableArrayType;
-        // Methods
-        private MethodSymbol immutableArrayOfStringsBuilderMethodSymbol;
-        private MethodSymbol immutableArrayOfStringsBuilderAddMethodSymbol;
-        private MethodSymbol immutableArrayOfStringsBuilderToImmutableArrayMethodSymbol;
-        private MethodSymbol arrayIsDefaultOrEmptyMethodSymbol;
-        // Functions
-        private MethodSymbol connectMethodSymbol;
-        private MethodSymbol disconnectMethodSymbol;
-        private MethodSymbol readMethodSymbol;
-
         public override BoundNode? VisitSqlStatement(BoundSqlStatement node)
         {
-            var sqlTextBoundLiteral = _factory.Literal(node.SqlContents);
-
-            BoundBlock? sqlDoBoundBlock = null;
-            if (node.SqlDoOpt is not null)
-            {
-                sqlDoBoundBlock = (BoundBlock)VisitBlock(node.SqlDoOpt.Body);
-            }
-            BoundBlock? sqlEmptyBoundBlock = null;
-            if (node.SqlEmptyOpt is not null)
-            {
-                sqlEmptyBoundBlock = (BoundBlock)VisitBlock(node.SqlEmptyOpt.Body);
-            }
-            BoundBlock? sqlEndBoundBlock = null;
-            if (node.SqlEndOpt is not null)
-            {
-                sqlEndBoundBlock = (BoundBlock)VisitBlock(node.SqlEndOpt.Body);
-            }
-
-            init(node.Syntax);
-
-            //TODO-aljaz do I still even need queryNames outside of Binder_Statements.cs?
-            return RewriteSqlStatement(
-                node,
-                sqlTextBoundLiteral,
-                sqlDoBoundBlock,
-                sqlEmptyBoundBlock,
-                sqlEndBoundBlock,
-                node.querySymbols,
-                //node.queryNames,
-                node.querySqlNames);
+            return new RewriteSql(_compilation, _factory, node, this).RewriteSqlStatement();
         }
 
-        private void init(SyntaxNode syntax)
+        // This class is just to wrap Type and Method symbols to make things more convenient
+        private class RewriteSql
         {
-            // Types
-
+            //TODO-aljaz how many of these types do I really need and which ones are only used in one context?
             // Builtin types
-            stringType = _compilation.GetSpecialType(SpecialType.System_String);
-            objectType = _compilation.GetSpecialType(SpecialType.System_Object);
-            immutableArrayType = _compilation.GetWellKnownType(WellKnownType.System_Collections_Immutable_ImmutableArray_T);
-            nullableType = _compilation.GetSpecialType(SpecialType.System_Nullable_T);
-
+            private readonly NamedTypeSymbol _objectType;
             // External types
-            sqlDataReaderType = _compilation.GetTypeByMetadataName("Microsoft.Data.SqlClient.SqlDataReader")!;
-            Debug.Assert(sqlDataReaderType is not null, "type Microsoft.Data.SqlClient.SqlDataReader not found");
-
-            iDataReaderType = _compilation.GetTypeByMetadataName("System.Data.IDataReader")!;
-            Debug.Assert(iDataReaderType is not null, "type System.Data.IDataReader not found");
-
+            private readonly NamedTypeSymbol _sqlDataReaderType;
             // Combined types
-            nullableObjectType = nullableType.Construct(objectType);
-            Debug.Assert(nullableObjectType is not null, "type object? not found");
-
-            nullableImmutableArrayType = nullableType.Construct(immutableArrayType);
-            Debug.Assert(nullableImmutableArrayType is not null, "type ImmutableArray<T>? not found");
-
-            immutableArrayOfNullableObjectsType = immutableArrayType.Construct(nullableObjectType);
-            Debug.Assert(immutableArrayOfNullableObjectsType is not null, "type ImmutableArray<object?> not found");
-
-            //var nullableImmutableArrayOfNullableObjectsType = nullableType.Construct(immutableArrayOfNullableObjectsType);
-            //Debug.Assert(nullableImmutableArrayOfNullableObjectsType is not null, "type ImmutableArray<object?>? not found");
-
-            immutableArrayOfStringsType = immutableArrayType
-                .Construct(stringType);
-            Debug.Assert(immutableArrayOfStringsType is not null, "type ImmutableArray<string> not found");
-
-            immutableArrayOfStringsBuilderType = immutableArrayOfStringsType.GetTypeMembers("Builder").Single();
-            Debug.Assert(immutableArrayOfStringsBuilderType is not null, "type ImmutableArray<string>.Builder not found");
-
-            immutableArrayBuilderType = immutableArrayType.GetTypeMembers("Builder").Single();
-            Debug.Assert(immutableArrayBuilderType is not null, "type ImmutableArray<T>.Builder not found");
-
-            staticImmutableArrayType = _compilation.GetTypeByMetadataName("System.Collections.Immutable.ImmutableArray")!;
-            Debug.Assert(staticImmutableArrayType is not null, "type ImmutableArray class not found");
-
+            private readonly NamedTypeSymbol _immutableArrayOfStringsType;
+            private readonly NamedTypeSymbol _immutableArrayOfStringsBuilderType;
             // Methods
-            immutableArrayOfStringsBuilderMethodSymbol = staticImmutableArrayType
-                .GetMembers("CreateBuilder")
-                .OfType<MethodSymbol>()
-                .Single(m => m.Parameters.Length == 0)
-                .Construct(stringType);
-            Debug.Assert(immutableArrayOfStringsBuilderMethodSymbol is not null, "method ImmutableArray.CreateBuilder<string>() not found");
-
-            immutableArrayOfStringsBuilderAddMethodSymbol = immutableArrayOfStringsBuilderType
-                .GetMembers("Add")
-                .OfType<MethodSymbol>()
-                .Single(
-                    m => m.Parameters.Length == 1 &&
-                    m.Parameters[0].Type.Equals(stringType));
-            Debug.Assert(immutableArrayOfStringsBuilderAddMethodSymbol is not null, "method ImmutableArray.Builder<string>.Add() not found");
-
-            immutableArrayOfStringsBuilderToImmutableArrayMethodSymbol = staticImmutableArrayType
-                .GetMembers("ToImmutableArray")
-                .OfType<MethodSymbol>()
-                .Single(
-                    m => m.Parameters.Length == 1 &&
-                    m.Parameters[0].Type.OriginalDefinition.Equals(immutableArrayBuilderType))
-                .Construct(stringType);
-            Debug.Assert(immutableArrayOfStringsBuilderToImmutableArrayMethodSymbol is not null, "method ImmutableArray.Builder<string>.ToImmutableArray() not found");
-
+            private readonly MethodSymbol _immutableArrayOfStringsBuilderMethodSymbol;
+            private readonly MethodSymbol _immutableArrayOfStringsBuilderAddMethodSymbol;
+            private readonly MethodSymbol _immutableArrayOfStringsBuilderToImmutableArrayMethodSymbol;
+            private MethodSymbol? _arrayIsDefaultOrEmptyMethodSymbol;
             // Functions
-            connectMethodSymbol = TryLookupFunction(
-                syntax,
-                "iWare.Database.SqlCommands2",
-                "Connect")!;
-            Debug.Assert(connectMethodSymbol is not null, "method iWare.Database.SqlCommands2.Connect not found");
+            private readonly MethodSymbol _connectMethodSymbol;
+            private readonly MethodSymbol _disconnectMethodSymbol;
+            private readonly MethodSymbol _readMethodSymbol;
+            // LocalRewriter
+            private readonly CSharpCompilation _compilation;
+            private readonly SyntheticBoundNodeFactory _factory;
+            // Data
+            private readonly SyntaxNode _syntax;
+            private readonly BoundLiteral _sqlTextBoundLiteral;
+            private readonly BoundBlock? _sqlDoBoundBlock;
+            private readonly BoundBlock? _sqlEmptyBoundBlock;
+            private readonly BoundBlock? _sqlEndBoundBlock;
+            private readonly ImmutableArray<Symbol> _querySymbols;
+            private readonly ImmutableArray<string> _querySqlNames;
 
-            disconnectMethodSymbol = TryLookupFunction(
-                syntax,
-                "iWare.Database.SqlCommands2",
-                "Disconnect")!;
-            Debug.Assert(disconnectMethodSymbol is not null, "method iWare.Database.SqlCommands2.Disconnect not found");
-
-            readMethodSymbol = TryLookupFunction(
-                syntax,
-                "iWare.Database.SqlCommands2",
-                "Read")!;
-            Debug.Assert(readMethodSymbol is not null, "method iWare.Database.SqlCommands2.Read() not found");
-            Debug.Assert(
-                readMethodSymbol.Parameters.Length == 2 &&
-                readMethodSymbol.Parameters[0].Type.Equals(sqlDataReaderType) &&
-                readMethodSymbol.Parameters[1].Type.Equals(immutableArrayOfStringsType),
-                "method iWare.Database.SqlCommands2.Read() does not match expected signature");
-        }
-
-        private BoundStatement RewriteSqlStatement(
-            BoundNode node,
-            BoundLiteral sqlTextBoundLiteral,
-            BoundBlock? sqlDoBoundBlock,
-            BoundBlock? sqlEmptyBoundBlock,
-            BoundBlock? sqlEndBoundBlock,
-            ImmutableArray<Symbol> querySymbols,
-            //ImmutableArray<string> queryNames,
-            ImmutableArray<string> querySqlNames)
-        {
-            // /*LOCALS*/
-            // sql {
-            //     /*QUERY*/
-            // }
-            // sqlDo {
-            //     /*FOREACH*/
-            // }
-            // sqlEmpty {
-            //     /*EMPTY RESULT*/
-            // }
-            // sqlEnd {
-            //     /*ALWAYS RUN*/
-            // }
-            //
-            // becomes
-            //
-            // ImmutableArray<object?>? readValues = null;
-            // ImmutableArray<string> sqlNameValues = querySqlNames
-            // SqlDataReader? sqlReader = null;
-            // /*READ*/ readValues = Read(sqlReader, sqlNameValues)
-            // try
-            // {
-            //     sqlReader = Connect(/*QUERY*/);
-            //     if (/*READ*/ != null)
-            //     {
-            //         if (sqlDoAction is not null)
-            //         {
-            //             do
-            //             {
-            //                 /*ASSIGN LOCALS*/
-            //                 /*FOREACH*/
-            //             } while ((/*READ*/) != null);
-            //         }
-            //     }
-            //     else
-            //     {
-            //         if (sqlEmptyAction is not null)
-            //         {
-            //             /*EMPTY RESULT*/
-            //         }
-            //     }
-            // }
-            // finally
-            // {
-            //     Disconnect(sqlReader);
-            //     if (sqlEndAction is not null)
-            //     {
-            //         /*ALWAYS RUN*/
-            //     }
-            // }
-
-            var syntax = node.Syntax;
-            var readMethodTargetType = readMethodSymbol.ReturnType;
-            var connectMethodTargetType = connectMethodSymbol.ReturnType;
-            var sideEffects = ImmutableArray.CreateBuilder<BoundStatement>();
-            arrayIsDefaultOrEmptyMethodSymbol = readMethodTargetType.GetMembers("get_IsDefaultOrEmpty").OfType<MethodSymbol>().Single();
-
-            // SqlDataReader? sqlReader = null;
-            var sqlReaderSymbol = _factory.SynthesizedLocal(connectMethodTargetType);
-            var sqlReaderLocal = _factory.Local(sqlReaderSymbol);
-            sideEffects.Add(
-                _factory.Assignment(
-                    sqlReaderLocal,
-                    _factory.Null(sqlDataReaderType)));
-
-            // ImmutableArray<object?>? readValues = null;
-            var readValuesSymbol = _factory.SynthesizedLocal(readMethodTargetType);
-            //var readValuesSymbol = _factory.SynthesizedLocal(immutableArrayOfNullableObjectsType);
-            var readValuesLocal = _factory.Local(readValuesSymbol);
-            //sideEffects.Add(
-            //    _factory.Assignment(
-            //        readValuesLocal,
-            //        _factory.Null(readMethodTargetType)));
-
-            // ImmutableArray<string> sqlNameValues = sqlQueryNames;
-            var sqlNamesSymbol = _factory.SynthesizedLocal(immutableArrayOfStringsType);
-            var sqlNamesLocal = _factory.Local(sqlNamesSymbol);
-            sideEffects.Add(AssignSqlNames(sqlNamesLocal, querySqlNames));
-
-            // sqlReader = Connect(/*QUERY*/);
-            var sqlReaderConnectStatement = _factory.Assignment(
-                sqlReaderLocal,
-                _factory.Call(
-                    null,
-                    connectMethodSymbol,
-                    ImmutableArray.Create<BoundExpression>(sqlTextBoundLiteral)));
-
-            //  /*ASSIGN LOCALS*/
-            //  for (int i .. querySymbols.Length)
-            //  {
-            //      var symbol = querySymbols[i];
-            //      var tmp = readValues[i];
-            //      if (tmp != null)
-            //      {
-            //          querySymbols[i] = tmp;
-            //      }
-            //  }
-            var assignLocalsStatements = AssignLocals(querySymbols, readValuesLocal);
-
-            // do
-            // {
-            //     /*ASSIGN LOCALS*/
-            //     /*FOREACH*/
-            // } while ((/*READ*/) != null);
-            // or empty block if sqlDo is null
-            BoundStatement sqlDoLoop = CreateSqlDoLoop(
-                assignLocalsStatements,
-                sqlDoBoundBlock,
-                readValuesLocal,
-                sqlReaderLocal,
-                sqlNamesLocal,
-                readMethodTargetType);
-
-            // /*EMPTY RESULT*/
-            // or empty block if sqlEmpty is null
-            BoundStatement sqlEmptyStatement;
-            if (sqlEmptyBoundBlock != null)
+            public RewriteSql(CSharpCompilation compilation, SyntheticBoundNodeFactory factory, BoundSqlStatement node, LocalRewriter localRewriter)
             {
-                sqlEmptyStatement = _factory.Block(sqlEmptyBoundBlock);
-            }
-            else
-            {
-                sqlEmptyStatement = _factory.Block();
+                _compilation = compilation;
+                _syntax = node.Syntax;
+                _factory = factory;
+
+                _sqlTextBoundLiteral = _factory.Literal(node.SqlContents);
+
+                _sqlDoBoundBlock = null;
+                if (node.SqlDoOpt is not null)
+                {
+                    _sqlDoBoundBlock = (BoundBlock)localRewriter.VisitBlock(node.SqlDoOpt.Body);
+                }
+                _sqlEmptyBoundBlock = null;
+                if (node.SqlEmptyOpt is not null)
+                {
+                    _sqlEmptyBoundBlock = (BoundBlock)localRewriter.VisitBlock(node.SqlEmptyOpt.Body);
+                }
+                _sqlEndBoundBlock = null;
+                if (node.SqlEndOpt is not null)
+                {
+                    _sqlEndBoundBlock = (BoundBlock)localRewriter.VisitBlock(node.SqlEndOpt.Body);
+                }
+
+                _querySymbols = node.querySymbols;
+                _querySqlNames = node.querySqlNames;
+
+                // Types
+
+                // Builtin types
+                var stringType = _compilation.GetSpecialType(SpecialType.System_String);
+                _objectType = _compilation.GetSpecialType(SpecialType.System_Object);
+                var immutableArrayType = _compilation.GetWellKnownType(WellKnownType.System_Collections_Immutable_ImmutableArray_T);
+
+                // External types
+                _sqlDataReaderType = _compilation.GetTypeByMetadataName("Microsoft.Data.SqlClient.SqlDataReader")!;
+                Debug.Assert(_sqlDataReaderType is not null, "type Microsoft.Data.SqlClient.SqlDataReader not found");
+
+                // Combined types
+                _immutableArrayOfStringsType = immutableArrayType
+                    .Construct(stringType);
+                Debug.Assert(_immutableArrayOfStringsType is not null, "type ImmutableArray<string> not found");
+
+                _immutableArrayOfStringsBuilderType = _immutableArrayOfStringsType.GetTypeMembers("Builder").Single();
+                Debug.Assert(_immutableArrayOfStringsBuilderType is not null, "type ImmutableArray<string>.Builder not found");
+
+                var immutableArrayBuilderType = immutableArrayType.GetTypeMembers("Builder").Single();
+                Debug.Assert(immutableArrayBuilderType is not null, "type ImmutableArray<T>.Builder not found");
+
+                var staticImmutableArrayType = _compilation.GetTypeByMetadataName("System.Collections.Immutable.ImmutableArray")!;
+                Debug.Assert(staticImmutableArrayType is not null, "type ImmutableArray class not found");
+
+                // Methods
+                _immutableArrayOfStringsBuilderMethodSymbol = staticImmutableArrayType
+                    .GetMembers("CreateBuilder")
+                    .OfType<MethodSymbol>()
+                    .Single(m => m.Parameters.Length == 0)
+                    .Construct(stringType);
+                Debug.Assert(_immutableArrayOfStringsBuilderMethodSymbol is not null, "method ImmutableArray.CreateBuilder<string>() not found");
+
+                _immutableArrayOfStringsBuilderAddMethodSymbol = _immutableArrayOfStringsBuilderType
+                    .GetMembers("Add")
+                    .OfType<MethodSymbol>()
+                    .Single(
+                        m => m.Parameters.Length == 1 &&
+                        m.Parameters[0].Type.Equals(stringType));
+                Debug.Assert(_immutableArrayOfStringsBuilderAddMethodSymbol is not null, "method ImmutableArray.Builder<string>.Add() not found");
+
+                _immutableArrayOfStringsBuilderToImmutableArrayMethodSymbol = staticImmutableArrayType
+                    .GetMembers("ToImmutableArray")
+                    .OfType<MethodSymbol>()
+                    .Single(
+                        m => m.Parameters.Length == 1 &&
+                        m.Parameters[0].Type.OriginalDefinition.Equals(immutableArrayBuilderType))
+                    .Construct(stringType);
+                Debug.Assert(_immutableArrayOfStringsBuilderToImmutableArrayMethodSymbol is not null, "method ImmutableArray.Builder<string>.ToImmutableArray() not found");
+
+                // Functions
+                _connectMethodSymbol = TryLookupFunction(
+                    _syntax,
+                    "iWare.Database.SqlCommands2",
+                    "Connect")!;
+                Debug.Assert(_connectMethodSymbol is not null, "method iWare.Database.SqlCommands2.Connect not found");
+
+                _disconnectMethodSymbol = TryLookupFunction(
+                    _syntax,
+                    "iWare.Database.SqlCommands2",
+                    "Disconnect")!;
+                Debug.Assert(_disconnectMethodSymbol is not null, "method iWare.Database.SqlCommands2.Disconnect not found");
+
+                _readMethodSymbol = TryLookupFunction(
+                    _syntax,
+                    "iWare.Database.SqlCommands2",
+                    "Read")!;
+                Debug.Assert(_readMethodSymbol is not null, "method iWare.Database.SqlCommands2.Read() not found");
+                Debug.Assert(
+                    _readMethodSymbol.Parameters.Length == 2 &&
+                    _readMethodSymbol.Parameters[0].Type.Equals(_sqlDataReaderType) &&
+                    _readMethodSymbol.Parameters[1].Type.Equals(_immutableArrayOfStringsType),
+                    "method iWare.Database.SqlCommands2.Read() does not match expected signature");
             }
 
-            // if (/*READ*/ != null) { ... } else { ... }
-            var readCallStatement = _factory.ExpressionStatement(CreateReadCall(readValuesLocal, sqlReaderLocal, sqlNamesLocal));
-            var ifRead = _factory.If(
-                _factory.Not(_factory.Call(readValuesLocal, arrayIsDefaultOrEmptyMethodSymbol)),
-                sqlDoLoop,
-                sqlEmptyStatement);
-
-            // Disconnect(sqlReader);
-            var sqlReaderDisconnectStatement = _factory.ExpressionStatement(
-                _factory.Call(
-                    null,
-                    disconnectMethodSymbol,
-                    ImmutableArray.Create<BoundExpression>(sqlReaderLocal)));
-
-            // /*ALWAYS RUN*/
-            // or empty block if sqlEnd is null
-            BoundStatement sqlEndStatement;
-            if (sqlEndBoundBlock != null)
+            public BoundStatement RewriteSqlStatement()
             {
-                sqlEndStatement = _factory.Block(sqlEndBoundBlock);
-            }
-            else
-            {
-                sqlEndStatement = _factory.Block();
-            }
+                // /*LOCALS*/
+                // sql {
+                //     /*QUERY*/
+                // }
+                // sqlDo {
+                //     /*FOREACH*/
+                // }
+                // sqlEmpty {
+                //     /*EMPTY RESULT*/
+                // }
+                // sqlEnd {
+                //     /*ALWAYS RUN*/
+                // }
+                //
+                // becomes
+                //
+                // ImmutableArray<object?>? readValues = null;
+                // ImmutableArray<string> sqlNameValues = querySqlNames
+                // SqlDataReader? sqlReader = null;
+                // /*READ*/ readValues = Read(sqlReader, sqlNameValues)
+                // try
+                // {
+                //     sqlReader = Connect(/*QUERY*/);
+                //     if (/*READ*/ != null)
+                //     {
+                //         if (sqlDoAction is not null)
+                //         {
+                //             do
+                //             {
+                //                 /*ASSIGN LOCALS*/
+                //                 /*FOREACH*/
+                //             } while ((/*READ*/) != null);
+                //         }
+                //     }
+                //     else
+                //     {
+                //         if (sqlEmptyAction is not null)
+                //         {
+                //             /*EMPTY RESULT*/
+                //         }
+                //     }
+                // }
+                // finally
+                // {
+                //     Disconnect(sqlReader);
+                //     if (sqlEndAction is not null)
+                //     {
+                //         /*ALWAYS RUN*/
+                //     }
+                // }
 
-            // try { ... } finally { ... }
-            var finallyBlock = _factory.Block(sqlReaderDisconnectStatement, sqlEndStatement);
-            var tryBlock = _factory.Block(sqlReaderConnectStatement, readCallStatement, ifRead);
-            var finallyLabel = new GeneratedLabelSymbol("sqlFinally");
-            sideEffects.Add(_factory.Try(tryBlock, [], finallyBlock, finallyLabel));
+                var syntax = _syntax;
+                var readMethodTargetType = _readMethodSymbol.ReturnType;
+                var connectMethodTargetType = _connectMethodSymbol.ReturnType;
+                var sideEffects = ImmutableArray.CreateBuilder<BoundStatement>();
+                _arrayIsDefaultOrEmptyMethodSymbol = readMethodTargetType.GetMembers("get_IsDefaultOrEmpty").OfType<MethodSymbol>().Single();
 
-            var sideEffectsImmutable = sideEffects.ToImmutableArray();
-            var ret = _factory.Block(
-                [sqlReaderSymbol, readValuesSymbol, sqlNamesSymbol/*, nameValuesLocal.LocalSymbol*/],
-                sideEffectsImmutable);
-            return ret;
-        }
-
-        private BoundExpression CreateReadCall(BoundLocal readValuesLocal, BoundLocal sqlReaderLocal, BoundLocal sqlNamesLocal)
-        {
-            // /*READ*/ readValues = Read(sqlReader, nameValues)
-            // ImmutableArray<object?>? Read(IDataReader reader, ImmutableArray<string> querySqlNames)
-            //TODO-aljaz wrap in _factory.ExpressionStatement?
-            return _factory.AssignmentExpression(
-                readValuesLocal,
-                _factory.Call(
-                    null,
-                    readMethodSymbol,
-                    ImmutableArray.Create<BoundExpression>(
-                        sqlReaderLocal,
-                        sqlNamesLocal)));
-        }
-
-        private BoundStatement AssignSqlNames(BoundLocal sqlNamesLocal, ImmutableArray<string> names)
-        {
-            var sideEffects = ImmutableArray.CreateBuilder<BoundStatement>();
-
-            //var builder = ImmutableArray.Builder<string>();
-            var builderSymbol = _factory.SynthesizedLocal(immutableArrayOfStringsBuilderType);
-            var builderLocal = _factory.Local(builderSymbol);
-            sideEffects.Add(_factory.Assignment(builderLocal, _factory.Call(null, immutableArrayOfStringsBuilderMethodSymbol)));
-
-            //foreach name add
-            foreach (var name in names)
-            {
+                // SqlDataReader? sqlReader = null;
+                var sqlReaderSymbol = _factory.SynthesizedLocal(connectMethodTargetType);
+                var sqlReaderLocal = _factory.Local(sqlReaderSymbol);
                 sideEffects.Add(
-                    _factory.ExpressionStatement(
-                        _factory.Call(
-                            builderLocal,
-                            immutableArrayOfStringsBuilderAddMethodSymbol,
-                            _factory.Literal(name))));
-            }
+                    _factory.Assignment(
+                        sqlReaderLocal,
+                        _factory.Null(_sqlDataReaderType)));
 
-            //sqlNamesLocal = builder.ToImmutableArray();
-            sideEffects.Add(_factory.Assignment(
-                sqlNamesLocal,
-                _factory.Call(
-                    null,
-                    immutableArrayOfStringsBuilderToImmutableArrayMethodSymbol,
-                    builderLocal)));
+                // ImmutableArray<object?>? readValues = null;
+                var readValuesSymbol = _factory.SynthesizedLocal(readMethodTargetType);
+                var readValuesLocal = _factory.Local(readValuesSymbol);
 
-            return _factory.Block(
-                [builderSymbol],
-                sideEffects.ToImmutableArray());
-        }
+                // ImmutableArray<string> sqlNameValues = sqlQueryNames;
+                var sqlNamesSymbol = _factory.SynthesizedLocal(_immutableArrayOfStringsType);
+                var sqlNamesLocal = _factory.Local(sqlNamesSymbol);
+                sideEffects.Add(AssignSqlNames(sqlNamesLocal, _querySqlNames));
 
-        private BoundStatement CreateSqlDoLoop(BoundStatement assignLocalsStatements, BoundBlock? sqlDoBoundBlock, BoundLocal readValuesLocal, BoundLocal sqlReaderLocal, BoundLocal sqlNamesLocal, TypeSymbol targetType)
-        {
-            if (sqlDoBoundBlock != null)
-            {
-                var readCallStatement = _factory.ExpressionStatement(CreateReadCall(readValuesLocal, sqlReaderLocal, sqlNamesLocal));
-                var startLabel = new GeneratedLabelSymbol("sqlDoStart");
-                var conditionalGoto = _factory.ConditionalGoto(
-                    _factory.Not(_factory.Call(readValuesLocal, arrayIsDefaultOrEmptyMethodSymbol)),
-                    startLabel,
-                    true);
-                return _factory.Block(
-                    ImmutableArray.Create(
-                        _factory.Label(startLabel),
-                        assignLocalsStatements,
-                        sqlDoBoundBlock,
-                        readCallStatement,
-                        conditionalGoto));
-            }
-            else
-            {
-                return _factory.Block();
-            }
-        }
-
-        BoundStatement AssignLocals(ImmutableArray<Symbol> querySymbols, BoundExpression readValuesLocal)
-        {
-            var sideEffects = ImmutableArray.CreateBuilder<BoundStatement>();
-            var tmpSymbol = _factory.SynthesizedLocal(objectType);
-            var tmpLocal = _factory.Local(tmpSymbol);
-            var getItemMethodSymbol =
-                readValuesLocal.Type!
-                .GetMembers("get_Item")
-                .OfType<MethodSymbol>()
-                .FirstOrDefault();
-            Debug.Assert(getItemMethodSymbol is not null, "ImmutableArray<object>.get_Item() not found");
-            Debug.Assert(
-                getItemMethodSymbol.Parameters.Length == 1,
-                "ImmutableArray<object>.get_Item() not found");
-            for (int i = 0; i < querySymbols.Length; i++)
-            {
-                //  var symbol = querySymbols[i];
-                var symbol = querySymbols[i];
-                var targetType = symbol switch
-                {
-                    LocalSymbol l => l.Type,
-                    FieldSymbol f => f.Type,
-                    PropertySymbol p => p.Type,
-                    _ => _compilation.GetSpecialType(SpecialType.System_Object)
-                };
-                //  var tmp = readValues[i];
-                var assignTmp = _factory.Assignment(
-                    tmpLocal,
+                // sqlReader = Connect(/*QUERY*/);
+                var sqlReaderConnectStatement = _factory.Assignment(
+                    sqlReaderLocal,
                     _factory.Call(
-                        readValuesLocal,
-                        getItemMethodSymbol,
-                        [_factory.Literal(i)]));
+                        null,
+                        _connectMethodSymbol,
+                        ImmutableArray.Create<BoundExpression>(_sqlTextBoundLiteral)));
 
-                var conversion = _factory.Convert(
-                    targetType,
-                    tmpLocal); //_factory.Convert(_compilation.GetSpecialType(SpecialType.System_Object), tmpLocal));
+                //  /*ASSIGN LOCALS*/
+                //  for (int i .. querySymbols.Length)
+                //  {
+                //      var symbol = querySymbols[i];
+                //      var tmp = readValues[i];
+                //      if (tmp != null)
+                //      {
+                //          querySymbols[i] = tmp;
+                //      }
+                //  }
+                var assignLocalsStatements = AssignLocals(_querySymbols, readValuesLocal);
 
-                BoundExpression lhs = symbol switch
+                // do
+                // {
+                //     /*ASSIGN LOCALS*/
+                //     /*FOREACH*/
+                // } while ((/*READ*/) != null);
+                // or empty block if sqlDo is null
+                BoundStatement sqlDoLoop = CreateSqlDoLoop(
+                    assignLocalsStatements,
+                    _sqlDoBoundBlock,
+                    readValuesLocal,
+                    sqlReaderLocal,
+                    sqlNamesLocal,
+                    readMethodTargetType);
+
+                // /*EMPTY RESULT*/
+                // or empty block if sqlEmpty is null
+                BoundStatement sqlEmptyStatement;
+                if (_sqlEmptyBoundBlock != null)
                 {
-                    LocalSymbol l => _factory.Local(l),
-                    FieldSymbol f => _factory.Field(null, f),
-                    PropertySymbol p => _factory.Property(null, p),
-                    _ => throw ExceptionUtilities.UnexpectedValue(symbol.Kind)
-                };
+                    sqlEmptyStatement = _factory.Block(_sqlEmptyBoundBlock);
+                }
+                else
+                {
+                    sqlEmptyStatement = _factory.Block();
+                }
 
-                // if (tmp != null)
-                sideEffects.AddRange(
-                    assignTmp,
-                    _factory.If(
-                        _factory.ObjectNotEqual(tmpLocal, _factory.Null(nullableObjectType)),
-                        _factory.Assignment(lhs, conversion))
-                    );
+                // if (/*READ*/ != null) { ... } else { ... }
+                var readCallStatement = CreateReadCall(readValuesLocal, sqlReaderLocal, sqlNamesLocal);
+                var ifRead = _factory.If(
+                    _factory.Not(_factory.Call(readValuesLocal, _arrayIsDefaultOrEmptyMethodSymbol)),
+                    sqlDoLoop,
+                    sqlEmptyStatement);
+
+                // Disconnect(sqlReader);
+                var sqlReaderDisconnectStatement = _factory.ExpressionStatement(
+                    _factory.Call(
+                        null,
+                        _disconnectMethodSymbol,
+                        ImmutableArray.Create<BoundExpression>(sqlReaderLocal)));
+
+                // /*ALWAYS RUN*/
+                // or empty block if sqlEnd is null
+                BoundStatement sqlEndStatement;
+                if (_sqlEndBoundBlock != null)
+                {
+                    sqlEndStatement = _factory.Block(_sqlEndBoundBlock);
+                }
+                else
+                {
+                    sqlEndStatement = _factory.Block();
+                }
+
+                // try { ... } finally { ... }
+                var finallyBlock = _factory.Block(sqlReaderDisconnectStatement, sqlEndStatement);
+                var tryBlock = _factory.Block(sqlReaderConnectStatement, readCallStatement, ifRead);
+                var finallyLabel = new GeneratedLabelSymbol("sqlFinally");
+                sideEffects.Add(_factory.Try(tryBlock, [], finallyBlock, finallyLabel));
+
+                var sideEffectsImmutable = sideEffects.ToImmutableArray();
+                var ret = _factory.Block(
+                    [sqlReaderSymbol, readValuesSymbol, sqlNamesSymbol],
+                    sideEffectsImmutable);
+                // ret.DumpSource is VERY useful!!!!
+                return ret;
             }
-            return _factory.Block([tmpSymbol], sideEffects.ToImmutableArray());
+
+            private BoundExpressionStatement CreateReadCall(BoundLocal readValuesLocal, BoundLocal sqlReaderLocal, BoundLocal sqlNamesLocal)
+            {
+                // /*READ*/ readValues = Read(sqlReader, nameValues)
+                // ImmutableArray<object?>? Read(IDataReader reader, ImmutableArray<string> querySqlNames)
+                return _factory.ExpressionStatement(_factory.AssignmentExpression(
+                    readValuesLocal,
+                    _factory.Call(
+                        null,
+                        _readMethodSymbol,
+                        ImmutableArray.Create<BoundExpression>(
+                            sqlReaderLocal,
+                            sqlNamesLocal))));
+            }
+
+            private BoundStatement AssignSqlNames(BoundLocal sqlNamesLocal, ImmutableArray<string> names)
+            {
+                var sideEffects = ImmutableArray.CreateBuilder<BoundStatement>();
+
+                //var builder = ImmutableArray.Builder<string>();
+                var builderSymbol = _factory.SynthesizedLocal(_immutableArrayOfStringsBuilderType);
+                var builderLocal = _factory.Local(builderSymbol);
+                sideEffects.Add(_factory.Assignment(builderLocal, _factory.Call(null, _immutableArrayOfStringsBuilderMethodSymbol)));
+
+                //foreach name add
+                foreach (var name in names)
+                {
+                    sideEffects.Add(
+                        _factory.ExpressionStatement(
+                            _factory.Call(
+                                builderLocal,
+                                _immutableArrayOfStringsBuilderAddMethodSymbol,
+                                _factory.Literal(name))));
+                }
+
+                //sqlNamesLocal = builder.ToImmutableArray();
+                sideEffects.Add(_factory.Assignment(
+                    sqlNamesLocal,
+                    _factory.Call(
+                        null,
+                        _immutableArrayOfStringsBuilderToImmutableArrayMethodSymbol,
+                        builderLocal)));
+
+                return _factory.Block(
+                    [builderSymbol],
+                    sideEffects.ToImmutableArray());
+            }
+
+            private BoundStatement CreateSqlDoLoop(BoundStatement assignLocalsStatements, BoundBlock? sqlDoBoundBlock, BoundLocal readValuesLocal, BoundLocal sqlReaderLocal, BoundLocal sqlNamesLocal, TypeSymbol targetType)
+            {
+                if (sqlDoBoundBlock != null)
+                {
+                    var readCallStatement = CreateReadCall(readValuesLocal, sqlReaderLocal, sqlNamesLocal);
+                    var startLabel = new GeneratedLabelSymbol("sqlDoStart");
+                    var conditionalGoto = _factory.ConditionalGoto(
+                        _factory.Not(_factory.Call(readValuesLocal, _arrayIsDefaultOrEmptyMethodSymbol)),
+                        startLabel,
+                        true);
+                    return _factory.Block(
+                        ImmutableArray.Create(
+                            _factory.Label(startLabel),
+                            assignLocalsStatements,
+                            sqlDoBoundBlock,
+                            readCallStatement,
+                            conditionalGoto));
+                }
+                else
+                {
+                    return _factory.Block();
+                }
+            }
+
+            BoundStatement AssignLocals(ImmutableArray<Symbol> querySymbols, BoundExpression readValuesLocal)
+            {
+                var sideEffects = ImmutableArray.CreateBuilder<BoundStatement>();
+                var tmpSymbol = _factory.SynthesizedLocal(_objectType);
+                var tmpLocal = _factory.Local(tmpSymbol);
+                var getItemMethodSymbol =
+                    readValuesLocal.Type!
+                    .GetMembers("get_Item")
+                    .OfType<MethodSymbol>()
+                    .FirstOrDefault();
+                Debug.Assert(getItemMethodSymbol is not null, "ImmutableArray<object>.get_Item() not found");
+                Debug.Assert(
+                    getItemMethodSymbol.Parameters.Length == 1,
+                    "ImmutableArray<object>.get_Item() not found");
+                for (int i = 0; i < querySymbols.Length; i++)
+                {
+                    //  var symbol = querySymbols[i];
+                    var symbol = querySymbols[i];
+                    var targetType = symbol switch
+                    {
+                        LocalSymbol l => l.Type,
+                        FieldSymbol f => f.Type,
+                        PropertySymbol p => p.Type,
+                        _ => _compilation.GetSpecialType(SpecialType.System_Object)
+                    };
+                    //  var tmp = readValues[i];
+                    var assignTmp = _factory.Assignment(
+                        tmpLocal,
+                        _factory.Call(
+                            readValuesLocal,
+                            getItemMethodSymbol,
+                            [_factory.Literal(i)]));
+
+                    //TODO-aljaz handle System.DBNull
+                    var conversion = _factory.Convert(
+                        targetType,
+                        tmpLocal,
+                        Conversion.Unboxing); //_factory.Convert(_compilation.GetSpecialType(SpecialType.System_Object), tmpLocal));
+
+                    BoundExpression lhs = symbol switch
+                    {
+                        LocalSymbol l => _factory.Local(l),
+                        FieldSymbol f => _factory.Field(null, f),
+                        PropertySymbol p => _factory.Property(null, p),
+                        _ => throw ExceptionUtilities.UnexpectedValue(symbol.Kind)
+                    };
+
+                    // if (tmp != null)
+                    sideEffects.AddRange(
+                        assignTmp,
+                        _factory.If(
+                            _factory.ObjectNotEqual(tmpLocal, _factory.Null(tmpLocal.Type)),
+                            _factory.Assignment(lhs, conversion))
+                        );
+                }
+                return _factory.Block([tmpSymbol], sideEffects.ToImmutableArray());
+            }
+
+            private MethodSymbol? TryLookupFunction(SyntaxNode syntax, string @namespace, string functionName)
+            {
+                var type = _compilation.GetTypeByMetadataName(@namespace);
+                var myFunction = type?
+                    .GetMembers(functionName)
+                    .OfType<MethodSymbol>()
+                    .FirstOrDefault();
+                return myFunction;
+            }
         }
 
         private BoundStatement RewriteBoundBlock(
@@ -499,16 +482,6 @@ namespace Microsoft.CodeAnalysis.CSharp
             {
                 throw new System.NotImplementedException();
             }
-        }
-
-        private MethodSymbol? TryLookupFunction(SyntaxNode syntax, string @namespace, string functionName)
-        {
-            var type = _compilation.GetTypeByMetadataName(@namespace);
-            var myFunction = type?
-                .GetMembers(functionName)
-                .OfType<MethodSymbol>()
-                .FirstOrDefault();
-            return myFunction;
         }
     }
 }

@@ -1348,7 +1348,6 @@
     <Field Name="SqlEmptyOpt" Type="BoundSqlEmptyClause?"/>
     <Field Name="SqlEndOpt" Type="BoundSqlEndClause?"/>
     <Field Name="querySymbols" Type="ImmutableArray&lt;Symbol&gt;"/>
-    <Field Name="queryNames" Type="ImmutableArray&lt;string&gt;"/>
     <Field Name="querySqlNames" Type="ImmutableArray&lt;string&gt;"/>
   </Node>
 

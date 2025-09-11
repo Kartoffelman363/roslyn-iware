@@ -3269,7 +3269,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             {
                 sqlEndClause = BindSqlEndClause(node.SqlEndClause, diagnostics);
             }
-            return new BoundSqlStatement(node, sqlText, boundSqlDoClause, sqlEmptyClause, sqlEndClause, symbols, names, sqlNames);
+            return new BoundSqlStatement(node, sqlText, boundSqlDoClause, sqlEmptyClause, sqlEndClause, symbols, sqlNames);
 
             void getNamesFromSqlText(out ImmutableArray<string> names, out ImmutableArray<string> sqlNames)
             {
