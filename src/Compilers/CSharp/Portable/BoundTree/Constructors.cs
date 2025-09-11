@@ -663,9 +663,11 @@ namespace Microsoft.CodeAnalysis.CSharp
             BoundSqlEmptyClause sqlEmptyOpt,
             BoundSqlEndClause sqlEndOpt,
             ImmutableArray<Symbol> querySymbols,
-            ImmutableArray<string> querySqlNames
+            ImmutableArray<string> querySqlNames,
+            ImmutableArray<Symbol> parameterSymbols,
+            ImmutableArray<string> parameterNames
                 )
-            : this(syntax, sqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, querySymbols, querySqlNames, hasErrors: false)
+            : this(syntax, sqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, querySymbols, querySqlNames, parameterSymbols, parameterNames, hasErrors: false)
         {
         }
     }

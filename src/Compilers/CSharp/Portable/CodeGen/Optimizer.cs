@@ -1695,7 +1695,9 @@ namespace Microsoft.CodeAnalysis.CSharp.CodeGen
                 sqlEmptyClause,
                 sqlEndClause,
                 node.querySymbols,
-                node.querySqlNames
+                node.querySqlNames,
+                node.parameterSymbols,
+                node.parameterNames
             );
         }
 

@@ -10,6 +10,7 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using Microsoft.CodeAnalysis.CSharp.iWareSql;
 using Microsoft.CodeAnalysis.CSharp.Symbols;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -3231,28 +3232,22 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
             Debug.Assert(node != null);
             var sqlText = node.SqlTextToken.ValueText;
-            var useSiteInfo = CompoundUseSiteInfo<AssemblySymbol>.Discarded;
 
-            ImmutableArray<string> names;
-            ImmutableArray<string> sqlNames;
-            ImmutableArray<Symbol> symbols;
-            getNamesFromSqlText(out names, out sqlNames);
+            sqlText = ParseSql.getNamesFromSqlText(
+                out var names,
+                out var sqlNames,
+                out var parameterNames,
+                sqlText);
             Debug.Assert(sqlNames.Length == names.Length, "Query symbol list and output parameter list length missmatch.");
 
-            var symbolsBuilder = ImmutableArray.CreateBuilder<Symbol>();
-            foreach (var name in names)
-            {
-                var lookupResult = LookupResult.GetInstance();
-                LookupSymbolsWithFallback(
-                    lookupResult,
-                    name,
-                    0,
-                    ref useSiteInfo);
-                symbolsBuilder.Add(lookupResult.Symbols.FirstOrDefault());
-                lookupResult.Free();
-            }
-            symbols = symbolsBuilder.ToImmutableArray();
-            Debug.Assert(symbols.Length == names.Length, "Query output parameters list length missmatch.");
+            var nameSymbols = GetSymbols(names);
+            Debug.Assert(nameSymbols.Length == names.Length, "Query output parameters list length missmatch.");
+
+            var parameterSymbols = GetSymbols(
+                parameterNames
+                    .Select(name => name.First() == '@' ? name.Substring(1) : name)
+                    .ToImmutableArray());
+            Debug.Assert(parameterSymbols.Length == parameterNames.Length, "Query input parameters list length missmatch.");
 
             BoundSqlDoClause boundSqlDoClause = null;
             if (node.SqlDoClause is not null)
@@ -3269,117 +3264,25 @@ namespace Microsoft.CodeAnalysis.CSharp
             {
                 sqlEndClause = BindSqlEndClause(node.SqlEndClause, diagnostics);
             }
-            return new BoundSqlStatement(node, sqlText, boundSqlDoClause, sqlEmptyClause, sqlEndClause, symbols, sqlNames);
+            return new BoundSqlStatement(node, sqlText, boundSqlDoClause, sqlEmptyClause, sqlEndClause, nameSymbols, sqlNames, parameterSymbols, parameterNames);
+        }
 
-            void getNamesFromSqlText(out ImmutableArray<string> names, out ImmutableArray<string> sqlNames)
+        private ImmutableArray<Symbol> GetSymbols(ImmutableArray<string> names)
+        {
+            var useSiteInfo = CompoundUseSiteInfo<AssemblySymbol>.Discarded;
+            var symbolsBuilder = ImmutableArray.CreateBuilder<Symbol>();
+            foreach (var name in names)
             {
-                var namesBuilder = ImmutableArray.CreateBuilder<string>();
-                var sqlNamesBuilder = ImmutableArray.CreateBuilder<string>();
-                var sqlVariableNamesBuilder = ImmutableArray.CreateBuilder<string>();
-                // TODO-aljaz resolve adding variables as _cmd.Parameters.AddWithValue("@itemUMFilter", itemUMFilter);
-                for (int i = 0; i < sqlText.Length; i++)
-                {
-                    var c = look(i);
-                    // Single line comment
-                    if (c == '-' && (c = look(++i)) == '-')
-                    {
-                        // find newline or eof
-                        while ((c = look(++i)) != '\n' && c != '\0') ;
-                        continue;
-                    }
-                    // Multi line comment
-                    if (c == '/' && (c = look(++i)) == '*')
-                    {
-                        // find */ or eof
-                        while (((c = look(++i)) != '*' || (c = look(i + 1)) != '/') && c != '\0') ;
-                        continue;
-                    }
-                    // if char is [ then parse parameter
-                    if (c == '[')
-                    {
-                        // if char + 1 is @ input parameter
-                        if (look(i + 1) == '@')
-                        {
-                            //TODO-aljaz implement input parameters
-                            //_cmd.Parameters.AddWithValue("@itemUMFilter", itemUMFilter);
-                            continue;
-                        }
-                        // else output parameter
-                        string name;
-                        string sqlName;
-                        var readFromPos = i + 1;
-                        var readPosLen = 0;
-                        c = look(readFromPos);
-                        while (vaildChar(c))
-                        {
-                            readPosLen++;
-                            c = look(readFromPos + readPosLen);
-                        }
-                        if (c == '\0')
-                        {
-                            continue;
-                        }
-                        if (readPosLen > 0)
-                        {
-                            name = sqlText.Substring(readFromPos, readPosLen);
-                        }
-                        else
-                        {
-                            continue;
-                        }
-                        var readFromNeg = i - 1;
-                        var readNegLen = 0;
-                        c = look(readFromNeg);
-                        while (c == ' ')
-                        {
-                            c = look(--readFromNeg);
-                        }
-                        if (c == '\0')
-                        {
-                            continue;
-                        }
-                        c = look(readFromNeg);
-                        while (vaildChar(c))
-                        {
-                            readNegLen++;
-                            c = look(readFromNeg - readNegLen);
-                        }
-                        if (c == '\0')
-                        {
-                            continue;
-                        }
-                        if (readNegLen > 0)
-                        {
-                            sqlName = sqlText.Substring(readFromNeg - readNegLen + 1, readNegLen);
-                        }
-                        else
-                        {
-                            continue;
-                        }
-                        sqlText = sqlText.Substring(0, i) + sqlText.Substring(readFromPos + readPosLen + 1);
-                        i--;
-                        namesBuilder.Add(name);
-                        sqlNamesBuilder.Add(sqlName);
-                    }
-                }
-                names = namesBuilder.ToImmutableArray();
-                sqlNames = sqlNamesBuilder.ToImmutable();
-                return;
-
-                char look(int index)
-                {
-                    if (index > sqlText.Length || index < 0)
-                    {
-                        return '\0';
-                    }
-                    return sqlText[index];
-                }
-
-                bool vaildChar(char c)
-                {
-                    return Char.IsLetterOrDigit(c) || c == '_';
-                }
+                var lookupResult = LookupResult.GetInstance();
+                LookupSymbolsWithFallback(
+                    lookupResult,
+                    name,
+                    0,
+                    ref useSiteInfo);
+                symbolsBuilder.Add(lookupResult.Symbols.FirstOrDefault());
+                lookupResult.Free();
             }
+            return symbolsBuilder.ToImmutableArray();
         }
 
         private BoundSqlDoClause BindSqlDoClause(SqlDoClauseSyntax node, BindingDiagnosticBag diagnostics)

@@ -1349,6 +1349,8 @@
     <Field Name="SqlEndOpt" Type="BoundSqlEndClause?"/>
     <Field Name="querySymbols" Type="ImmutableArray&lt;Symbol&gt;"/>
     <Field Name="querySqlNames" Type="ImmutableArray&lt;string&gt;"/>
+    <Field Name="parameterSymbols" Type="ImmutableArray&lt;Symbol&gt;"/>
+    <Field Name="parameterNames" Type="ImmutableArray&lt;string&gt;"/>
   </Node>
 
   <Node Name="BoundSqlDoClause" Base="BoundStatement">
