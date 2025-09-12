@@ -35,11 +35,10 @@ namespace Microsoft.CodeAnalysis.CSharp
             private readonly MethodSymbol _immutableArrayOfStringsBuilderAddMethodSymbol;
             private readonly MethodSymbol _immutableArrayOfObjectsBuilderAddMethodSymbol;
             private readonly MethodSymbol _immutableArrayBuilderToImmutableArrayMethodSymbol;
-            //private readonly MethodSymbol _objectGetTypeMethodSymbol;
             private MethodSymbol? _arrayIsDefaultOrEmptyMethodSymbol;
             // Functions
-            private readonly MethodSymbol _connectMethodSymbol;
-            private readonly MethodSymbol _disconnectMethodSymbol;
+            private readonly MethodSymbol _beginMethodSymbol;
+            private readonly MethodSymbol _endMethodSymbol;
             private readonly MethodSymbol _readMethodSymbol;
             // LocalRewriter
             private readonly CSharpCompilation _compilation;
@@ -153,25 +152,28 @@ namespace Microsoft.CodeAnalysis.CSharp
                 Debug.Assert(_immutableArrayBuilderToImmutableArrayMethodSymbol is not null, "method ImmutableArray.Builder<T>.ToImmutableArray() not found");
 
                 // Functions
-                _connectMethodSymbol = TryLookupFunction(
-                    "iWare.Database.SqlCommands2",
-                    "Connect")!;
-                Debug.Assert(_connectMethodSymbol is not null && _connectMethodSymbol.Parameters.Length == 2, "method iWare.Database.SqlCommands2.Connect not found");
+                _beginMethodSymbol = TryLookupFunction(
+                    "iWare.Database.SqlCommands",
+                    "Begin")!;
+                Debug.Assert(_beginMethodSymbol is not null, "method iWare.Database.SqlCommands.Begin not found");
+                Debug.Assert(_beginMethodSymbol.Parameters.Length == 3 && !_beginMethodSymbol.ReturnsVoid, "method iWare.Database.SqlCommands.Begin does not match expected signature");
 
-                _disconnectMethodSymbol = TryLookupFunction(
-                    "iWare.Database.SqlCommands2",
-                    "Disconnect")!;
-                Debug.Assert(_disconnectMethodSymbol is not null, "method iWare.Database.SqlCommands2.Disconnect not found");
+                _endMethodSymbol = TryLookupFunction(
+                    "iWare.Database.SqlCommands",
+                    "End")!;
+                Debug.Assert(_endMethodSymbol is not null, "method iWare.Database.SqlCommands.End not found");
+                Debug.Assert(_endMethodSymbol.Parameters.Length == 1 && _endMethodSymbol.ReturnsVoid, "method iWare.Database.SqlCommands.End does not match expected signature");
 
                 _readMethodSymbol = TryLookupFunction(
-                    "iWare.Database.SqlCommands2",
+                    "iWare.Database.SqlCommands",
                     "Read")!;
-                Debug.Assert(_readMethodSymbol is not null, "method iWare.Database.SqlCommands2.Read() not found");
+                Debug.Assert(_readMethodSymbol is not null, "method iWare.Database.SqlCommands.Read() not found");
                 Debug.Assert(
                     _readMethodSymbol.Parameters.Length == 2 &&
                     _readMethodSymbol.Parameters[0].Type.Equals(_sqlDataReaderType) &&
-                    _readMethodSymbol.Parameters[1].Type.Equals(_immutableArrayOfStringsType),
-                    "method iWare.Database.SqlCommands2.Read() does not match expected signature");
+                    _readMethodSymbol.Parameters[1].Type.Equals(_immutableArrayOfStringsType) &&
+                    !_readMethodSymbol.ReturnsVoid,
+                    "method iWare.Database.SqlCommands.Read() does not match expected signature");
 
                 // Fields
                 _dbNullValueProperty = dbNullType
@@ -234,9 +236,8 @@ namespace Microsoft.CodeAnalysis.CSharp
                 //     }
                 // }
 
-                //TODO-aljaz rename Connect and Disconnect to Begin and End
                 var readMethodTargetType = _readMethodSymbol.ReturnType;
-                var connectMethodTargetType = _connectMethodSymbol.ReturnType;
+                var connectMethodTargetType = _beginMethodSymbol.ReturnType;
                 var sideEffects = ImmutableArray.CreateBuilder<BoundStatement>();
                 _arrayIsDefaultOrEmptyMethodSymbol = readMethodTargetType.GetMembers("get_IsDefaultOrEmpty").OfType<MethodSymbol>().Single();
 
@@ -255,22 +256,28 @@ namespace Microsoft.CodeAnalysis.CSharp
                 // ImmutableArray<string> sqlNameValues = sqlQueryNames;
                 var sqlNamesSymbol = _factory.SynthesizedLocal(_immutableArrayOfStringsType);
                 var sqlNamesLocal = _factory.Local(sqlNamesSymbol);
-                sideEffects.Add(AssignSqlNames(sqlNamesLocal, _querySqlNames));
+                sideEffects.Add(AssignImmutableArrayToLocal(sqlNamesLocal, _querySqlNames));
 
-                // ImmutableArray<object> sqlNameValues = parameterSymbols.Value;
+                // ImmutableArray<object> parameters = parameterSymbols;
                 var parametersSymbol = _factory.SynthesizedLocal(_immutableArrayOfObjectsType);
                 var parametersLocal = _factory.Local(parametersSymbol);
                 sideEffects.Add(AssignParamters(parametersLocal, _parameterSymbols));
+
+                // ImmutableArray<string> parameterNames = parameterNames;
+                var parameterNamesSymbol = _factory.SynthesizedLocal(_immutableArrayOfStringsType);
+                var parameterNamesLocal = _factory.Local(parameterNamesSymbol);
+                sideEffects.Add(AssignImmutableArrayToLocal(parameterNamesLocal, _parameterNames));
 
                 // sqlReader = Connect(/*QUERY*/);
                 var sqlReaderConnectStatement = _factory.Assignment(
                     sqlReaderLocal,
                     _factory.Call(
                         null,
-                        _connectMethodSymbol,
+                        _beginMethodSymbol,
                         ImmutableArray.Create<BoundExpression>(
                             _sqlTextBoundLiteral,
-                            parametersLocal)));
+                            parametersLocal,
+                            parameterNamesLocal)));
 
                 //  /*ASSIGN LOCALS*/
                 //  for (int i .. querySymbols.Length)
@@ -320,7 +327,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 var sqlReaderDisconnectStatement = _factory.ExpressionStatement(
                     _factory.Call(
                         null,
-                        _disconnectMethodSymbol,
+                        _endMethodSymbol,
                         ImmutableArray.Create<BoundExpression>(sqlReaderLocal)));
 
                 // /*ALWAYS RUN*/
@@ -343,7 +350,13 @@ namespace Microsoft.CodeAnalysis.CSharp
 
                 var sideEffectsImmutable = sideEffects.ToImmutableArray();
                 var ret = _factory.Block(
-                    [sqlReaderSymbol, readValuesSymbol, sqlNamesSymbol, parametersSymbol],
+                    [
+                        sqlReaderSymbol,
+                        readValuesSymbol,
+                        sqlNamesSymbol,
+                        parametersSymbol,
+                        parameterNamesSymbol
+                    ],
                     sideEffectsImmutable);
                 // ret.DumpSource is VERY useful!!!!
                 return ret;
@@ -363,7 +376,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                             sqlNamesLocal))));
             }
 
-            private BoundStatement AssignSqlNames(BoundLocal sqlNamesLocal, ImmutableArray<string> names)
+            private BoundBlock AssignImmutableArrayToLocal(BoundLocal sqlNamesLocal, ImmutableArray<string> names)
             {
                 var sideEffects = ImmutableArray.CreateBuilder<BoundStatement>();
 
@@ -396,11 +409,11 @@ namespace Microsoft.CodeAnalysis.CSharp
                     sideEffects.ToImmutableArray());
             }
 
-            BoundStatement AssignParamters(
+            BoundBlock AssignParamters(
                 BoundExpression parametersLocal,
                 ImmutableArray<Symbol> parameterSymbols)
             {
-                //TODO AssignParameters and AssignNames do basically the same thing -- can you combine them
+                //TODO AssignParameters and AssignImmutableArrayToLocal do basically the same thing -- can you combine them
 
                 // foreach parameterSymbol in parameterSymbols add value to parametersLocal array
                 var sideEffects = ImmutableArray.CreateBuilder<BoundStatement>();
@@ -423,7 +436,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                             _factory.Call(
                                 builderLocal,
                                 _immutableArrayOfObjectsBuilderAddMethodSymbol,
-                                _factory.Local((LocalSymbol)parameterSymbol))));
+                                _factory.Convert(_objectType, _factory.Local((LocalSymbol)parameterSymbol)))));
                 }
 
                 //sqlNamesLocal = builder.ToImmutableArray();

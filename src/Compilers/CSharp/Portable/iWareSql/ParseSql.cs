@@ -36,26 +36,26 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                     while (((c = look(++i)) != '*' || (c = look(i + 1)) != '/') && c != '\0') ;
                     continue;
                 }
+                // if char + 1 is @ input parameter
+                if (c == '@')
+                {
+                    var readFromPos = i + 1;
+                    var readPosLen = 0;
+                    do
+                    {
+                        readPosLen++;
+                        c = look(readFromPos + readPosLen);
+                    } while (vaildChar(c));
+                    sqlParameterNamesBuilder.Add(sqlText.Substring(readFromPos, readPosLen));
+                    i += readPosLen;
+                    continue;
+                }
                 // if char is [ then parse parameter
                 if (c == '[')
                 {
                     var readFromPos = i + 1;
                     var readPosLen = 0;
                     c = look(readFromPos);
-                    // if char + 1 is @ input parameter
-                    if (c == '@')
-                    {
-                        //TODO-aljaz implement input parameters
-                        do
-                        {
-                            readPosLen++;
-                            c = look(readFromPos + readPosLen);
-                        } while (vaildChar(c));
-                        sqlParameterNamesBuilder.Add(sqlText.Substring(readFromPos, readPosLen));
-                        i += readPosLen;
-                        continue;
-                    }
-                    // else output parameter
                     string name;
                     string sqlName;
                     while (vaildChar(c))
@@ -104,7 +104,8 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                     {
                         continue;
                     }
-                    sqlText = sqlText.Substring(0, i) + sqlText.Substring(readFromPos + readPosLen + 1);
+                    //sqlText = sqlText.Substring(0, i) + sqlText.Substring(readFromPos + readPosLen + 1);
+                    sqlText = sqlText.Remove(i, readPosLen + 2);
                     i--;
                     namesBuilder.Add(name);
                     sqlNamesBuilder.Add(sqlName);
