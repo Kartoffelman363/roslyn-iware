@@ -9064,26 +9064,44 @@ done:
         {
             var pooled = PooledStringBuilder.GetInstance();
             var stringBuilder = pooled.Builder;
-            //TODO-aljaz add ignore curly braces in comments
             int braceDepth = 1;
-            while (this.CurrentToken.Kind != SyntaxKind.EndOfFileToken)
+            bool isComment = false;
+            while (CurrentToken.Kind != SyntaxKind.EndOfFileToken)
             {
-                if (this.CurrentToken.Kind == SyntaxKind.OpenBraceToken)
+                //Ignore curly braces in SQL dash-dash comments --, until end of line
+                if (isComment)
                 {
-                    braceDepth++;
-                }
-                else if (this.CurrentToken.Kind == SyntaxKind.CloseBraceToken)
-                {
-                    braceDepth--;
-                    if (braceDepth < 1)
+                    foreach (var trailing in CurrentToken.TrailingTrivia)
                     {
-                        break;
+                        if (trailing.Kind == SyntaxKind.EndOfLineTrivia)
+                        {
+                            isComment = false;
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    switch (CurrentToken.Kind)
+                    {
+                        case SyntaxKind.OpenBraceToken:
+                            braceDepth++;
+                            break;
+                        case SyntaxKind.CloseBraceToken:
+                            braceDepth--;
+                            if (braceDepth < 1)
+                                goto parseSqlEnd;
+                            break;
+                        case SyntaxKind.MinusMinusToken:
+                            isComment = true;
+                            break;
                     }
                 }
 
-                stringBuilder.Append(this.CurrentToken.ToFullString());
-                this.EatToken();
+                stringBuilder.Append(CurrentToken.ToFullString());
+                EatToken();
             }
+parseSqlEnd:
 
             var text = pooled.ToStringAndFree();
             return SyntaxFactory.Token(

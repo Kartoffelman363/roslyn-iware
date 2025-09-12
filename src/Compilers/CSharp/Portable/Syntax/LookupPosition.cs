@@ -431,7 +431,6 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax
                         return lastCatch.Block.CloseBraceToken;
                     }
                     return tryStmt.Block.CloseBraceToken;
-                //TODO-aljaz add sqldo, sqlempty, sqlend
                 case SyntaxKind.SqlStatement:
                     return ((SqlStatementSyntax)statement).SqlCloseBraceToken;
                 case SyntaxKind.UnsafeStatement:

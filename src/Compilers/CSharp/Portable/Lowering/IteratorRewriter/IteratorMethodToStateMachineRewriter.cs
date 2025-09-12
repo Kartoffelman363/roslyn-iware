@@ -461,15 +461,6 @@ namespace Microsoft.CodeAnalysis.CSharp
             return F.Block(bodyStatements.ToImmutableAndFree());
         }
 
-        //TODO-aljaz implement?
-        /*
-        public override BoundNode VisitSqlStatement(BoundSqlStatement node)
-        {
-            return node;
-            //return base.VisitSqlStatement(node);
-        }
-        */
-
         private IteratorFinallyFrame PushFrame(BoundTryStatement statement)
         {
             var syntax = statement.Syntax;

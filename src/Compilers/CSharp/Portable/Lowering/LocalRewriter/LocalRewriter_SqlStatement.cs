@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
@@ -25,15 +26,12 @@ namespace Microsoft.CodeAnalysis.CSharp
             private readonly NamedTypeSymbol _stringType;
             // External types
             private readonly NamedTypeSymbol _sqlDataReaderType;
+            private readonly NamedTypeSymbol _immutableArrayType;
             // Combined types
             private readonly NamedTypeSymbol _immutableArrayOfStringsType;
             private readonly NamedTypeSymbol _immutableArrayOfObjectsType;
-            private readonly NamedTypeSymbol _immutableArrayOfStringsBuilderType;
-            private readonly NamedTypeSymbol _immutableArrayOfObjectsBuilderType;
             // Methods
             private readonly MethodSymbol _immutableArrayBuilderMethodSymbol;
-            private readonly MethodSymbol _immutableArrayOfStringsBuilderAddMethodSymbol;
-            private readonly MethodSymbol _immutableArrayOfObjectsBuilderAddMethodSymbol;
             private readonly MethodSymbol _immutableArrayBuilderToImmutableArrayMethodSymbol;
             private MethodSymbol? _arrayIsDefaultOrEmptyMethodSymbol;
             // Functions
@@ -86,7 +84,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 // Builtin types
                 _stringType = _compilation.GetSpecialType(SpecialType.System_String);
                 _objectType = _compilation.GetSpecialType(SpecialType.System_Object);
-                var immutableArrayType = _compilation.GetWellKnownType(WellKnownType.System_Collections_Immutable_ImmutableArray_T);
+                _immutableArrayType = _compilation.GetWellKnownType(WellKnownType.System_Collections_Immutable_ImmutableArray_T);
 
                 // External types
                 _sqlDataReaderType = _compilation.GetTypeByMetadataName("Microsoft.Data.SqlClient.SqlDataReader")!;
@@ -96,25 +94,15 @@ namespace Microsoft.CodeAnalysis.CSharp
                 Debug.Assert(dbNullType is not null, "type System.DBNull not found");
 
                 // Combined types
-                _immutableArrayOfStringsType = immutableArrayType
+                _immutableArrayOfStringsType = _immutableArrayType
                     .Construct(_stringType);
                 Debug.Assert(_immutableArrayOfStringsType is not null, "type ImmutableArray<string> not found");
 
-                _immutableArrayOfObjectsType = immutableArrayType
+                _immutableArrayOfObjectsType = _immutableArrayType
                     .Construct(_objectType);
                 Debug.Assert(_immutableArrayOfObjectsType is not null, "type ImmutableArray<objects> not found");
 
-                _immutableArrayOfStringsBuilderType = _immutableArrayOfStringsType
-                    .GetTypeMembers("Builder")
-                    .Single();
-                Debug.Assert(_immutableArrayOfStringsBuilderType is not null, "type ImmutableArray<string>.Builder not found");
-
-                _immutableArrayOfObjectsBuilderType = _immutableArrayOfObjectsType
-                    .GetTypeMembers("Builder")
-                    .Single();
-                Debug.Assert(_immutableArrayOfObjectsBuilderType is not null, "type ImmutableArray<object>.Builder not found");
-
-                var immutableArrayBuilderType = immutableArrayType.GetTypeMembers("Builder").Single();
+                var immutableArrayBuilderType = _immutableArrayType.GetTypeMembers("Builder").Single();
                 Debug.Assert(immutableArrayBuilderType is not null, "type ImmutableArray<T>.Builder not found");
 
                 var staticImmutableArrayType = _compilation.GetTypeByMetadataName("System.Collections.Immutable.ImmutableArray")!;
@@ -126,22 +114,6 @@ namespace Microsoft.CodeAnalysis.CSharp
                     .OfType<MethodSymbol>()
                     .Single(m => m.Parameters.Length == 0);
                 Debug.Assert(_immutableArrayBuilderMethodSymbol is not null, "method ImmutableArray.CreateBuilder<T>() not found");
-
-                _immutableArrayOfStringsBuilderAddMethodSymbol = _immutableArrayOfStringsBuilderType
-                    .GetMembers("Add")
-                    .OfType<MethodSymbol>()
-                    .Single(
-                        m => m.Parameters.Length == 1 &&
-                        m.Parameters[0].Type.Equals(_stringType));
-                Debug.Assert(_immutableArrayOfStringsBuilderAddMethodSymbol is not null, "method ImmutableArray.Builder<string>.Add(string) not found");
-
-                _immutableArrayOfObjectsBuilderAddMethodSymbol = _immutableArrayOfObjectsBuilderType
-                    .GetMembers("Add")
-                    .OfType<MethodSymbol>()
-                    .Single(
-                        m => m.Parameters.Length == 1 &&
-                        m.Parameters[0].Type.Equals(_objectType));
-                Debug.Assert(_immutableArrayOfObjectsBuilderAddMethodSymbol is not null, "method ImmutableArray.Builder<object>.Add(object) not found");
 
                 _immutableArrayBuilderToImmutableArrayMethodSymbol = staticImmutableArrayType
                     .GetMembers("ToImmutableArray")
@@ -207,7 +179,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 // /*READ*/ readValues = Read(sqlReader, sqlNameValues)
                 // try
                 // {
-                //     sqlReader = Connect(/*QUERY*/);
+                //     sqlReader = Begin(/*QUERY*/, parameters);
                 //     if (/*READ*/ != null)
                 //     {
                 //         if (sqlDoAction is not null)
@@ -229,7 +201,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 // }
                 // finally
                 // {
-                //     Disconnect(sqlReader);
+                //     End(sqlReader);
                 //     if (sqlEndAction is not null)
                 //     {
                 //         /*ALWAYS RUN*/
@@ -237,12 +209,12 @@ namespace Microsoft.CodeAnalysis.CSharp
                 // }
 
                 var readMethodTargetType = _readMethodSymbol.ReturnType;
-                var connectMethodTargetType = _beginMethodSymbol.ReturnType;
+                var beginMethodTargetType = _beginMethodSymbol.ReturnType;
                 var sideEffects = ImmutableArray.CreateBuilder<BoundStatement>();
                 _arrayIsDefaultOrEmptyMethodSymbol = readMethodTargetType.GetMembers("get_IsDefaultOrEmpty").OfType<MethodSymbol>().Single();
 
                 // SqlDataReader? sqlReader = null;
-                var sqlReaderSymbol = _factory.SynthesizedLocal(connectMethodTargetType);
+                var sqlReaderSymbol = _factory.SynthesizedLocal(beginMethodTargetType);
                 var sqlReaderLocal = _factory.Local(sqlReaderSymbol);
                 sideEffects.Add(
                     _factory.Assignment(
@@ -261,15 +233,15 @@ namespace Microsoft.CodeAnalysis.CSharp
                 // ImmutableArray<object> parameters = parameterSymbols;
                 var parametersSymbol = _factory.SynthesizedLocal(_immutableArrayOfObjectsType);
                 var parametersLocal = _factory.Local(parametersSymbol);
-                sideEffects.Add(AssignParamters(parametersLocal, _parameterSymbols));
+                sideEffects.Add(AssignImmutableArrayToLocal(parametersLocal, _parameterSymbols));
 
                 // ImmutableArray<string> parameterNames = parameterNames;
                 var parameterNamesSymbol = _factory.SynthesizedLocal(_immutableArrayOfStringsType);
                 var parameterNamesLocal = _factory.Local(parameterNamesSymbol);
                 sideEffects.Add(AssignImmutableArrayToLocal(parameterNamesLocal, _parameterNames));
 
-                // sqlReader = Connect(/*QUERY*/);
-                var sqlReaderConnectStatement = _factory.Assignment(
+                // sqlReader = Begin(/*QUERY*/, parameters);
+                var sqlReaderBeginStatement = _factory.Assignment(
                     sqlReaderLocal,
                     _factory.Call(
                         null,
@@ -280,15 +252,6 @@ namespace Microsoft.CodeAnalysis.CSharp
                             parameterNamesLocal)));
 
                 //  /*ASSIGN LOCALS*/
-                //  for (int i .. querySymbols.Length)
-                //  {
-                //      var symbol = querySymbols[i];
-                //      var tmp = readValues[i];
-                //      if (tmp != null)
-                //      {
-                //          querySymbols[i] = tmp;
-                //      }
-                //  }
                 var assignLocalsStatements = AssignLocals(_querySymbols, readValuesLocal);
 
                 // do
@@ -323,8 +286,8 @@ namespace Microsoft.CodeAnalysis.CSharp
                     sqlDoLoop,
                     sqlEmptyStatement);
 
-                // Disconnect(sqlReader);
-                var sqlReaderDisconnectStatement = _factory.ExpressionStatement(
+                // End(sqlReader);
+                var sqlReaderEndStatement = _factory.ExpressionStatement(
                     _factory.Call(
                         null,
                         _endMethodSymbol,
@@ -343,8 +306,8 @@ namespace Microsoft.CodeAnalysis.CSharp
                 }
 
                 // try { ... } finally { ... }
-                var finallyBlock = _factory.Block(sqlReaderDisconnectStatement, sqlEndStatement);
-                var tryBlock = _factory.Block(sqlReaderConnectStatement, readCallStatement, ifRead);
+                var finallyBlock = _factory.Block(sqlReaderEndStatement, sqlEndStatement);
+                var tryBlock = _factory.Block(sqlReaderBeginStatement, readCallStatement, ifRead);
                 var finallyLabel = new GeneratedLabelSymbol("sqlFinally");
                 sideEffects.Add(_factory.Try(tryBlock, [], finallyBlock, finallyLabel));
 
@@ -376,76 +339,72 @@ namespace Microsoft.CodeAnalysis.CSharp
                             sqlNamesLocal))));
             }
 
-            private BoundBlock AssignImmutableArrayToLocal(BoundLocal sqlNamesLocal, ImmutableArray<string> names)
+            private BoundBlock AssignImmutableArrayToLocal<T>(BoundLocal local, ImmutableArray<T> arr)
             {
+                // T supports string and Symbol, anything else fails
                 var sideEffects = ImmutableArray.CreateBuilder<BoundStatement>();
 
-                //var builder = ImmutableArray.Builder<string>();
-                var builderSymbol = _factory.SynthesizedLocal(_immutableArrayOfStringsBuilderType);
-                var builderLocal = _factory.Local(builderSymbol);
-                sideEffects.Add(_factory.Assignment(builderLocal, _factory.Call(null, _immutableArrayBuilderMethodSymbol.Construct(_stringType))));
-
-                //foreach name add
-                foreach (var name in names)
+                var targetType = arr switch
                 {
-                    sideEffects.Add(
-                        _factory.ExpressionStatement(
-                            _factory.Call(
-                                builderLocal,
-                                _immutableArrayOfStringsBuilderAddMethodSymbol,
-                                _factory.Literal(name))));
-                }
+                    ImmutableArray<string> _ => _stringType,
+                    ImmutableArray<Symbol> _ => _objectType,
+                    _ => null
+                };
+                Debug.Assert(targetType is not null, "Type error in AssignImmutableArrayToLocal");
+                var immutableArrayType = _immutableArrayType
+                    .Construct(targetType);
+                Debug.Assert(immutableArrayType is not null, $"type ImmutableArray<{targetType}> could not be constructed");
+                var immutableArrayBuilderType = immutableArrayType
+                    .GetTypeMembers("Builder")
+                    .Single();
+                Debug.Assert(immutableArrayBuilderType is not null, $"type ImmutableArray.Builder<{targetType}> not found");
+                var addMethod = immutableArrayBuilderType
+                    .GetMembers("Add")
+                    .OfType<MethodSymbol>()
+                    .Single(
+                        m => m.Parameters.Length == 1 &&
+                        m.Parameters[0].Type.Equals(targetType));
+                Debug.Assert(addMethod is not null, $"method ImmutableArray.Builder<{targetType}>.Add() not found");
+                var immutableArrayBuilderMethod = _immutableArrayBuilderMethodSymbol.Construct(targetType);
+                Debug.Assert(immutableArrayBuilderMethod is not null, $"method ImmutableArray.Builder<{targetType}>.CreateBuilder() not found");
+                var toImmutableArrayMethodSymbol = _immutableArrayBuilderToImmutableArrayMethodSymbol.Construct(targetType);
+                Debug.Assert(toImmutableArrayMethodSymbol is not null, $"method ImmutableArray.Builder<{targetType}>.ToImmutableArray() not found");
 
-                //sqlNamesLocal = builder.ToImmutableArray();
-                sideEffects.Add(_factory.Assignment(
-                    sqlNamesLocal,
-                    _factory.Call(
-                        null,
-                        _immutableArrayBuilderToImmutableArrayMethodSymbol.Construct(_stringType),
-                        builderLocal)));
-
-                return _factory.Block(
-                    [builderSymbol],
-                    sideEffects.ToImmutableArray());
-            }
-
-            BoundBlock AssignParamters(
-                BoundExpression parametersLocal,
-                ImmutableArray<Symbol> parameterSymbols)
-            {
-                //TODO AssignParameters and AssignImmutableArrayToLocal do basically the same thing -- can you combine them
-
-                // foreach parameterSymbol in parameterSymbols add value to parametersLocal array
-                var sideEffects = ImmutableArray.CreateBuilder<BoundStatement>();
-
-                //var builder = ImmutableArray.Builder<object>();
-                var builderSymbol = _factory.SynthesizedLocal(_immutableArrayOfObjectsBuilderType);
+                //var builder = ImmutableArray.Builder<T>();
+                var builderSymbol = _factory.SynthesizedLocal(immutableArrayBuilderType);
                 var builderLocal = _factory.Local(builderSymbol);
                 sideEffects.Add(
                     _factory.Assignment(
                         builderLocal,
                         _factory.Call(
                             null,
-                            _immutableArrayBuilderMethodSymbol.Construct(_objectType))));
+                            immutableArrayBuilderMethod)));
 
-                //foreach parameterSymbol add
-                foreach (var parameterSymbol in parameterSymbols)
+                //foreach o in arr builder.Add(o)
+                foreach (var o in arr)
                 {
+                    var expr = o switch
+                    {
+                        string str => _factory.Literal(str),
+                        LocalSymbol sym => _factory.Convert(_objectType, _factory.Local(sym)),
+                        _ => null
+                    };
+                    if (expr is null)
+                        Debug.Fail("Type error in AssignImmutableArrayToLocal");
+
                     sideEffects.Add(
-                        _factory.ExpressionStatement(
-                            _factory.Call(
-                                builderLocal,
-                                _immutableArrayOfObjectsBuilderAddMethodSymbol,
-                                _factory.Convert(_objectType, _factory.Local((LocalSymbol)parameterSymbol)))));
+                        _factory.ExpressionStatement(_factory.Call(
+                            builderLocal,
+                            addMethod,
+                            expr)));
                 }
 
                 //sqlNamesLocal = builder.ToImmutableArray();
                 sideEffects.Add(_factory.Assignment(
-                    parametersLocal,
+                    local,
                     _factory.Call(
                         null,
-                        _immutableArrayBuilderToImmutableArrayMethodSymbol
-                            .Construct(_objectType),
+                        toImmutableArrayMethodSymbol,
                         builderLocal)));
 
                 return _factory.Block(
@@ -479,6 +438,15 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             BoundStatement AssignLocals(ImmutableArray<Symbol> querySymbols, BoundExpression readValuesLocal)
             {
+                //  for (int i .. querySymbols.Length)
+                //  {
+                //      var symbol = querySymbols[i];
+                //      var tmp = readValues[i];
+                //      if (tmp != null)
+                //      {
+                //          querySymbols[i] = tmp;
+                //      }
+                //  }
                 var sideEffects = ImmutableArray.CreateBuilder<BoundStatement>();
                 var tmpSymbol = _factory.SynthesizedLocal(_objectType);
                 var tmpLocal = _factory.Local(tmpSymbol);
