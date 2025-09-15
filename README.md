@@ -2,18 +2,11 @@
 <img width="450" src="https://user-images.githubusercontent.com/46729679/109719841-17b7dd00-7b5e-11eb-8f5e-87eb2d4d1be9.png" alt="Roslyn logo">
 </p>
 
-<h1 align="center">The .NET Compiler Platform</h1>
+<h1 align="center">The .NET Compiler Platform -- iWare edition</h1>
 
-<p align="center"><a href="http://aka.ms/discord-csharp-roslyn" rel="nofollow"><img title="Chat on Discord" src="docs/img/discord-mark-white.png" /></a></p>
+This repository originates from the [NET-SDK-9.0.301 tag](https://github.com/dotnet/roslyn/tree/NET-SDK-9.0.301) of roslyn. The only thing kept in this repository is the work done after cloning the specified tag.
 
-Roslyn is the open-source implementation of both the C# and Visual Basic compilers with an API surface for building code analysis tools.
-
-### C# and Visual Basic Language Feature Suggestions
-
-If you want to suggest a new feature for the C# or Visual Basic languages go here:
-- [dotnet/csharplang](https://github.com/dotnet/csharplang) for C# specific issues
-- [dotnet/vblang](https://github.com/dotnet/vblang) for VB-specific features
-- [dotnet/csharplang](https://github.com/dotnet/csharplang) for features that affect both languages
+The project entrypoint is `src/Compilers/CSharp/sql-csc.sln`. Although you need to first follow the instructions at `docs/contributing/Building, Debugging, and Testing on Windows.md` before you can start work. The results of building `sql-csc.sln` should show up in `/.dotnet/sdk/9.0.304-sql/Roslyn/bincore`. Also if you built the project from the console using the `global.json` provided you should just be able to copy `/.dotnet/sdk/9.0.304-sql` to `C:/Program Files/dotnet/sdk` and use the compiler in any project where it's in global.json such as it is in the [example project](http://iwareis01:7990/projects/IWCS/repos/example/browse), taking into account that you must also have the [iWare.Database](http://iwareis01:7990/projects/IWCS/repos/iware.database/browse) library included in your project and you're builing from your console, not Visual Studio as it won't recognize this compiler version.
 
 ### Contributing
 
@@ -48,41 +41,5 @@ Visit [Roslyn Architecture Overview](https://docs.microsoft.com/en-us/dotnet/csh
 - [.NET SDK](https://dev.azure.com/dnceng/public/_packaging?_a=feed&feed=dotnet5): `https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet5/nuget/v3/index.json`
 
 [//]: # (Begin current test results)
-
-### Continuous Integration status
-#### Builds
-
-|Branch|Windows Debug|Windows Release|Unix Debug|
-|:--:|:--:|:--:|:--:|
-**main**|[![Build Status](https://dev.azure.com/dnceng-public/public/_apis/build/status/dotnet/roslyn/roslyn-CI?branchname=main&jobname=Build_Windows_Debug&configuration=Build_Windows_Debug&label=build)](https://dev.azure.com/dnceng-public/public/_build/latest?definitionId=95&branchname=main&view=logs)|[![Build Status](https://dev.azure.com/dnceng-public/public/_apis/build/status/dotnet/roslyn/roslyn-CI?branchname=main&jobname=Build_Windows_Release&configuration=Build_Windows_Release&label=build)](https://dev.azure.com/dnceng-public/public/_build/latest?definitionId=95&branchname=main&view=logs)|[![Build Status](https://dev.azure.com/dnceng-public/public/_apis/build/status/dotnet/roslyn/roslyn-CI?branchname=main&jobname=Build_Unix_Debug&configuration=Build_Unix_Debug&label=build)](https://dev.azure.com/dnceng-public/public/_build/latest?definitionId=95&branchname=main&view=logs)|
-
-#### Desktop Unit Tests
-
-|Branch|Debug x86|Debug x64|Release x86|Release x64|
-|:--:|:--:|:--:|:--:|:--:|
-**main**|[![Build Status](https://dev.azure.com/dnceng-public/public/_apis/build/status/dotnet/roslyn/roslyn-CI?branchname=main&jobname=Test_Windows_Desktop_Debug_32&configuration=Test_Windows_Desktop_Debug_32&label=build)](https://dev.azure.com/dnceng-public/public/_build/latest?definitionId=95&branchname=main&view=logs)|[![Build Status](https://dev.azure.com/dnceng-public/public/_apis/build/status/dotnet/roslyn/roslyn-CI?branchname=main&jobname=Test_Windows_Desktop_Debug_64&configuration=Test_Windows_Desktop_Debug_64&label=build)](https://dev.azure.com/dnceng-public/public/_build/latest?definitionId=95&branchname=main&view=logs)|[![Build Status](https://dev.azure.com/dnceng-public/public/_apis/build/status/dotnet/roslyn/roslyn-CI?branchname=main&jobname=Test_Windows_Desktop_Release_32&configuration=Test_Windows_Desktop_Release_32&label=build)](https://dev.azure.com/dnceng-public/public/_build/latest?definitionId=95&branchname=main&view=logs)|[![Build Status](https://dev.azure.com/dnceng-public/public/_apis/build/status/dotnet/roslyn/roslyn-CI?branchname=main&jobname=Test_Windows_Desktop_Release_64&configuration=Test_Windows_Desktop_Release_64&label=build)](https://dev.azure.com/dnceng-public/public/_build/latest?definitionId=95&branchname=main&view=logs)|
-
-#### CoreClr Unit Tests
-
-|Branch|Windows Debug|Windows Release|Linux|
-|:--:|:--:|:--:|:--:|
-**main**|[![Build Status](https://dev.azure.com/dnceng-public/public/_apis/build/status/dotnet/roslyn/roslyn-CI?branchname=main&jobname=Test_Windows_CoreClr_Debug&configuration=Test_Windows_CoreClr_Debug&label=build)](https://dev.azure.com/dnceng-public/public/_build/latest?definitionId=95&branchname=main&view=logs)|[![Build Status](https://dev.azure.com/dnceng-public/public/_apis/build/status/dotnet/roslyn/roslyn-CI?branchname=main&jobname=Test_Windows_CoreClr_Release&configuration=Test_Windows_CoreClr_Release&label=build)](https://dev.azure.com/dnceng-public/public/_build/latest?definitionId=95&branchname=main&view=logs)|[![Build Status](https://dev.azure.com/dnceng-public/public/_apis/build/status/dotnet/roslyn/roslyn-CI?branchname=main&jobname=Test_Linux_Debug&configuration=Test_Linux_Debug&label=build)](https://dev.azure.com/dnceng-public/public/_build/latest?definitionId=95&branchname=main&view=logs)|
-
-#### Integration Tests
-
-|Branch|Debug x86|Debug x64|Release x86|Release x64
-|:--:|:--:|:--:|:--:|:--:|
-**main**|[![Build Status](https://dev.azure.com/dnceng-public/public/_apis/build/status/dotnet/roslyn/roslyn-integration-CI?branchname=main&jobname=VS_Integration_Debug_32&configuration=VS_Integration_Debug_32&label=build)](https://dev.azure.com/dnceng-public/public/_build/latest?definitionId=96&branchname=main&view=logs)|[![Build Status](https://dev.azure.com/dnceng-public/public/_apis/build/status/dotnet/roslyn/roslyn-integration-CI?branchname=main&jobname=VS_Integration_Debug_64&configuration=VS_Integration_Debug_64&label=build)](https://dev.azure.com/dnceng-public/public/_build/latest?definitionId=96&branchname=main&view=logs)|[![Build Status](https://dev.azure.com/dnceng-public/public/_apis/build/status/dotnet/roslyn/roslyn-integration-CI?branchname=main&jobname=VS_Integration_Release_32&configuration=VS_Integration_Release_32&label=build)](https://dev.azure.com/dnceng-public/public/_build/latest?definitionId=96&branchname=main&view=logs)|[![Build Status](https://dev.azure.com/dnceng-public/public/_apis/build/status/dotnet/roslyn/roslyn-integration-CI?branchname=main&jobname=VS_Integration_Release_64&configuration=VS_Integration_Release_64&label=build)](https://dev.azure.com/dnceng-public/public/_build/latest?definitionId=96&branchname=main&view=logs)|
-
-#### Misc Tests
-
-|Branch|Determinism|Analyzers|Build Correctness|Source build|TODO/Prototype|Spanish|MacOS|
-|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
-**main**|[![Build Status](https://dev.azure.com/dnceng-public/public/_apis/build/status/dotnet/roslyn/roslyn-CI?branchname=main&jobname=Correctness_Determinism&configuration=Correctness_Determinism&label=build)](https://dev.azure.com/dnceng-public/public/_build/latest?definitionId=95&branchname=main&view=logs)|[![Build Status](https://dev.azure.com/dnceng-public/public/_apis/build/status/dotnet/roslyn/roslyn-CI?branchname=main&jobname=Correctness_Analyzers&configuration=Correctness_Analyzers&label=build)](https://dev.azure.com/dnceng-public/public/_build/latest?definitionId=95&branchname=main&view=logs)|[![Build Status](https://dev.azure.com/dnceng-public/public/_apis/build/status/dotnet/roslyn/roslyn-CI?branchname=main&jobname=Correctness_Build_Artifacts&configuration=Correctness_Build_Artifacts&label=build)](https://dev.azure.com/dnceng-public/public/_build/latest?definitionId=95&branchname=main&view=logs)|[![Build Status](https://dev.azure.com/dnceng-public/public/_apis/build/status/dotnet/roslyn/roslyn-CI?branchname=main&jobname=Source-Build+(Managed)&configuration=Source-Build+(Managed)&label=build)](https://dev.azure.com/dnceng-public/public/_build/latest?definitionId=95&branchname=main&view=logs)|[![Build Status](https://dev.azure.com/dnceng-public/public/_apis/build/status/dotnet/roslyn/roslyn-CI?branchname=main&jobname=Correctness_TodoCheck&configuration=Correctness_TodoCheck&label=build)](https://dev.azure.com/dnceng-public/public/_build/latest?definitionId=95&branchname=main&view=logs)|[![Build Status](https://dev.azure.com/dnceng-public/public/_apis/build/status/dotnet/roslyn/roslyn-CI?branchname=main&jobname=Test_Windows_Desktop_Spanish_Release_64&configuration=Test_Windows_Desktop_Spanish_Release_64&label=build)](https://dev.azure.com/dnceng-public/public/_build/latest?definitionId=95&branchname=main&view=logs)|[![Build Status](https://dev.azure.com/dnceng-public/public/_apis/build/status/dotnet/roslyn/roslyn-CI?branchname=main&jobname=Test_macOS_Debug&configuration=Test_macOS_Debug&label=build)](https://dev.azure.com/dnceng-public/public/_build/latest?definitionId=95&branchname=main&view=logs)|
-
-
-[//]: # (End current test results)
-
-### .NET Foundation
 
 This project is part of the [.NET Foundation](http://www.dotnetfoundation.org/projects) along with other projects like [the .NET Runtime](https://github.com/dotnet/runtime/).

@@ -9011,7 +9011,6 @@ done:
 
         private SqlStatementSyntax ParseSqlStatement(SyntaxList<AttributeListSyntax> attributes)
         {
-            // PS ne pozabi dodati keyworde v "Is*" (e.g. IsPartialType) izjave!
             Debug.Assert(this.CurrentToken.Kind is SyntaxKind.SqlKeyword, "sql statement should begin with an sql clause");
 
             // sql
@@ -9024,23 +9023,25 @@ done:
                 openBrace = this.EatToken(SyntaxKind.OpenBraceToken);
                 sqlContents = this.ParseSqlBlock();
                 closeBrace = this.EatToken(SyntaxKind.CloseBraceToken);
-                //sqlBlock = this.ParsePossiblyAttributedBlock();
             }
             else
             {
                 Debug.Fail("sql statement cannot be empty");
             }
 
+            // sqldo
             SqlDoClauseSyntax sqlDo = null;
             if (this.CurrentToken.Kind == SyntaxKind.SqlDoKeyword)
             {
                 sqlDo = ParseSqlDoClause();
             }
+            // sqlempty
             SqlEmptyClauseSyntax sqlEmpty = null;
             if (this.CurrentToken.Kind == SyntaxKind.SqlEmptyKeyword)
             {
                 sqlEmpty = ParseSqlEmptyClause();
             }
+            // sqlend
             SqlEndClauseSyntax sqlEnd = null;
             if (this.CurrentToken.Kind == SyntaxKind.SqlEndKeyword)
             {
