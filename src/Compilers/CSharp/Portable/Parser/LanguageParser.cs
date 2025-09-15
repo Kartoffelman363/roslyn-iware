@@ -87,8 +87,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
             IsEndOfFunctionPointerCallingConvention = 1 << 25,
             IsEndOfTypeSignature = 1 << 26,
             IsExpressionOrPatternInCaseLabelOfSwitchStatement = 1 << 27,
-            IsPatternInSwitchExpressionArm = 1 << 28,
-            IsEndOfSqlBlock = 1 << 29
+            IsPatternInSwitchExpressionArm = 1 << 28
         }
 
         private const int LastTerminatorState = (int)TerminatorState.IsPatternInSwitchExpressionArm;
@@ -116,7 +115,6 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
                     case TerminatorState.IsPossibleStatementStartOrStop when this.IsPossibleStatementStartOrStop():
                     case TerminatorState.IsEndOfFixedStatement when this.IsEndOfFixedStatement():
                     case TerminatorState.IsEndOfTryBlock when this.IsEndOfTryBlock():
-                    case TerminatorState.IsEndOfSqlBlock when this.IsEndOfSqlBlock():
                     case TerminatorState.IsEndOfCatchClause when this.IsEndOfCatchClause():
                     case TerminatorState.IsEndOfFilterClause when this.IsEndOfFilterClause():
                     case TerminatorState.IsEndOfCatchBlock when this.IsEndOfCatchBlock():
@@ -9014,7 +9012,7 @@ done:
         private SqlStatementSyntax ParseSqlStatement(SyntaxList<AttributeListSyntax> attributes)
         {
             // PS ne pozabi dodati keyworde v "Is*" (e.g. IsPartialType) izjave!
-            Debug.Assert(this.CurrentToken.Kind is SyntaxKind.SqlKeyword or SyntaxKind.SqlDoKeyword or SyntaxKind.SqlEmptyKeyword or SyntaxKind.SqlEndKeyword);
+            Debug.Assert(this.CurrentToken.Kind is SyntaxKind.SqlKeyword, "sql statement should begin with an sql clause");
 
             // sql
             var @sql = this.EatToken(SyntaxKind.SqlKeyword);
@@ -9215,11 +9213,6 @@ parseSqlEnd:
         private bool IsEndOfTryBlock()
         {
             return this.CurrentToken.Kind is SyntaxKind.CloseBraceToken or SyntaxKind.CatchKeyword or SyntaxKind.FinallyKeyword;
-        }
-
-        private bool IsEndOfSqlBlock()
-        {
-            return this.CurrentToken.Kind is SyntaxKind.CloseBraceToken /* or SyntaxKind.CatchKeyword or SyntaxKind.FinallyKeyword*/;
         }
 
         private CatchClauseSyntax ParseCatchClause()

@@ -925,11 +925,7 @@ oneMoreTime:
 
         private void EmitSqlStatement(BoundSqlStatement statement)
         {
-            Debug.Assert(false, "SqlStatement should never emit");
-            //_builder.OpenLocalScope();
-            //throw new Exception($"This is it: {statement.SqlBlock.ToString()}");
-            //EmitBlock(statement.SqlBlock);
-            //_builder.CloseLocalScope();
+            Debug.Fail("SqlStatement should never emit");
         }
 
         private void EmitTryStatement(BoundTryStatement statement, bool emitCatchesOnly = false)

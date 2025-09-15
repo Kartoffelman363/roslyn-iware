@@ -85,6 +85,16 @@ namespace Microsoft.CodeAnalysis.CSharp
                                 appendLine("sqlDo");
                                 appendSource(sqlStatement.SqlDoOpt);
                             }
+                            if (sqlStatement.SqlEmptyOpt is not null)
+                            {
+                                appendLine("sqlEmpty");
+                                appendSource(sqlStatement.SqlEmptyOpt);
+                            }
+                            if (sqlStatement.SqlEndOpt is not null)
+                            {
+                                appendLine("sqlEnd");
+                                appendSource(sqlStatement.SqlEndOpt);
+                            }
                             break;
                         }
                     case BoundThrowStatement throwStatement:

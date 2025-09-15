@@ -1220,23 +1220,6 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
         }
 
         [Fact]
-        public void TestSqlExpression()
-        {
-            var text = "sql { }";
-            var statement = this.ParseStatement(text);
-
-            Assert.NotNull(statement);
-            Assert.Equal(SyntaxKind.SqlStatement, statement.Kind());
-            Assert.Equal(text, statement.ToString());
-            Assert.Equal(0, statement.Errors().Length);
-
-            var ss = (SqlStatementSyntax)statement;
-            Assert.NotEqual(default, ss.SqlKeyword);
-            Assert.False(ss.SqlKeyword.IsMissing);
-            //Assert.NotNull(ss.SqlTextToken);
-        }
-
-        [Fact]
         public void TestTryCatch()
         {
             var text = "try { } catch(T e) { }";

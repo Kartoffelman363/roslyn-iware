@@ -560,11 +560,19 @@ return_statement
   ;
 
 sql_statement
-  : attribute_list* 'sql' '{' sql_text_literal_token '}' sql_do_clause?
+  : attribute_list* 'sql' '{' sql_text_literal_token '}' sql_do_clause? sql_empty_clause? sql_end_clause?
   ;
 
 sql_do_clause
-  : 'sqlDo' block
+  : 'sqldo' block
+  ;
+
+sql_empty_clause
+  : 'sqlempty' block
+  ;
+
+sql_end_clause
+  : 'sqlend' block
   ;
 
 switch_statement

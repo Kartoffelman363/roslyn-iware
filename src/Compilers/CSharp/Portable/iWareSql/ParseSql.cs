@@ -104,7 +104,6 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                     {
                         continue;
                     }
-                    //sqlText = sqlText.Substring(0, i) + sqlText.Substring(readFromPos + readPosLen + 1);
                     sqlText = sqlText.Remove(i, readPosLen + 2);
                     i--;
                     namesBuilder.Add(name);

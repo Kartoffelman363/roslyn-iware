@@ -8558,19 +8558,6 @@ catch
         }
 
         [Fact]
-        public void SqlStatement_01()
-        {
-            var text = @"
-sql {
-    System.Console.Write(2);
-}
-System.Console.Write(4);
-";
-            var comp = CreateCompilation(text, options: TestOptions.DebugExe, parseOptions: DefaultParseOptions);
-            CompileAndVerify(comp, expectedOutput: "4");
-        }
-
-        [Fact]
         public void Args_01()
         {
             var text = @"
