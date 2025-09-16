@@ -3239,6 +3239,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 sqlText);
             Debug.Assert(sqlNames.Length == names.Length, "Query symbol list and output parameter list length missmatch.");
 
+            // TODO-aljaz what happens if symbols are object or struct properties
             var nameSymbols = GetSymbols(names);
             Debug.Assert(nameSymbols.Length == names.Length, "Query output parameters list length missmatch.");
 

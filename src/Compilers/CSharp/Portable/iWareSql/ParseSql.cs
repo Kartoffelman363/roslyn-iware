@@ -4,11 +4,11 @@
 
 using System.Collections.Immutable;
 
-#pragma warning disable RS0016 // Add public types and members to the declared API
+//#pragma warning disable RS0016 // Add public types and members to the declared API
 
 namespace Microsoft.CodeAnalysis.CSharp.iWareSql
 {
-    public static class ParseSql
+    internal static class ParseSql
     {
         public static string getNamesFromSqlText(
             out ImmutableArray<string> names,
@@ -104,6 +104,8 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                     {
                         continue;
                     }
+                    // TODO-aljaz don't need to remove from string and account that I probably don't need sqlNames if I don't remove
+                    // Maybe keep for future if we want to resolve wildcards to objects
                     sqlText = sqlText.Remove(i, readPosLen + 2);
                     i--;
                     namesBuilder.Add(name);
