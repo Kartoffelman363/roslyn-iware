@@ -24,37 +24,31 @@
     <!-- HumanizerVersion is referenced from the Text.Analyzers.Package.csproj -->
     <HumanizerVersion>2.14.1</HumanizerVersion>
   </PropertyGroup>
-
   <!--
     MSBuild - need to use older packages when targeting net7.0 since the newer versions only support net472 and net8.0.
     When tareting the latest .NET the version must also be lower or equal to one specified in
     https://github.com/dotnet/sdk/blob/main/src/Layout/redist/minimumMSBuildVersion#L1
   -->
-
   <ItemGroup Condition="'$(DotNetBuildSourceOnly)' == 'true'">
     <PackageVersion Include="Microsoft.Build" Version="17.3.4" />
     <PackageVersion Include="Microsoft.Build.Framework" Version="17.3.4" />
     <PackageVersion Include="Microsoft.Build.Tasks.Core" Version="17.3.4" />
     <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="17.3.4" />
   </ItemGroup>
-
   <ItemGroup Condition="'$(DotNetBuildSourceOnly)' != 'true' and '$(TargetFramework)' != 'net472'">
     <PackageVersion Include="Microsoft.Build" Version="17.7.2" />
     <PackageVersion Include="Microsoft.Build.Framework" Version="17.7.2" />
     <PackageVersion Include="Microsoft.Build.Tasks.Core" Version="17.7.2" />
     <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="17.7.2" />
   </ItemGroup>
-
   <ItemGroup Condition="'$(DotNetBuildSourceOnly)' != 'true' and '$(TargetFramework)' == 'net472'">
     <PackageVersion Include="Microsoft.Build" Version="17.13.9" />
     <PackageVersion Include="Microsoft.Build.Framework" Version="17.13.9" />
     <PackageVersion Include="Microsoft.Build.Tasks.Core" Version="17.13.9" />
     <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="17.13.9" />
   </ItemGroup>
-
   <ItemGroup>
     <PackageVersion Include="Microsoft.Build.Locator" Version="1.6.10" />
-
     <!--
       Visual Studio
     -->
@@ -84,11 +78,9 @@
     <PackageVersion Include="VsWebSite.Interop" Version="8.0.50727" />
     <PackageVersion Include="NuGet.VisualStudio" Version="6.0.0-preview.0.15" />
     <PackageVersion Include="NuGet.VisualStudio.Contracts" Version="6.0.0-preview.0.15" />
-
     <!-- TODO: Move these to the generate-vssdk-versions.csx-generated versions (https://github.com/dotnet/roslyn/issues/71691) -->
     <PackageVersion Include="Microsoft.VisualStudio.Text.Internal" Version="$(VisualStudioEditorPackagesVersion)" />
     <PackageVersion Include="Microsoft.VisualStudio.Platform.VSEditor" Version="$(VisualStudioEditorPackagesVersion)" />
-
     <!--
       Subset of Microsoft.VisualStudio.Sdk meta-package (run `csi generate-vssdk-versions.csx` to update based on VSSDK meta-package).
       See https://github.com/dotnet/arcade/blob/main/Documentation/MirroringPackages.md if any of these packages fail to restore.
@@ -118,26 +110,22 @@
     <PackageVersion Include="Nerdbank.Streams" Version="2.11.79" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageVersion Include="StreamJsonRpc" Version="2.21.10" />
-
     <!--
       VS Debugger
     -->
     <PackageVersion Include="Microsoft.VisualStudio.Debugger.Contracts" Version="17.13.0-beta.25105.1" />
     <PackageVersion Include="Microsoft.VisualStudio.Debugger.Engine-implementation" Version="17.13.1121201-preview" />
     <PackageVersion Include="Microsoft.VisualStudio.Debugger.Metadata-implementation" Version="17.13.1121201-preview" />
-
     <!--
       VS .NET Runtime
 
       We should try to keep this version in sync with the version of app-local runtime in VS.
     -->
-
     <PackageVersion Include="Microsoft.NETCore.App.Runtime.win-arm64" Version="$(MicrosoftNetCoreAppRuntimePackagesVersion)" />
     <PackageVersion Include="Microsoft.NETCore.App.Runtime.win-x64" Version="$(MicrosoftNetCoreAppRuntimePackagesVersion)" />
     <PackageVersion Include="Microsoft.NETCore.App.crossgen2.win-x64" Version="$(MicrosoftNetCoreAppRuntimePackagesVersion)" />
     <PackageVersion Include="Microsoft.WindowsDesktop.App.Runtime.win-arm64" Version="$(MicrosoftWindowsDesktopAppRuntimePackagesVersion)" />
     <PackageVersion Include="Microsoft.WindowsDesktop.App.Runtime.win-x64" Version="$(MicrosoftWindowsDesktopAppRuntimePackagesVersion)" />
-
     <!--
       Language Server
     -->
@@ -146,11 +134,9 @@
     <PackageVersion Include="Microsoft.TestPlatform.TranslationLayer" Version="$(MicrosoftNETTestSdkVersion)" />
     <PackageVersion Include="Microsoft.TestPlatform.ObjectModel" Version="$(MicrosoftNETTestSdkVersion)" />
     <PackageVersion Include="Microsoft.AspNetCore.Razor.ExternalAccess.RoslynWorkspace" Version="9.0.0-preview.25064.4" />
-
     <!--
       Analyzers
     -->
-
     <!--
       Since the Microsoft.CodeAnalysis.Analyzers package is a public dependency of our NuGet
       packages we will keep it untied to the RoslynDiagnosticsNugetPackageVersion we use for
@@ -161,7 +147,6 @@
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.CodeStyle" Version="$(CodeStyleAnalyzerVersion)" />
     <PackageVersion Include="Microsoft.CodeAnalysis.VisualBasic.CodeStyle" Version="$(CodeStyleAnalyzerVersion)" />
     <PackageVersion Include="Microsoft.CodeAnalysis.PerformanceSensitiveAnalyzers" Version="3.3.4-beta1.22504.1" />
-
     <!--
       Framework
     -->
@@ -204,24 +189,19 @@
     <PackageVersion Include="System.Threading.Tasks.Dataflow" Version="$(SystemThreadingTasksDataflowVersion)" />
     <PackageVersion Include="System.Threading.Tasks.Extensions" Version="$(SystemThreadingTasksExtensionsVersion)" />
     <PackageVersion Include="System.Windows.Extensions" Version="$(SystemWindowsExtensionsVersion)" />
-
     <!-- We need System.ValueTuple assembly version at least 4.0.3.0 on net47 to make F5 work against Dev15 - see https://github.com/dotnet/roslyn/issues/29705 -->
     <PackageVersion Include="System.ValueTuple" Version="4.5.0" />
-
     <!--
       When updating the S.C.I or S.R.M version please let the MSBuild team know in advance so they
       can update to the same version. Version changes require a VS test insertion for validation.
     -->
     <PackageVersion Include="System.Collections.Immutable" Version="$(SystemCollectionsImmutableVersion)" />
     <PackageVersion Include="System.Reflection.Metadata" Version="$(SystemReflectionMetadataVersion)" />
-
     <PackageVersion Include="System.Text.Encodings.Web" Version="$(SystemTextEncodingsWebVersion)" />
     <!-- Note: When updating SystemTextJsonVersion ensure that the version is no higher than what is used by MSBuild. -->
     <PackageVersion Include="System.Text.Json" Version="$(SystemTextJsonVersion)" />
     <PackageVersion Include="System.Threading.Channels" Version="7.0.0" />
-
     <PackageVersion Include="Microsoft.IO.Redist" Version="$(MicrosoftIORedistVersion)" />
-
     <PackageVersion Include="SQLitePCLRaw.core" Version="$(SqliteVersion)" />
     <PackageVersion Include="SQLitePCLRaw.bundle_green" Version="$(SqliteVersion)" />
     <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="$(SqliteVersion)" />
@@ -230,11 +210,9 @@
     <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3.osx" Version="$(SqliteVersion)" />
     <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3.v110_xp" Version="$(SqliteVersion)" />
     <PackageVersion Include="SQLitePCLRaw.provider.e_sqlite3.net45" Version="$(SqliteVersion)" />
-
     <PackageVersion Include="Humanizer.Core" Version="$(HumanizerVersion)" />
     <PackageVersion Include="ICSharpCode.Decompiler" Version="8.2.0.7535" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Elfie" Version="1.0.0" />
-
     <!--
       Testing.
     -->
@@ -333,5 +311,5 @@
     <PackageVersion Include="Microsoft.CodeAnalysis.VisualBasic" Version="4.1.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.VisualBasic.Workspaces" Version="4.1.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.Common" Version="4.1.0" />
- </ItemGroup>
+  </ItemGroup>
 </Project>

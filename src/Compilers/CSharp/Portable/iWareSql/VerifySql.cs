@@ -19,39 +19,45 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
     {
         private class Input
         {
-            public string? ConnectionString { get; set; }
+            public string? ConfigPath { get; set; }
             public string? SqlString { get; set; }
             public string[]? InputParameterNames { get; set; }
             public string[]? OutputParameterNames { get; set; }
 
-            public Input(string connectionString, string sqlString, string[] inputParameterNames, string[] outputParameterNames)
+            public Input(string configPath, string sqlString, string[] inputParameterNames, string[] outputParameterNames)
             {
-                ConnectionString = connectionString;
+                ConfigPath = configPath;
                 SqlString = sqlString;
                 InputParameterNames = inputParameterNames;
                 OutputParameterNames = outputParameterNames;
             }
         }
 
-        public static bool Verify(string sqlText, ImmutableArray<string> inputNames, ImmutableArray<string> outputNames, out string reason)
+        public static bool Verify(string projectRootDir, string sqlText, ImmutableArray<string> inputNames, ImmutableArray<string> outputNames, out string reason)
         {
-            return Verify(sqlText, inputNames.ToArray(), outputNames.ToArray(), out reason);
+            return Verify(projectRootDir, sqlText, inputNames.ToArray(), outputNames.ToArray(), out reason);
         }
 
-        public static bool Verify(string sqlText, string[] inputNames, string[] outputNames, out string reason)
+        public static bool Verify(string projectRootDir, string sqlText, string[] inputNames, string[] outputNames, out string reason)
         {
             reason = string.Empty;
 
-            //TODO-aljaz read connection string from iWareDatabase.json
+            var configPath = Path.Combine(projectRootDir, "iWareDatabase.json");
+
+            if (!File.Exists(configPath))
+            {
+                reason = $"Missing iWareDatabase.json file. Tried looking at {configPath}";
+                return false;
+            }
+
             var args = JsonSerializer.Serialize(
                 new Input(
-                    "Data Source=192.168.210.5,1437; Initial Catalog=wmsDEV; User ID=objuser; Password=iware; Connect Timeout=5; TrustServerCertificate=True; MultipleActiveResultSets=True",
+                    configPath,
                     sqlText,
                     inputNames,
                     outputNames));
             Debug.Assert(args is not null, "Could not serialize verification data");
 
-            //TODO-aljaz add postbuild to copy Verifier to bincore
             var executableDirectoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             Debug.Assert(executableDirectoryPath is not null);
             var sqlVerifierPath = Path.GetFullPath(Path.Combine(executableDirectoryPath, "iWareSql/Verifier/SqlVerifier.exe"));

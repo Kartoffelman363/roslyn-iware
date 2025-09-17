@@ -21,6 +21,7 @@
     <!--BaseOutputPath>C:\Users\aljaz.roglic\aaplikacije\roslyn-sql-extended\roslyn\.dotnet\sdk\9.0.304-sql\Roslyn\bincore</BaseOutputPath-->
 	<OutputPath>C:\Users\aljaz.roglic\aaplikacije\roslyn-sql-extended\roslyn\.dotnet\sdk\9.0.304-sql\Roslyn\bincore\</OutputPath>
 	<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+	<RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Core\Portable\Microsoft.CodeAnalysis.csproj" />
@@ -38,6 +39,7 @@
     <None Include="BoundTree\BoundNodes.xsd" />
     <None Include="Generated\CSharp.Generated.g4" />
     <AdditionalFiles Include="Syntax\Syntax.xml" />
+    <None Include="csc-prebuild.ps1" />
     <None Include="Syntax\Syntax.xsd" />
     <None Include="UseSiteDiagnosticsCheckEnforcer\BaseLine.txt" />
     <None Include="UseSiteDiagnosticsCheckEnforcer\Run.bat" />
@@ -93,4 +95,7 @@
     <InternalsVisibleTo Include="Roslyn.Test.PdbUtilities" />
   </ItemGroup>
   <Import Project="..\CSharpAnalyzerDriver\CSharpAnalyzerDriver.projitems" Label="Shared" />
+  <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
+    <Exec Command="powershell .\csc-prebuild.ps1" />
+  </Target>
 </Project>

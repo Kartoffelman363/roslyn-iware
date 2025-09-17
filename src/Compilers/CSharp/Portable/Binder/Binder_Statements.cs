@@ -8,6 +8,7 @@ using System;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Linq;
 using Microsoft.CodeAnalysis.CSharp.iWareSql;
 using Microsoft.CodeAnalysis.CSharp.Symbols;
@@ -3241,8 +3242,6 @@ namespace Microsoft.CodeAnalysis.CSharp
                     .ToImmutableArray();
 
             // TODO-aljaz what happens if symbols are object or struct properties
-            // TODO-aljaz what happens if local symbol for value from SQL does not exist?
-            // Vprasaj frenka za ta primer da v SQL je vrednots SELECT neki [idNeki] ampak local symbol idNeki ne obstaja, najbrz mora iti naprej
             var outputSymbols = GetSymbols(outputNames, out var outputSymbolsIsOk, out var outputSymbolsErrorMessage, true);
             outputNames = outputSymbols.Select(s => s.Name).ToImmutableArray();
 
@@ -3251,8 +3250,12 @@ namespace Microsoft.CodeAnalysis.CSharp
                 outputSymbolsIsOk && inputSymbolsIsOk,
                 $"{(outputSymbolsIsOk ? string.Empty : $"SQL output symbols error: {outputSymbolsErrorMessage} ")}{(inputSymbolsIsOk ? string.Empty : $"SQL input symbols error: {inputSymbolsErrorMessage}")}");
 
+            var fileDir = Path.GetDirectoryName(Compilation.SyntaxTrees.First().FilePath);
+
+            //TODO-aljaz figure out how to do warnings and errors correctly
             Trace.Assert(
                 VerifySql.Verify(
+                    fileDir,
                     sqlText,
                     inputNames,
                     outputNames,
