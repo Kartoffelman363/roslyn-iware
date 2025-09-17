@@ -3241,12 +3241,12 @@ namespace Microsoft.CodeAnalysis.CSharp
                     .Select(name => name.First() == '@' ? name.Substring(1) : name)
                     .ToImmutableArray();
 
-            // TODO-aljaz what happens if symbols are object or struct properties
+            // TODO-aljaz symbols that are object or struct properties don't work eg. sql { select whatever [myObj.Whatever] ... }
             var outputSymbols = GetSymbols(outputNames, out var outputSymbolsIsOk, out var outputSymbolsErrorMessage, true);
             outputNames = outputSymbols.Select(s => s.Name).ToImmutableArray();
 
             var inputSymbols = GetSymbols(inputNames, out var inputSymbolsIsOk, out var inputSymbolsErrorMessage);
-            Debug.Assert(
+            Trace.Assert(
                 outputSymbolsIsOk && inputSymbolsIsOk,
                 $"{(outputSymbolsIsOk ? string.Empty : $"SQL output symbols error: {outputSymbolsErrorMessage} ")}{(inputSymbolsIsOk ? string.Empty : $"SQL input symbols error: {inputSymbolsErrorMessage}")}");
 
