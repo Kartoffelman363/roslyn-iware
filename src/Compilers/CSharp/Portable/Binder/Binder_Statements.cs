@@ -3233,21 +3233,31 @@ namespace Microsoft.CodeAnalysis.CSharp
             var sqlText = node.SqlTextToken.ValueText;
 
             sqlText = ParseSql.getNamesFromSqlText(
-                out var names,
-                out var sqlNames,
-                out var parameterNames,
+                out var outputNames,
+                out var inputNames,
                 sqlText);
-            Debug.Assert(sqlNames.Length == names.Length, "Query symbol list and output parameter list length missmatch.");
+            inputNames = inputNames
+                    .Select(name => name.First() == '@' ? name.Substring(1) : name)
+                    .ToImmutableArray();
 
             // TODO-aljaz what happens if symbols are object or struct properties
-            var nameSymbols = GetSymbols(names);
-            Debug.Assert(nameSymbols.Length == names.Length, "Query output parameters list length missmatch.");
+            // TODO-aljaz what happens if local symbol for value from SQL does not exist?
+            // Vprasaj frenka za ta primer da v SQL je vrednots SELECT neki [idNeki] ampak local symbol idNeki ne obstaja, najbrz mora iti naprej
+            var outputSymbols = GetSymbols(outputNames, out var outputSymbolsIsOk, out var outputSymbolsErrorMessage, true);
+            outputNames = outputSymbols.Select(s => s.Name).ToImmutableArray();
 
-            var parameterSymbols = GetSymbols(
-                parameterNames
-                    .Select(name => name.First() == '@' ? name.Substring(1) : name)
-                    .ToImmutableArray());
-            Debug.Assert(parameterSymbols.Length == parameterNames.Length, "Query input parameters list length missmatch.");
+            var inputSymbols = GetSymbols(inputNames, out var inputSymbolsIsOk, out var inputSymbolsErrorMessage);
+            Debug.Assert(
+                outputSymbolsIsOk && inputSymbolsIsOk,
+                $"{(outputSymbolsIsOk ? string.Empty : $"SQL output symbols error: {outputSymbolsErrorMessage} ")}{(inputSymbolsIsOk ? string.Empty : $"SQL input symbols error: {inputSymbolsErrorMessage}")}");
+
+            Trace.Assert(
+                VerifySql.Verify(
+                    sqlText,
+                    inputNames,
+                    outputNames,
+                    out var reason),
+                reason);
 
             BoundSqlDoClause boundSqlDoClause = null;
             if (node.SqlDoClause is not null)
@@ -3264,13 +3274,15 @@ namespace Microsoft.CodeAnalysis.CSharp
             {
                 sqlEndClause = BindSqlEndClause(node.SqlEndClause, diagnostics);
             }
-            return new BoundSqlStatement(node, sqlText, boundSqlDoClause, sqlEmptyClause, sqlEndClause, nameSymbols, sqlNames, parameterSymbols, parameterNames);
+            return new BoundSqlStatement(node, sqlText, boundSqlDoClause, sqlEmptyClause, sqlEndClause, outputSymbols, outputNames, inputSymbols, inputNames);
         }
 
-        private ImmutableArray<Symbol> GetSymbols(ImmutableArray<string> names)
+        private ImmutableArray<Symbol> GetSymbols(ImmutableArray<string> names, out bool isOk, out string errorMessage, bool skipIfNull = false)
         {
             var useSiteInfo = CompoundUseSiteInfo<AssemblySymbol>.Discarded;
             var symbolsBuilder = ImmutableArray.CreateBuilder<Symbol>();
+            errorMessage = string.Empty;
+            isOk = true;
             foreach (var name in names)
             {
                 var lookupResult = LookupResult.GetInstance();
@@ -3279,8 +3291,16 @@ namespace Microsoft.CodeAnalysis.CSharp
                     name,
                     0,
                     ref useSiteInfo);
-                symbolsBuilder.Add(lookupResult.Symbols.FirstOrDefault());
+                var res = lookupResult.Symbols.FirstOrDefault();
                 lookupResult.Free();
+                if (res is null)
+                {
+                    if (skipIfNull)
+                        continue;
+                    errorMessage += $"Missing symbol for {name}; ";
+                    isOk = false;
+                }
+                symbolsBuilder.Add(res);
             }
             return symbolsBuilder.ToImmutableArray();
         }

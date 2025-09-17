@@ -11,110 +11,52 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
     internal static class ParseSql
     {
         public static string getNamesFromSqlText(
-            out ImmutableArray<string> names,
-            out ImmutableArray<string> sqlNames,
-            out ImmutableArray<string> sqlParameterNames,
+            out ImmutableArray<string> outputNames,
+            out ImmutableArray<string> inputNames,
             string sqlText)
         {
-            var namesBuilder = ImmutableArray.CreateBuilder<string>();
-            var sqlNamesBuilder = ImmutableArray.CreateBuilder<string>();
-            var sqlParameterNamesBuilder = ImmutableArray.CreateBuilder<string>();
+            var outputNamesBuilder = ImmutableArray.CreateBuilder<string>();
+            var inputNamesBuilder = ImmutableArray.CreateBuilder<string>();
             for (int i = 0; i < sqlText.Length; i++)
             {
                 var c = look(i);
                 // Single line comment
                 if (c == '-' && (c = look(++i)) == '-')
                 {
-                    // find newline or eof
+                    // read untill newline or eof
                     while ((c = look(++i)) != '\n' && c != '\0') ;
                     continue;
                 }
                 // Multi line comment
                 if (c == '/' && (c = look(++i)) == '*')
                 {
-                    // find */ or eof
+                    // read untill */ or eof
                     while (((c = look(++i)) != '*' || (c = look(i + 1)) != '/') && c != '\0') ;
                     continue;
                 }
-                // if char + 1 is @ input parameter
+                // if char is @ then input parameter
                 if (c == '@')
                 {
-                    var readFromPos = i + 1;
-                    var readPosLen = 0;
-                    do
+                    var name = readParameterName(ref i);
+                    if (name != string.Empty)
                     {
-                        readPosLen++;
-                        c = look(readFromPos + readPosLen);
-                    } while (vaildChar(c));
-                    sqlParameterNamesBuilder.Add(sqlText.Substring(readFromPos, readPosLen));
-                    i += readPosLen;
+                        inputNamesBuilder.Add(name);
+                    }
                     continue;
                 }
-                // if char is [ then parse parameter
+                // if char is [ then output parameter
                 if (c == '[')
                 {
-                    var readFromPos = i + 1;
-                    var readPosLen = 0;
-                    c = look(readFromPos);
-                    string name;
-                    string sqlName;
-                    while (vaildChar(c))
+                    var name = readParameterName(ref i);
+                    if (name != string.Empty)
                     {
-                        readPosLen++;
-                        c = look(readFromPos + readPosLen);
+                        outputNamesBuilder.Add(name);
                     }
-                    if (c == '\0')
-                    {
-                        continue;
-                    }
-                    if (readPosLen > 0)
-                    {
-                        name = sqlText.Substring(readFromPos, readPosLen);
-                    }
-                    else
-                    {
-                        continue;
-                    }
-                    var readFromNeg = i - 1;
-                    var readNegLen = 0;
-                    c = look(readFromNeg);
-                    while (c == ' ')
-                    {
-                        c = look(--readFromNeg);
-                    }
-                    if (c == '\0')
-                    {
-                        continue;
-                    }
-                    c = look(readFromNeg);
-                    while (vaildChar(c))
-                    {
-                        readNegLen++;
-                        c = look(readFromNeg - readNegLen);
-                    }
-                    if (c == '\0')
-                    {
-                        continue;
-                    }
-                    if (readNegLen > 0)
-                    {
-                        sqlName = sqlText.Substring(readFromNeg - readNegLen + 1, readNegLen);
-                    }
-                    else
-                    {
-                        continue;
-                    }
-                    // TODO-aljaz don't need to remove from string and account that I probably don't need sqlNames if I don't remove
-                    // Maybe keep for future if we want to resolve wildcards to objects
-                    sqlText = sqlText.Remove(i, readPosLen + 2);
-                    i--;
-                    namesBuilder.Add(name);
-                    sqlNamesBuilder.Add(sqlName);
+                    continue;
                 }
             }
-            names = namesBuilder.ToImmutableArray();
-            sqlNames = sqlNamesBuilder.ToImmutable();
-            sqlParameterNames = sqlParameterNamesBuilder.ToImmutable();
+            outputNames = outputNamesBuilder.ToImmutableArray();
+            inputNames = inputNamesBuilder.ToImmutable();
             return sqlText;
 
             char look(int index)
@@ -124,6 +66,31 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                     return '\0';
                 }
                 return sqlText[index];
+            }
+
+            string readParameterName(ref int i)
+            {
+                var readFromPos = i + 1;
+                var readPosLen = 0;
+                var c = look(readFromPos);
+                do
+                {
+                    readPosLen++;
+                    c = look(readFromPos + readPosLen);
+                } while (vaildChar(c));
+                if (c == '\0')
+                {
+                    return string.Empty;
+                }
+                if (readPosLen > 0)
+                {
+                    i += readPosLen + 1;
+                    return sqlText.Substring(readFromPos, readPosLen);
+                }
+                else
+                {
+                    return string.Empty;
+                }
             }
         }
 
