@@ -916,6 +916,8 @@ namespace Microsoft.CodeAnalysis.CSharp
                     return SyntaxKind.LockKeyword;
                 case "try":
                     return SyntaxKind.TryKeyword;
+                case "sql":
+                    return SyntaxKind.SqlKeyword;
                 case "throw":
                     return SyntaxKind.ThrowKeyword;
                 case "catch":

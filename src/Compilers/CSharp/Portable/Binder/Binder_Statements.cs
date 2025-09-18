@@ -114,6 +114,9 @@ namespace Microsoft.CodeAnalysis.CSharp
                 case SyntaxKind.TryStatement:
                     result = BindTryStatement((TryStatementSyntax)node, diagnostics);
                     break;
+                case SyntaxKind.SqlStatement:
+                    result = BindSqlStatement((SqlStatementSyntax)node, diagnostics);
+                    break;
                 case SyntaxKind.EmptyStatement:
                     result = BindEmpty((EmptyStatementSyntax)node);
                     break;
@@ -3221,6 +3224,18 @@ namespace Microsoft.CodeAnalysis.CSharp
             var catchBlocks = BindCatchBlocks(node.Catches, diagnostics);
             var finallyBlockOpt = (node.Finally != null) ? BindEmbeddedBlock(node.Finally.Block, diagnostics) : null;
             return new BoundTryStatement(node, tryBlock, catchBlocks, finallyBlockOpt);
+        }
+
+        private BoundSqlStatement BindSqlStatement(SqlStatementSyntax node, BindingDiagnosticBag diagnostics)
+        {
+            Debug.Assert(node != null);
+
+            var sqlBlock = BindEmbeddedBlock(node.Block, diagnostics);
+            /*
+            var catchBlocks = BindCatchBlocks(node.Catches, diagnostics);
+            var finallyBlockOpt = (node.Finally != null) ? BindEmbeddedBlock(node.Finally.Block, diagnostics) : null;
+            */
+            return new BoundSqlStatement(node, sqlBlock/*, catchBlocks, finallyBlockOpt*/);
         }
 
         private ImmutableArray<BoundCatchBlock> BindCatchBlocks(SyntaxList<CatchClauseSyntax> catchClauses, BindingDiagnosticBag diagnostics)

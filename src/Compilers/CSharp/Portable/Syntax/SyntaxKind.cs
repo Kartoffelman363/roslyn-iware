@@ -931,5 +931,15 @@ namespace Microsoft.CodeAnalysis.CSharp
         ExtensionDeclaration = 9079,
 
         IgnoredDirectiveTrivia = 9080,
+
+        // Starting at 30000 to ensure space for future additions to C# by Microsoft
+        SqlStatement = 30001,
+        SqlKeyword = 30002,
+        SqlDoClause = 30003,
+        SqlDoKeyword = 30004,
+        SqlEmptyClause = 30005,
+        SqlEmptyKeyword = 30006,
+        SqlEndClause = 30007,
+        SqlEndKeyword = 30008,
     }
 }

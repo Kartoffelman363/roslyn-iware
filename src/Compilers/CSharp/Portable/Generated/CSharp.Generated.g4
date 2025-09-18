@@ -472,6 +472,7 @@ statement
   | local_function_statement
   | lock_statement
   | return_statement
+  | sql_statement
   | switch_statement
   | throw_statement
   | try_statement
@@ -556,6 +557,10 @@ lock_statement
 
 return_statement
   : attribute_list* 'return' expression? ';'
+  ;
+
+sql_statement
+  : attribute_list* sql_keyword block
   ;
 
 switch_statement
@@ -1781,6 +1786,10 @@ multi_line_raw_string_literal_token
   ;
 
 single_line_raw_string_literal_token
+  : /* see lexical specification */
+  ;
+
+sql_keyword
   : /* see lexical specification */
   ;
 

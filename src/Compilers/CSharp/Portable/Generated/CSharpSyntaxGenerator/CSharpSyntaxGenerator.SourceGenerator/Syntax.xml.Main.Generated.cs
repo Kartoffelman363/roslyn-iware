@@ -450,6 +450,9 @@ public partial class CSharpSyntaxVisitor<TResult>
     /// <summary>Called when the visitor visits a SwitchExpressionArmSyntax node.</summary>
     public virtual TResult? VisitSwitchExpressionArm(SwitchExpressionArmSyntax node) => this.DefaultVisit(node);
 
+    /// <summary>Called when the visitor visits a SqlStatementSyntax node.</summary>
+    public virtual TResult? VisitSqlStatement(SqlStatementSyntax node) => this.DefaultVisit(node);
+
     /// <summary>Called when the visitor visits a TryStatementSyntax node.</summary>
     public virtual TResult? VisitTryStatement(TryStatementSyntax node) => this.DefaultVisit(node);
 
@@ -1191,6 +1194,9 @@ public partial class CSharpSyntaxVisitor
     /// <summary>Called when the visitor visits a SwitchExpressionArmSyntax node.</summary>
     public virtual void VisitSwitchExpressionArm(SwitchExpressionArmSyntax node) => this.DefaultVisit(node);
 
+    /// <summary>Called when the visitor visits a SqlStatementSyntax node.</summary>
+    public virtual void VisitSqlStatement(SqlStatementSyntax node) => this.DefaultVisit(node);
+
     /// <summary>Called when the visitor visits a TryStatementSyntax node.</summary>
     public virtual void VisitTryStatement(TryStatementSyntax node) => this.DefaultVisit(node);
 
@@ -1931,6 +1937,9 @@ public partial class CSharpSyntaxRewriter : CSharpSyntaxVisitor<SyntaxNode?>
 
     public override SyntaxNode? VisitSwitchExpressionArm(SwitchExpressionArmSyntax node)
         => node.Update((PatternSyntax?)Visit(node.Pattern) ?? throw new ArgumentNullException("pattern"), (WhenClauseSyntax?)Visit(node.WhenClause), VisitToken(node.EqualsGreaterThanToken), (ExpressionSyntax?)Visit(node.Expression) ?? throw new ArgumentNullException("expression"));
+
+    public override SyntaxNode? VisitSqlStatement(SqlStatementSyntax node)
+        => node.Update(VisitList(node.AttributeLists), VisitToken(node.SqlKeyword), (BlockSyntax?)Visit(node.Block) ?? throw new ArgumentNullException("block"));
 
     public override SyntaxNode? VisitTryStatement(TryStatementSyntax node)
         => node.Update(VisitList(node.AttributeLists), VisitToken(node.TryKeyword), (BlockSyntax?)Visit(node.Block) ?? throw new ArgumentNullException("block"), VisitList(node.Catches), (FinallyClauseSyntax?)Visit(node.Finally));
@@ -4652,6 +4661,24 @@ public static partial class SyntaxFactory
     /// <summary>Creates a new SwitchExpressionArmSyntax instance.</summary>
     public static SwitchExpressionArmSyntax SwitchExpressionArm(PatternSyntax pattern, ExpressionSyntax expression)
         => SyntaxFactory.SwitchExpressionArm(pattern, default, SyntaxFactory.Token(SyntaxKind.EqualsGreaterThanToken), expression);
+
+    /// <summary>Creates a new SqlStatementSyntax instance.</summary>
+    public static SqlStatementSyntax SqlStatement(SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken sqlKeyword, BlockSyntax block)
+    {
+        if (sqlKeyword.Kind() != SyntaxKind.SqlKeyword) throw new ArgumentException(nameof(sqlKeyword));
+        if (block == null) throw new ArgumentNullException(nameof(block));
+        return (SqlStatementSyntax)Syntax.InternalSyntax.SyntaxFactory.SqlStatement(attributeLists.Node.ToGreenList<Syntax.InternalSyntax.AttributeListSyntax>(), (Syntax.InternalSyntax.SyntaxToken)sqlKeyword.Node!, (Syntax.InternalSyntax.BlockSyntax)block.Green).CreateRed();
+    }
+
+    /// <summary>Creates a new SqlStatementSyntax instance.</summary>
+    public static SqlStatementSyntax SqlStatement(SyntaxList<AttributeListSyntax> attributeLists, BlockSyntax block)
+        => SyntaxFactory.SqlStatement(attributeLists, SyntaxFactory.Token(SyntaxKind.SqlKeyword), block);
+
+#pragma warning disable RS0027
+    /// <summary>Creates a new SqlStatementSyntax instance.</summary>
+    public static SqlStatementSyntax SqlStatement(BlockSyntax? block = default)
+        => SyntaxFactory.SqlStatement(default, SyntaxFactory.Token(SyntaxKind.SqlKeyword), block ?? SyntaxFactory.Block());
+#pragma warning restore RS0027
 
     /// <summary>Creates a new TryStatementSyntax instance.</summary>
     public static TryStatementSyntax TryStatement(SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken tryKeyword, BlockSyntax block, SyntaxList<CatchClauseSyntax> catches, FinallyClauseSyntax? @finally)

@@ -8060,6 +8060,11 @@ done:
                     case SyntaxKind.CatchKeyword:
                     case SyntaxKind.FinallyKeyword:
                         return this.ParseTryStatement(attributes);
+                    case SyntaxKind.SqlKeyword:
+                    case SyntaxKind.SqlDoKeyword:
+                    case SyntaxKind.SqlEmptyKeyword:
+                    case SyntaxKind.SqlEndKeyword:
+                        return this.ParseSqlStatement(attributes);
                     case SyntaxKind.CheckedKeyword:
                     case SyntaxKind.UncheckedKeyword:
                         return this.ParseCheckedStatement(attributes);
@@ -8884,6 +8889,7 @@ done:
                 case SyntaxKind.BreakKeyword:
                 case SyntaxKind.ContinueKeyword:
                 case SyntaxKind.TryKeyword:
+                case SyntaxKind.SqlKeyword:
                 case SyntaxKind.CheckedKeyword:
                 case SyntaxKind.UncheckedKeyword:
                 case SyntaxKind.ConstKeyword:
@@ -9000,6 +9006,75 @@ done:
                 attributes,
                 this.EatToken(SyntaxKind.ContinueKeyword),
                 this.EatToken(SyntaxKind.SemicolonToken));
+        }
+
+        private SqlStatementSyntax ParseSqlStatement(SyntaxList<AttributeListSyntax> attributes)
+        {
+            Debug.Assert(this.CurrentToken.Kind is SyntaxKind.SqlKeyword or SyntaxKind.SqlDoKeyword or SyntaxKind.SqlEmptyKeyword or SyntaxKind.SqlEndKeyword);
+
+            var @sql = this.EatToken(SyntaxKind.SqlKeyword);
+
+            BlockSyntax sqlBlock;
+            if (sql.IsMissing)
+            {
+                Debug.Assert(@sql.ContainsDiagnostics);
+                Debug.Assert(this.CurrentToken.Kind is SyntaxKind.SqlDoKeyword or SyntaxKind.SqlEmptyKeyword or SyntaxKind.SqlEndKeyword);
+
+                sqlBlock = missingBlock();
+            }
+            else
+            {
+                var saveTerm = _termState;
+                _termState |= TerminatorState.IsEndOfTryBlock;
+                sqlBlock = this.ParsePossiblyAttributedBlock();
+                _termState = saveTerm;
+            }
+
+            /*
+             * // TODO-aljaz add SqlDo, SqlEmpty and SqlEnd clauses
+             * // PS ne pozabi dodati keyworde v "Is*" (e.g. IsPartialType) izjave!
+            SyntaxListBuilder<CatchClauseSyntax> catchClauses = default;
+            FinallyClauseSyntax finallyClause = null;
+            if (this.CurrentToken.Kind == SyntaxKind.CatchKeyword)
+            {
+                catchClauses = _pool.Allocate<CatchClauseSyntax>();
+                while (this.CurrentToken.Kind == SyntaxKind.CatchKeyword)
+                {
+                    catchClauses.Add(this.ParseCatchClause());
+                }
+            }
+
+            if (this.CurrentToken.Kind == SyntaxKind.FinallyKeyword)
+            {
+                finallyClause = _syntaxFactory.FinallyClause(
+                    this.EatToken(),
+                    this.ParsePossiblyAttributedBlock());
+            }
+
+            if (catchClauses.IsNull && finallyClause == null)
+            {
+                if (!ContainsErrorDiagnostic(tryBlock))
+                    tryBlock = this.AddErrorToLastToken(tryBlock, ErrorCode.ERR_ExpectedEndTry);
+
+                // synthesize missing tokens for "finally { }":
+                finallyClause = _syntaxFactory.FinallyClause(
+                    SyntaxFactory.MissingToken(SyntaxKind.FinallyKeyword),
+                    missingBlock());
+            }
+            */
+
+            return _syntaxFactory.SqlStatement(
+                attributes,
+                @sql,
+                sqlBlock);
+
+            //return _syntaxFactory.SqlStatement(attributes, this.EatToken(
+            BlockSyntax missingBlock()
+                => _syntaxFactory.Block(
+                    attributeLists: default,
+                    SyntaxFactory.MissingToken(SyntaxKind.OpenBraceToken),
+                    statements: default,
+                    SyntaxFactory.MissingToken(SyntaxKind.CloseBraceToken));
         }
 
         private TryStatementSyntax ParseTryStatement(SyntaxList<AttributeListSyntax> attributes)
@@ -10788,6 +10863,10 @@ done:
                 case SyntaxKind.TryKeyword:
                 case SyntaxKind.UsingKeyword:
                 case SyntaxKind.WhileKeyword:
+                case SyntaxKind.SqlKeyword:
+                case SyntaxKind.SqlDoKeyword:
+                case SyntaxKind.SqlEmptyKeyword:
+                case SyntaxKind.SqlEndKeyword:
                     return true;
                 default:
                     return false;

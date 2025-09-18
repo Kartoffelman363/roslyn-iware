@@ -1342,6 +1342,16 @@
     <Field Name="PreferFaultHandler" Type="bool"/>
   </Node>
 
+  <Node Name="BoundSqlStatement" Base="BoundStatement">
+    <Field Name="SqlBlock" Type="BoundBlock"/>
+    <!--
+    <Field Name="CatchBlocks" Type="ImmutableArray&lt;BoundCatchBlock&gt;"/>
+    <Field Name="FinallyBlockOpt" Type="BoundBlock?"/>
+    -->
+
+    <!--Field Name="FinallyLabelOpt" Type="LabelSymbol?"/-->
+  </Node>
+
   <Node Name="BoundCatchBlock" Base="BoundNode">
     <!-- 
     Local symbols owned by the catch block. 

@@ -130,6 +130,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         FixedStatement,
         LockStatement,
         TryStatement,
+        SqlStatement,
         CatchBlock,
         Literal,
         Utf8String,
@@ -4246,6 +4247,34 @@ namespace Microsoft.CodeAnalysis.CSharp
             if (tryBlock != this.TryBlock || catchBlocks != this.CatchBlocks || finallyBlockOpt != this.FinallyBlockOpt || !Symbols.SymbolEqualityComparer.ConsiderEverything.Equals(finallyLabelOpt, this.FinallyLabelOpt) || preferFaultHandler != this.PreferFaultHandler)
             {
                 var result = new BoundTryStatement(this.Syntax, tryBlock, catchBlocks, finallyBlockOpt, finallyLabelOpt, preferFaultHandler, this.HasErrors);
+                result.CopyAttributes(this);
+                return result;
+            }
+            return this;
+        }
+    }
+
+    internal sealed partial class BoundSqlStatement : BoundStatement
+    {
+        public BoundSqlStatement(SyntaxNode syntax, BoundBlock sqlBlock, bool hasErrors = false)
+            : base(BoundKind.SqlStatement, syntax, hasErrors || sqlBlock.HasErrors())
+        {
+
+            RoslynDebug.Assert(sqlBlock is object, "Field 'sqlBlock' cannot be null (make the type nullable in BoundNodes.xml to remove this check)");
+
+            this.SqlBlock = sqlBlock;
+        }
+
+        public BoundBlock SqlBlock { get; }
+
+        [DebuggerStepThrough]
+        public override BoundNode? Accept(BoundTreeVisitor visitor) => visitor.VisitSqlStatement(this);
+
+        public BoundSqlStatement Update(BoundBlock sqlBlock)
+        {
+            if (sqlBlock != this.SqlBlock)
+            {
+                var result = new BoundSqlStatement(this.Syntax, sqlBlock, this.HasErrors);
                 result.CopyAttributes(this);
                 return result;
             }
@@ -9084,6 +9113,8 @@ namespace Microsoft.CodeAnalysis.CSharp
                     return VisitLockStatement((BoundLockStatement)node, arg);
                 case BoundKind.TryStatement:
                     return VisitTryStatement((BoundTryStatement)node, arg);
+                case BoundKind.SqlStatement:
+                    return VisitSqlStatement((BoundSqlStatement)node, arg);
                 case BoundKind.CatchBlock:
                     return VisitCatchBlock((BoundCatchBlock)node, arg);
                 case BoundKind.Literal:
@@ -9446,6 +9477,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         public virtual R VisitFixedStatement(BoundFixedStatement node, A arg) => this.DefaultVisit(node, arg);
         public virtual R VisitLockStatement(BoundLockStatement node, A arg) => this.DefaultVisit(node, arg);
         public virtual R VisitTryStatement(BoundTryStatement node, A arg) => this.DefaultVisit(node, arg);
+        public virtual R VisitSqlStatement(BoundSqlStatement node, A arg) => this.DefaultVisit(node, arg);
         public virtual R VisitCatchBlock(BoundCatchBlock node, A arg) => this.DefaultVisit(node, arg);
         public virtual R VisitLiteral(BoundLiteral node, A arg) => this.DefaultVisit(node, arg);
         public virtual R VisitUtf8String(BoundUtf8String node, A arg) => this.DefaultVisit(node, arg);
@@ -9682,6 +9714,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         public virtual BoundNode? VisitFixedStatement(BoundFixedStatement node) => this.DefaultVisit(node);
         public virtual BoundNode? VisitLockStatement(BoundLockStatement node) => this.DefaultVisit(node);
         public virtual BoundNode? VisitTryStatement(BoundTryStatement node) => this.DefaultVisit(node);
+        public virtual BoundNode? VisitSqlStatement(BoundSqlStatement node) => this.DefaultVisit(node);
         public virtual BoundNode? VisitCatchBlock(BoundCatchBlock node) => this.DefaultVisit(node);
         public virtual BoundNode? VisitLiteral(BoundLiteral node) => this.DefaultVisit(node);
         public virtual BoundNode? VisitUtf8String(BoundUtf8String node) => this.DefaultVisit(node);
@@ -10249,6 +10282,11 @@ namespace Microsoft.CodeAnalysis.CSharp
             this.Visit(node.TryBlock);
             this.VisitList(node.CatchBlocks);
             this.Visit(node.FinallyBlockOpt);
+            return null;
+        }
+        public override BoundNode? VisitSqlStatement(BoundSqlStatement node)
+        {
+            this.Visit(node.SqlBlock);
             return null;
         }
         public override BoundNode? VisitCatchBlock(BoundCatchBlock node)
@@ -11535,6 +11573,11 @@ namespace Microsoft.CodeAnalysis.CSharp
             ImmutableArray<BoundCatchBlock> catchBlocks = this.VisitList(node.CatchBlocks);
             BoundBlock? finallyBlockOpt = (BoundBlock?)this.Visit(node.FinallyBlockOpt);
             return node.Update(tryBlock, catchBlocks, finallyBlockOpt, finallyLabelOpt, node.PreferFaultHandler);
+        }
+        public override BoundNode? VisitSqlStatement(BoundSqlStatement node)
+        {
+            BoundBlock sqlBlock = (BoundBlock)this.Visit(node.SqlBlock);
+            return node.Update(sqlBlock);
         }
         public override BoundNode? VisitCatchBlock(BoundCatchBlock node)
         {
@@ -16103,6 +16146,12 @@ namespace Microsoft.CodeAnalysis.CSharp
             new TreeDumperNode("finallyBlockOpt", null, new TreeDumperNode[] { Visit(node.FinallyBlockOpt, null) }),
             new TreeDumperNode("finallyLabelOpt", node.FinallyLabelOpt, null),
             new TreeDumperNode("preferFaultHandler", node.PreferFaultHandler, null),
+            new TreeDumperNode("hasErrors", node.HasErrors, null)
+        }
+        );
+        public override TreeDumperNode VisitSqlStatement(BoundSqlStatement node, object? arg) => new TreeDumperNode("sqlStatement", null, new TreeDumperNode[]
+        {
+            new TreeDumperNode("sqlBlock", null, new TreeDumperNode[] { Visit(node.SqlBlock, null) }),
             new TreeDumperNode("hasErrors", node.HasErrors, null)
         }
         );

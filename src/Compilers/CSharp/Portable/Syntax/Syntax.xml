@@ -3004,6 +3004,15 @@
     <Field Name="Expression" Type="ExpressionSyntax"/>
   </Node>
 
+  <Node Name="SqlStatementSyntax" Base="StatementSyntax">
+    <Kind Name="SqlStatement"/>
+    <Field Name="AttributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
+    <Field Name="SqlKeyword" Type="SyntaxToken">
+      <Kind Name="SqlKeyword"/>
+    </Field>
+    <Field Name="Block" Type="BlockSyntax"/>
+  </Node>
+
   <Node Name="TryStatementSyntax" Base="StatementSyntax">
     <Kind Name="TryStatement"/>
     <Field Name="AttributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>

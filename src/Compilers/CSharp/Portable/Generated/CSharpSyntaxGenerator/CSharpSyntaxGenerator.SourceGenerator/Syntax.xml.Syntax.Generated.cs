@@ -8948,6 +8948,70 @@ public sealed partial class SwitchExpressionArmSyntax : CSharpSyntaxNode
 /// <remarks>
 /// <para>This node is associated with the following syntax kinds:</para>
 /// <list type="bullet">
+/// <item><description><see cref="SyntaxKind.SqlStatement"/></description></item>
+/// </list>
+/// </remarks>
+public sealed partial class SqlStatementSyntax : StatementSyntax
+{
+    private SyntaxNode? attributeLists;
+    private BlockSyntax? block;
+
+    internal SqlStatementSyntax(InternalSyntax.CSharpSyntaxNode green, SyntaxNode? parent, int position)
+      : base(green, parent, position)
+    {
+    }
+
+    public override SyntaxList<AttributeListSyntax> AttributeLists => new SyntaxList<AttributeListSyntax>(GetRed(ref this.attributeLists, 0));
+
+    public SyntaxToken SqlKeyword => new SyntaxToken(this, ((InternalSyntax.SqlStatementSyntax)this.Green).sqlKeyword, GetChildPosition(1), GetChildIndex(1));
+
+    public BlockSyntax Block => GetRed(ref this.block, 2)!;
+
+    internal override SyntaxNode? GetNodeSlot(int index)
+        => index switch
+        {
+            0 => GetRedAtZero(ref this.attributeLists)!,
+            2 => GetRed(ref this.block, 2)!,
+            _ => null,
+        };
+
+    internal override SyntaxNode? GetCachedSlot(int index)
+        => index switch
+        {
+            0 => this.attributeLists,
+            2 => this.block,
+            _ => null,
+        };
+
+    public override void Accept(CSharpSyntaxVisitor visitor) => visitor.VisitSqlStatement(this);
+    public override TResult? Accept<TResult>(CSharpSyntaxVisitor<TResult> visitor) where TResult : default => visitor.VisitSqlStatement(this);
+
+    public SqlStatementSyntax Update(SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken sqlKeyword, BlockSyntax block)
+    {
+        if (attributeLists != this.AttributeLists || sqlKeyword != this.SqlKeyword || block != this.Block)
+        {
+            var newNode = SyntaxFactory.SqlStatement(attributeLists, sqlKeyword, block);
+            var annotations = GetAnnotations();
+            return annotations?.Length > 0 ? newNode.WithAnnotations(annotations) : newNode;
+        }
+
+        return this;
+    }
+
+    internal override StatementSyntax WithAttributeListsCore(SyntaxList<AttributeListSyntax> attributeLists) => WithAttributeLists(attributeLists);
+    public new SqlStatementSyntax WithAttributeLists(SyntaxList<AttributeListSyntax> attributeLists) => Update(attributeLists, this.SqlKeyword, this.Block);
+    public SqlStatementSyntax WithSqlKeyword(SyntaxToken sqlKeyword) => Update(this.AttributeLists, sqlKeyword, this.Block);
+    public SqlStatementSyntax WithBlock(BlockSyntax block) => Update(this.AttributeLists, this.SqlKeyword, block);
+
+    internal override StatementSyntax AddAttributeListsCore(params AttributeListSyntax[] items) => AddAttributeLists(items);
+    public new SqlStatementSyntax AddAttributeLists(params AttributeListSyntax[] items) => WithAttributeLists(this.AttributeLists.AddRange(items));
+    public SqlStatementSyntax AddBlockAttributeLists(params AttributeListSyntax[] items) => WithBlock(this.Block.WithAttributeLists(this.Block.AttributeLists.AddRange(items)));
+    public SqlStatementSyntax AddBlockStatements(params StatementSyntax[] items) => WithBlock(this.Block.WithStatements(this.Block.Statements.AddRange(items)));
+}
+
+/// <remarks>
+/// <para>This node is associated with the following syntax kinds:</para>
+/// <list type="bullet">
 /// <item><description><see cref="SyntaxKind.TryStatement"/></description></item>
 /// </list>
 /// </remarks>
