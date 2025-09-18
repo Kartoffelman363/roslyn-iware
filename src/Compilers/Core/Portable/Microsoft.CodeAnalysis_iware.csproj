@@ -5,7 +5,7 @@
     <OutputType>Library</OutputType>
     <RootNamespace>Microsoft.CodeAnalysis</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <TargetFrameworks>$(NetRoslynSourceBuild);netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>net9.0</TargetFrameworks>
     <DefineConstants>$(DefineConstants);COMPILERCORE;MICROSOFT_CODEANALYSIS_CONTRACTS_NO_CONTRACT</DefineConstants>
 
     <!-- Do not expose PooledDisposer APIs to core compiler libraries as widespread implicit try-finally blocks might negatively affect performance. -->
@@ -22,6 +22,9 @@
       A shared package used by the Microsoft .NET Compiler Platform ("Roslyn").
       Do not install this package manually, it will be added as a prerequisite by other packages that require it.
     </PackageDescription>
+    <!--BaseOutputPath>C:\Users\aljaz.roglic\aaplikacije\roslyn-sql-extended\roslyn\.dotnet\sdk\9.0.304-sql\Roslyn\bincore</BaseOutputPath-->
+	<OutputPath>C:\Users\aljaz.roglic\aaplikacije\roslyn-sql-extended\roslyn\.dotnet\sdk\9.0.304-sql\Roslyn\bincore\</OutputPath>
+	<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
   </PropertyGroup>
   <ItemGroup>
     <None Include="Operations\OperationInterfaces.xml" />
