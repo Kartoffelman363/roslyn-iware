@@ -8,7 +8,9 @@ using System;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Linq;
+using Microsoft.CodeAnalysis.CSharp.iWareSql;
 using Microsoft.CodeAnalysis.CSharp.Symbols;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -113,6 +115,9 @@ namespace Microsoft.CodeAnalysis.CSharp
                     break;
                 case SyntaxKind.TryStatement:
                     result = BindTryStatement((TryStatementSyntax)node, diagnostics);
+                    break;
+                case SyntaxKind.SqlStatement:
+                    result = BindSqlStatement((SqlStatementSyntax)node, diagnostics);
                     break;
                 case SyntaxKind.EmptyStatement:
                     result = BindEmpty((EmptyStatementSyntax)node);
@@ -3242,6 +3247,125 @@ namespace Microsoft.CodeAnalysis.CSharp
             var catchBlocks = BindCatchBlocks(node.Catches, diagnostics);
             var finallyBlockOpt = (node.Finally != null) ? BindEmbeddedBlock(node.Finally.Block, diagnostics) : null;
             return new BoundTryStatement(node, tryBlock, catchBlocks, finallyBlockOpt);
+        }
+
+        private BoundSqlStatement BindSqlStatement(SqlStatementSyntax node, BindingDiagnosticBag diagnostics)
+        {
+            Debug.Assert(node != null);
+            var sqlText = node.SqlTextToken.ValueText;
+
+            sqlText = ParseSql.getNamesFromSqlText(
+                out var outputNames,
+                out var inputNames,
+                sqlText);
+            inputNames = inputNames
+                    .Select(name => name.First() == '@' ? name.Substring(1) : name)
+                    .ToImmutableArray();
+
+            // TODO-aljaz symbols that are object or struct properties don't work eg. sql { select whatever [myObj.Whatever] ... }
+            var outputSymbols = GetSymbols(outputNames, out var outputSymbolsIsOk, out var outputSymbolsErrorMessage, true);
+            outputNames = outputSymbols.Select(s => s.Name).ToImmutableArray();
+
+            var inputSymbols = GetSymbols(inputNames, out var inputSymbolsIsOk, out var inputSymbolsErrorMessage);
+            Trace.Assert(
+                outputSymbolsIsOk && inputSymbolsIsOk,
+                $"{(outputSymbolsIsOk ? string.Empty : $"SQL output symbols error: {outputSymbolsErrorMessage} ")}{(inputSymbolsIsOk ? string.Empty : $"SQL input symbols error: {inputSymbolsErrorMessage}")}");
+
+            var fileDir = Path.GetDirectoryName(Compilation.SyntaxTrees.First().FilePath);
+
+            //TODO-aljaz figure out how to do warnings and errors correctly
+            Trace.Assert(
+                VerifySql.Verify(
+                    fileDir,
+                    sqlText,
+                    inputNames,
+                    outputNames,
+                    out var reason),
+                reason);
+
+            BoundSqlDoClause boundSqlDoClause = null;
+            if (node.SqlDoClause is not null)
+            {
+                boundSqlDoClause = BindSqlDoClause(node.SqlDoClause, diagnostics);
+            }
+            BoundSqlEmptyClause sqlEmptyClause = null;
+            if (node.SqlEmptyClause is not null)
+            {
+                sqlEmptyClause = BindSqlEmptyClause(node.SqlEmptyClause, diagnostics);
+            }
+            BoundSqlEndClause sqlEndClause = null;
+            if (node.SqlEndClause is not null)
+            {
+                sqlEndClause = BindSqlEndClause(node.SqlEndClause, diagnostics);
+            }
+            return new BoundSqlStatement(node, sqlText, boundSqlDoClause, sqlEmptyClause, sqlEndClause, outputSymbols, outputNames, inputSymbols, inputNames);
+        }
+
+        private ImmutableArray<Symbol> GetSymbols(ImmutableArray<string> names, out bool isOk, out string errorMessage, bool skipIfNull = false)
+        {
+            var useSiteInfo = CompoundUseSiteInfo<AssemblySymbol>.Discarded;
+            var symbolsBuilder = ImmutableArray.CreateBuilder<Symbol>();
+            errorMessage = string.Empty;
+            isOk = true;
+            foreach (var name in names)
+            {
+                var lookupResult = LookupResult.GetInstance();
+                LookupSymbolsWithFallback(
+                    lookupResult,
+                    name,
+                    0,
+                    ref useSiteInfo);
+                var res = lookupResult.Symbols.FirstOrDefault();
+                lookupResult.Free();
+                if (res is null)
+                {
+                    if (skipIfNull)
+                        continue;
+                    errorMessage += $"Missing symbol for {name}; ";
+                    isOk = false;
+                }
+                symbolsBuilder.Add(res);
+            }
+            return symbolsBuilder.ToImmutableArray();
+        }
+
+        private BoundSqlDoClause BindSqlDoClause(SqlDoClauseSyntax node, BindingDiagnosticBag diagnostics)
+        {
+            Debug.Assert(node != null);
+            var sqlDoBinder = this.GetBinder(node);
+            Debug.Assert(sqlDoBinder != null);
+            return sqlDoBinder.BindSqlDoParts(diagnostics, sqlDoBinder);
+        }
+
+        private BoundSqlEmptyClause BindSqlEmptyClause(SqlEmptyClauseSyntax node, BindingDiagnosticBag diagnostics)
+        {
+            Debug.Assert(node != null);
+            var sqlEmptyBinder = this.GetBinder(node);
+            Debug.Assert(sqlEmptyBinder != null);
+            return sqlEmptyBinder.BindSqlEmptyParts(diagnostics, sqlEmptyBinder);
+        }
+
+        private BoundSqlEndClause BindSqlEndClause(SqlEndClauseSyntax node, BindingDiagnosticBag diagnostics)
+        {
+            Debug.Assert(node != null);
+            var sqlEndBinder = this.GetBinder(node);
+            Debug.Assert(sqlEndBinder != null);
+            return sqlEndBinder.BindSqlEndParts(diagnostics, sqlEndBinder);
+        }
+
+        internal virtual BoundSqlDoClause BindSqlDoParts(BindingDiagnosticBag diagnostics, Binder originalBinder)
+        {
+            return this.Next.BindSqlDoParts(diagnostics, originalBinder);
+        }
+
+        internal virtual BoundSqlEmptyClause BindSqlEmptyParts(BindingDiagnosticBag diagnostics, Binder originalBinder)
+        {
+            return this.Next.BindSqlEmptyParts(diagnostics, originalBinder);
+        }
+
+        internal virtual BoundSqlEndClause BindSqlEndParts(BindingDiagnosticBag diagnostics, Binder originalBinder)
+        {
+            return this.Next.BindSqlEndParts(diagnostics, originalBinder);
         }
 
         private ImmutableArray<BoundCatchBlock> BindCatchBlocks(SyntaxList<CatchClauseSyntax> catchClauses, BindingDiagnosticBag diagnostics)

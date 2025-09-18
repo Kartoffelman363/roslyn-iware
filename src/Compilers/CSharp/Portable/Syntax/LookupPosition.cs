@@ -353,6 +353,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax
                     return ((ThrowStatementSyntax)statement).ThrowKeyword;
                 case SyntaxKind.TryStatement:
                     return ((TryStatementSyntax)statement).TryKeyword;
+                case SyntaxKind.SqlStatement:
+                    return ((SqlStatementSyntax)statement).SqlKeyword;
                 case SyntaxKind.UnsafeStatement:
                     return ((UnsafeStatementSyntax)statement).UnsafeKeyword;
                 case SyntaxKind.UsingStatement:
@@ -429,6 +431,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax
                         return lastCatch.Block.CloseBraceToken;
                     }
                     return tryStmt.Block.CloseBraceToken;
+                case SyntaxKind.SqlStatement:
+                    return ((SqlStatementSyntax)statement).SqlCloseBraceToken;
                 case SyntaxKind.UnsafeStatement:
                     return ((UnsafeStatementSyntax)statement).Block.CloseBraceToken;
                 case SyntaxKind.UsingStatement:

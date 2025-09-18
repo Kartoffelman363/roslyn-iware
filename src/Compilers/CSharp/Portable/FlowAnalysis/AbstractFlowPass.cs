@@ -1902,6 +1902,41 @@ namespace Microsoft.CodeAnalysis.CSharp
             }
         }
 
+        public override BoundNode VisitSqlStatement(BoundSqlStatement node)
+        {
+            if (node.SqlDoOpt is not null)
+            {
+                VisitSqlDoClause(node.SqlDoOpt);
+            }
+            if (node.SqlEmptyOpt is not null)
+            {
+                VisitSqlEmptyClause(node.SqlEmptyOpt);
+            }
+            if (node.SqlEndOpt is not null)
+            {
+                VisitSqlEndClause(node.SqlEndOpt);
+            }
+            return null;
+        }
+
+        public override BoundNode VisitSqlDoClause(BoundSqlDoClause node)
+        {
+            Visit(node.Body);
+            return null;
+        }
+
+        public override BoundNode VisitSqlEmptyClause(BoundSqlEmptyClause node)
+        {
+            Visit(node.Body);
+            return null;
+        }
+
+        public override BoundNode VisitSqlEndClause(BoundSqlEndClause node)
+        {
+            Visit(node.Body);
+            return null;
+        }
+
         protected Optional<TLocalState> NonMonotonicState;
 
         /// <summary>

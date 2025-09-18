@@ -71,6 +71,32 @@ namespace Microsoft.CodeAnalysis.CSharp
                             }
                             break;
                         }
+                    case BoundSqlStatement sqlStatement:
+                        {
+                            appendLine("sql");
+                            if (sqlStatement.SqlContents is not null)
+                            {
+                                appendLine("{");
+                                appendLine(sqlStatement.SqlContents);
+                                appendLine("}");
+                            }
+                            if (sqlStatement.SqlDoOpt is not null)
+                            {
+                                appendLine("sqlDo");
+                                appendSource(sqlStatement.SqlDoOpt);
+                            }
+                            if (sqlStatement.SqlEmptyOpt is not null)
+                            {
+                                appendLine("sqlEmpty");
+                                appendSource(sqlStatement.SqlEmptyOpt);
+                            }
+                            if (sqlStatement.SqlEndOpt is not null)
+                            {
+                                appendLine("sqlEnd");
+                                appendSource(sqlStatement.SqlEndOpt);
+                            }
+                            break;
+                        }
                     case BoundThrowStatement throwStatement:
                         {
                             append("throw ");

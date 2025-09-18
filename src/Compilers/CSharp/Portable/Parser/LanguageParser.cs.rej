@@ -1,0 +1,9 @@
+diff a/src/Compilers/CSharp/Portable/Parser/LanguageParser.cs b/src/Compilers/CSharp/Portable/Parser/LanguageParser.cs	(rejected hunks)
+@@ -14,6 +14,7 @@
+ 
+ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
+ {
++    using Microsoft.Cci;
+     using Microsoft.CodeAnalysis.Shared.Collections;
+     using Microsoft.CodeAnalysis.Syntax.InternalSyntax;
+ 

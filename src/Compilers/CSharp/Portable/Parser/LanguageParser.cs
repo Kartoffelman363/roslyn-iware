@@ -86,7 +86,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
             IsEndOfFunctionPointerCallingConvention = 1 << 25,
             IsEndOfTypeSignature = 1 << 26,
             IsExpressionOrPatternInCaseLabelOfSwitchStatement = 1 << 27,
-            IsPatternInSwitchExpressionArm = 1 << 28,
+            IsPatternInSwitchExpressionArm = 1 << 28
         }
 
         private const int LastTerminatorState = (int)TerminatorState.IsPatternInSwitchExpressionArm;
@@ -8090,6 +8090,11 @@ done:
                     case SyntaxKind.CatchKeyword:
                     case SyntaxKind.FinallyKeyword:
                         return this.ParseTryStatement(attributes);
+                    case SyntaxKind.SqlKeyword:
+                    case SyntaxKind.SqlDoKeyword:
+                    case SyntaxKind.SqlEmptyKeyword:
+                    case SyntaxKind.SqlEndKeyword:
+                        return this.ParseSqlStatement(attributes);
                     case SyntaxKind.CheckedKeyword:
                     case SyntaxKind.UncheckedKeyword:
                         return this.ParseCheckedStatement(attributes);
@@ -8914,6 +8919,7 @@ done:
                 case SyntaxKind.BreakKeyword:
                 case SyntaxKind.ContinueKeyword:
                 case SyntaxKind.TryKeyword:
+                case SyntaxKind.SqlKeyword:
                 case SyntaxKind.CheckedKeyword:
                 case SyntaxKind.UncheckedKeyword:
                 case SyntaxKind.ConstKeyword:
@@ -9032,10 +9038,141 @@ done:
                 this.EatToken(SyntaxKind.SemicolonToken));
         }
 
+        private SqlStatementSyntax ParseSqlStatement(SyntaxList<AttributeListSyntax> attributes)
+        {
+            Debug.Assert(this.CurrentToken.Kind is SyntaxKind.SqlKeyword, "sql statement should begin with an sql clause");
+
+            // sql
+            var @sql = this.EatToken(SyntaxKind.SqlKeyword);
+            SyntaxToken openBrace = null;
+            SyntaxToken closeBrace = null;
+            SyntaxToken sqlContents = null;
+            if (this.CurrentToken.Kind == SyntaxKind.OpenBraceToken)
+            {
+                openBrace = this.EatToken(SyntaxKind.OpenBraceToken);
+                sqlContents = this.ParseSqlBlock();
+                closeBrace = this.EatToken(SyntaxKind.CloseBraceToken);
+            }
+            else
+            {
+                Debug.Fail("sql statement cannot be empty");
+            }
+
+            // sqldo
+            SqlDoClauseSyntax sqlDo = null;
+            if (this.CurrentToken.Kind == SyntaxKind.SqlDoKeyword)
+            {
+                sqlDo = ParseSqlDoClause();
+            }
+            // sqlempty
+            SqlEmptyClauseSyntax sqlEmpty = null;
+            if (this.CurrentToken.Kind == SyntaxKind.SqlEmptyKeyword)
+            {
+                sqlEmpty = ParseSqlEmptyClause();
+            }
+            // sqlend
+            SqlEndClauseSyntax sqlEnd = null;
+            if (this.CurrentToken.Kind == SyntaxKind.SqlEndKeyword)
+            {
+                sqlEnd = ParseSqlEndClause();
+            }
+
+            return _syntaxFactory.SqlStatement(
+                attributes,
+                @sql,
+                openBrace,
+                sqlContents,
+                closeBrace,
+                sqlDo,
+                sqlEmpty,
+                sqlEnd);
+        }
+
+        private SyntaxToken ParseSqlBlock()
+        {
+            var pooled = PooledStringBuilder.GetInstance();
+            var stringBuilder = pooled.Builder;
+            int braceDepth = 1;
+            bool isComment = false;
+            while (CurrentToken.Kind != SyntaxKind.EndOfFileToken)
+            {
+                //Ignore curly braces in SQL dash-dash comments --, until end of line
+                if (isComment)
+                {
+                    foreach (var trailing in CurrentToken.TrailingTrivia)
+                    {
+                        if (trailing.Kind == SyntaxKind.EndOfLineTrivia)
+                        {
+                            isComment = false;
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    switch (CurrentToken.Kind)
+                    {
+                        case SyntaxKind.OpenBraceToken:
+                            braceDepth++;
+                            break;
+                        case SyntaxKind.CloseBraceToken:
+                            braceDepth--;
+                            if (braceDepth < 1)
+                                goto parseSqlEnd;
+                            break;
+                        case SyntaxKind.MinusMinusToken:
+                            isComment = true;
+                            break;
+                    }
+                }
+
+                stringBuilder.Append(CurrentToken.ToFullString());
+                EatToken();
+            }
+parseSqlEnd:
+
+            var text = pooled.ToStringAndFree();
+            return SyntaxFactory.Token(
+                    leading: null,
+                    kind: SyntaxKind.SqlTextLiteralToken,
+                    text: text,
+                    valueText: text,
+                    trailing: null
+                );
+        }
+
+        private SqlDoClauseSyntax ParseSqlDoClause()
+        {
+            Debug.Assert(this.CurrentToken.Kind == SyntaxKind.SqlDoKeyword, "SqlDo missing keyword");
+            var sqlDoKeyword = EatToken(SyntaxKind.SqlDoKeyword);
+            Debug.Assert(this.CurrentToken.Kind == SyntaxKind.OpenBraceToken, "SqlDo missing block");
+            var sqlDoBlock = ParsePossiblyAttributedBlock();
+
+            return _syntaxFactory.SqlDoClause(sqlDoKeyword, sqlDoBlock);
+        }
+
+        private SqlEmptyClauseSyntax ParseSqlEmptyClause()
+        {
+            Debug.Assert(this.CurrentToken.Kind == SyntaxKind.SqlEmptyKeyword, "SqlEmpty missing keyword");
+            var sqlEmptyKeyword = EatToken(SyntaxKind.SqlEmptyKeyword);
+            Debug.Assert(this.CurrentToken.Kind == SyntaxKind.OpenBraceToken, "SqlEmpty missing block");
+            var sqlEmptyBlock = ParsePossiblyAttributedBlock();
+
+            return _syntaxFactory.SqlEmptyClause(sqlEmptyKeyword, sqlEmptyBlock);
+        }
+
+        private SqlEndClauseSyntax ParseSqlEndClause()
+        {
+            Debug.Assert(this.CurrentToken.Kind == SyntaxKind.SqlEndKeyword, "SqlEnd missing keyword");
+            var sqlEndKeyword = EatToken(SyntaxKind.SqlEndKeyword);
+            Debug.Assert(this.CurrentToken.Kind == SyntaxKind.OpenBraceToken, "SqlEnd missing block");
+            var sqlEndBlock = ParsePossiblyAttributedBlock();
+
+            return _syntaxFactory.SqlEndClause(sqlEndKeyword, sqlEndBlock);
+        }
+
         private TryStatementSyntax ParseTryStatement(SyntaxList<AttributeListSyntax> attributes)
         {
-            Debug.Assert(this.CurrentToken.Kind is SyntaxKind.TryKeyword or SyntaxKind.CatchKeyword or SyntaxKind.FinallyKeyword);
-
             // We are called into on try/catch/finally, so eating the try may actually fail.
             var @try = this.EatToken(SyntaxKind.TryKeyword);
 
@@ -10818,6 +10955,10 @@ done:
                 case SyntaxKind.TryKeyword:
                 case SyntaxKind.UsingKeyword:
                 case SyntaxKind.WhileKeyword:
+                case SyntaxKind.SqlKeyword:
+                case SyntaxKind.SqlDoKeyword:
+                case SyntaxKind.SqlEmptyKeyword:
+                case SyntaxKind.SqlEndKeyword:
                     return true;
                 default:
                     return false;

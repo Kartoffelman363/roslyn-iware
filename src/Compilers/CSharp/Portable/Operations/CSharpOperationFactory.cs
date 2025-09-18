@@ -183,6 +183,8 @@ namespace Microsoft.CodeAnalysis.Operations
                     return CreateBoundForEachStatementOperation((BoundForEachStatement)boundNode);
                 case BoundKind.TryStatement:
                     return CreateBoundTryStatementOperation((BoundTryStatement)boundNode);
+                case BoundKind.SqlStatement:
+                    return CreateBoundSqlStatementOperation((BoundSqlStatement)boundNode);
                 case BoundKind.CatchBlock:
                     return CreateBoundCatchBlockOperation((BoundCatchBlock)boundNode);
                 case BoundKind.FixedStatement:
@@ -1990,6 +1992,16 @@ namespace Microsoft.CodeAnalysis.Operations
             bool isImplicit = boundForEachStatement.WasCompilerGenerated;
             bool isAsynchronous = boundForEachStatement.AwaitOpt != null;
             return new ForEachLoopOperation(loopControlVariable, collection, nextVariables, info, isAsynchronous, body, locals, continueLabel, exitLabel, _semanticModel, syntax, isImplicit);
+        }
+
+        private ISqlOperation CreateBoundSqlStatementOperation(BoundSqlStatement boundSqlStatement)
+        {
+            //ImmutableArray<ICatchClauseOperation> catches = CreateFromArray<BoundCatchBlock, ICatchClauseOperation>(boundTryStatement.CatchBlocks);
+            //var @finally = (IBlockOperation?)Create(boundTryStatement.FinallyBlockOpt);
+            SyntaxNode syntax = boundSqlStatement.Syntax;
+            bool isImplicit = boundSqlStatement.WasCompilerGenerated;
+            return new SqlOperation(boundSqlStatement.SqlContents,
+                _semanticModel, syntax, isImplicit);
         }
 
         private ITryOperation CreateBoundTryStatementOperation(BoundTryStatement boundTryStatement)

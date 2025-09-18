@@ -244,6 +244,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 case SyntaxKind.UnderscoreToken:
                 case SyntaxKind.MultiLineRawStringLiteralToken:
                 case SyntaxKind.SingleLineRawStringLiteralToken:
+                case SyntaxKind.SqlTextLiteralToken:
                     return true;
                 default:
                     return false;
@@ -939,6 +940,14 @@ namespace Microsoft.CodeAnalysis.CSharp
                     return SyntaxKind.LockKeyword;
                 case "try":
                     return SyntaxKind.TryKeyword;
+                case "sql":
+                    return SyntaxKind.SqlKeyword;
+                case "sqldo":
+                    return SyntaxKind.SqlDoKeyword;
+                case "sqlempty":
+                    return SyntaxKind.SqlEmptyKeyword;
+                case "sqlend":
+                    return SyntaxKind.SqlEndKeyword;
                 case "throw":
                     return SyntaxKind.ThrowKeyword;
                 case "catch":
@@ -1630,6 +1639,14 @@ namespace Microsoft.CodeAnalysis.CSharp
                     return "default";
                 case SyntaxKind.TryKeyword:
                     return "try";
+                case SyntaxKind.SqlKeyword:
+                    return "sql";
+                case SyntaxKind.SqlDoKeyword:
+                    return "sqldo";
+                case SyntaxKind.SqlEmptyKeyword:
+                    return "sqlempty";
+                case SyntaxKind.SqlEndKeyword:
+                    return "sqlend";
                 case SyntaxKind.CatchKeyword:
                     return "catch";
                 case SyntaxKind.FinallyKeyword:

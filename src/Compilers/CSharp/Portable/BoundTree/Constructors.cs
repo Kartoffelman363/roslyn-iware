@@ -2,9 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using Microsoft.CodeAnalysis.CSharp.Symbols;
+using Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Microsoft.CodeAnalysis.CSharp
@@ -615,6 +617,24 @@ namespace Microsoft.CodeAnalysis.CSharp
     {
         public BoundTryStatement(SyntaxNode syntax, BoundBlock tryBlock, ImmutableArray<BoundCatchBlock> catchBlocks, BoundBlock? finallyBlockOpt, LabelSymbol? finallyLabelOpt = null)
             : this(syntax, tryBlock, catchBlocks, finallyBlockOpt, finallyLabelOpt, preferFaultHandler: false, hasErrors: false)
+        {
+        }
+    }
+
+    internal partial class BoundSqlStatement
+    {
+        public BoundSqlStatement(
+            SyntaxNode syntax,
+            string sqlContents,
+            BoundSqlDoClause sqlDoOpt,
+            BoundSqlEmptyClause sqlEmptyOpt,
+            BoundSqlEndClause sqlEndOpt,
+            ImmutableArray<Symbol> querySymbols,
+            ImmutableArray<string> querySqlNames,
+            ImmutableArray<Symbol> parameterSymbols,
+            ImmutableArray<string> parameterNames
+                )
+            : this(syntax, sqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, querySymbols, querySqlNames, parameterSymbols, parameterNames, hasErrors: false)
         {
         }
     }

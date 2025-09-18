@@ -94,6 +94,8 @@ namespace Microsoft.CodeAnalysis.CSharp
                     return VisitForEachStatement(node as BoundForEachStatement, arg);
                 case BoundKind.TryStatement:
                     return VisitTryStatement(node as BoundTryStatement, arg);
+                case BoundKind.SqlStatement:
+                    return VisitSqlStatement(node as BoundSqlStatement, arg);
                 case BoundKind.Literal:
                     return VisitLiteral(node as BoundLiteral, arg);
                 case BoundKind.ThisReference:

@@ -848,6 +848,40 @@ namespace Microsoft.CodeAnalysis.CSharp
             Visit(node.Statement, _enclosing);
         }
 
+        public override void VisitSqlStatement(SqlStatementSyntax node)
+        {
+            Visit(node.SqlDoClause);
+            Visit(node.SqlEmptyClause);
+            Visit(node.SqlEndClause);
+        }
+
+        public override void VisitSqlDoClause(SqlDoClauseSyntax node)
+        {
+            Debug.Assert((object)_containingMemberOrLambda == _enclosing.ContainingMemberOrLambda);
+            var sqlDoBinder = new SqlDoClauseBinder(_enclosing, node);
+            AddToMap(node, sqlDoBinder);
+
+            VisitBlock(node.Block);
+        }
+
+        public override void VisitSqlEmptyClause(SqlEmptyClauseSyntax node)
+        {
+            Debug.Assert((object)_containingMemberOrLambda == _enclosing.ContainingMemberOrLambda);
+            var sqlEmptyBinder = new SqlEmptyClauseBinder(_enclosing, node);
+            AddToMap(node, sqlEmptyBinder);
+
+            VisitBlock(node.Block);
+        }
+
+        public override void VisitSqlEndClause(SqlEndClauseSyntax node)
+        {
+            Debug.Assert((object)_containingMemberOrLambda == _enclosing.ContainingMemberOrLambda);
+            var sqlEndBinder = new SqlEndClauseBinder(_enclosing, node);
+            AddToMap(node, sqlEndBinder);
+
+            VisitBlock(node.Block);
+        }
+
         public override void VisitTryStatement(TryStatementSyntax node)
         {
             if (node.Catches.Any())

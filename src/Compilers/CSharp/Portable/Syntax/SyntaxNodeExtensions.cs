@@ -100,6 +100,9 @@ namespace Microsoft.CodeAnalysis.CSharp
                 case SyntaxKind.PrimaryConstructorBaseType:
                 case SyntaxKind.CheckedExpression:
                 case SyntaxKind.UncheckedExpression:
+                case SyntaxKind.SqlDoClause:
+                case SyntaxKind.SqlEmptyClause:
+                case SyntaxKind.SqlEndClause:
                     return true;
 
                 case SyntaxKind.RecordStructDeclaration:

@@ -1,0 +1,2 @@
+﻿New-Item -ItemType "Directory" -Force ..\..\..\..\.dotnet\sdk\9.0.304-sql\Roslyn\bincore\iWareSql\Verifier
+Copy-Item .\iWareSql\Verifier\* ..\..\..\..\.dotnet\sdk\9.0.304-sql\Roslyn\bincore\iWareSql\Verifier -Recurse -Force

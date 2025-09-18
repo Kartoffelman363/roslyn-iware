@@ -564,7 +564,7 @@ namespace Microsoft.CodeAnalysis.CSharp.CodeGen
 
         public BoundNode VisitStatement(BoundNode node)
         {
-            Debug.Assert(node == null || EvalStackIsEmpty());
+            Debug.Assert(node == null || EvalStackIsEmpty(), $"node kind ::{node.Kind.ToString()}::\nnode ::{node.Syntax.ToFullString()}::");
             return VisitSideEffect(node);
         }
 
@@ -1687,6 +1687,47 @@ namespace Microsoft.CodeAnalysis.CSharp.CodeGen
             EnsureOnlyEvalStack();
 
             return node.Update(tryBlock, catchBlocks, finallyBlock, finallyLabelOpt: node.FinallyLabelOpt, node.PreferFaultHandler);
+        }
+
+        public override BoundNode VisitSqlStatement(BoundSqlStatement node)
+        {
+            EnsureOnlyEvalStack();
+            var sqlText = node.SqlContents;
+            var sqlDoClause = (BoundSqlDoClause)this.Visit(node.SqlDoOpt);
+            var sqlEmptyClause = (BoundSqlEmptyClause)this.Visit(node.SqlEmptyOpt);
+            var sqlEndClause = (BoundSqlEndClause)this.Visit(node.SqlEndOpt);
+
+            return node.Update(
+                sqlText,
+                sqlDoClause,
+                sqlEmptyClause,
+                sqlEndClause,
+                node.querySymbols,
+                node.querySqlNames,
+                node.parameterSymbols,
+                node.parameterNames
+            );
+        }
+
+        public override BoundNode VisitSqlDoClause(BoundSqlDoClause node)
+        {
+            EnsureOnlyEvalStack();
+            var body = (BoundBlock)this.VisitBlock(node.Body);
+            return node.Update(body);
+        }
+
+        public override BoundNode VisitSqlEmptyClause(BoundSqlEmptyClause node)
+        {
+            EnsureOnlyEvalStack();
+            var body = (BoundBlock)this.VisitBlock(node.Body);
+            return node.Update(body);
+        }
+
+        public override BoundNode VisitSqlEndClause(BoundSqlEndClause node)
+        {
+            EnsureOnlyEvalStack();
+            var body = (BoundBlock)this.VisitBlock(node.Body);
+            return node.Update(body);
         }
 
         public override BoundNode VisitCatchBlock(BoundCatchBlock node)

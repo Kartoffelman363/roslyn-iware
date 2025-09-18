@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Xml.Linq;
 using Microsoft.CodeAnalysis.Text;
 
 namespace Microsoft.CodeAnalysis.CSharp.Syntax
@@ -246,6 +247,11 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax
                 }
 
                 return rewritten;
+            }
+
+            public override SyntaxNode? VisitSqlStatement(SqlStatementSyntax node)
+            {
+                return base.VisitSqlStatement(node);
             }
 
             public override SyntaxTrivia VisitListElement(SyntaxTrivia trivia)

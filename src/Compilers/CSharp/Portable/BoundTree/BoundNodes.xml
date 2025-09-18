@@ -1357,6 +1357,29 @@
     <Field Name="PreferFaultHandler" Type="bool"/>
   </Node>
 
+  <Node Name="BoundSqlStatement" Base="BoundStatement">
+    <Field Name="SqlContents" Type="string"/>
+    <Field Name="SqlDoOpt" Type="BoundSqlDoClause?"/>
+    <Field Name="SqlEmptyOpt" Type="BoundSqlEmptyClause?"/>
+    <Field Name="SqlEndOpt" Type="BoundSqlEndClause?"/>
+    <Field Name="querySymbols" Type="ImmutableArray&lt;Symbol&gt;"/>
+    <Field Name="querySqlNames" Type="ImmutableArray&lt;string&gt;"/>
+    <Field Name="parameterSymbols" Type="ImmutableArray&lt;Symbol&gt;"/>
+    <Field Name="parameterNames" Type="ImmutableArray&lt;string&gt;"/>
+  </Node>
+
+  <Node Name="BoundSqlDoClause" Base="BoundStatement">
+    <Field Name="Body" Type="BoundBlock"/>
+  </Node>
+
+  <Node Name="BoundSqlEmptyClause" Base="BoundStatement">
+    <Field Name="Body" Type="BoundBlock"/>
+  </Node>
+
+  <Node Name="BoundSqlEndClause" Base="BoundStatement">
+    <Field Name="Body" Type="BoundBlock"/>
+  </Node>
+
   <Node Name="BoundCatchBlock" Base="BoundNode">
     <!-- 
     Local symbols owned by the catch block. 
