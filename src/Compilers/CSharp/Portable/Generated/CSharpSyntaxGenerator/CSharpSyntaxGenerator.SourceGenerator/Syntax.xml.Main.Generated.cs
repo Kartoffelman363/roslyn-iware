@@ -450,6 +450,18 @@ public partial class CSharpSyntaxVisitor<TResult>
     /// <summary>Called when the visitor visits a SwitchExpressionArmSyntax node.</summary>
     public virtual TResult? VisitSwitchExpressionArm(SwitchExpressionArmSyntax node) => this.DefaultVisit(node);
 
+    /// <summary>Called when the visitor visits a SqlStatementSyntax node.</summary>
+    public virtual TResult? VisitSqlStatement(SqlStatementSyntax node) => this.DefaultVisit(node);
+
+    /// <summary>Called when the visitor visits a SqlDoClauseSyntax node.</summary>
+    public virtual TResult? VisitSqlDoClause(SqlDoClauseSyntax node) => this.DefaultVisit(node);
+
+    /// <summary>Called when the visitor visits a SqlEmptyClauseSyntax node.</summary>
+    public virtual TResult? VisitSqlEmptyClause(SqlEmptyClauseSyntax node) => this.DefaultVisit(node);
+
+    /// <summary>Called when the visitor visits a SqlEndClauseSyntax node.</summary>
+    public virtual TResult? VisitSqlEndClause(SqlEndClauseSyntax node) => this.DefaultVisit(node);
+
     /// <summary>Called when the visitor visits a TryStatementSyntax node.</summary>
     public virtual TResult? VisitTryStatement(TryStatementSyntax node) => this.DefaultVisit(node);
 
@@ -1194,6 +1206,18 @@ public partial class CSharpSyntaxVisitor
     /// <summary>Called when the visitor visits a SwitchExpressionArmSyntax node.</summary>
     public virtual void VisitSwitchExpressionArm(SwitchExpressionArmSyntax node) => this.DefaultVisit(node);
 
+    /// <summary>Called when the visitor visits a SqlStatementSyntax node.</summary>
+    public virtual void VisitSqlStatement(SqlStatementSyntax node) => this.DefaultVisit(node);
+
+    /// <summary>Called when the visitor visits a SqlDoClauseSyntax node.</summary>
+    public virtual void VisitSqlDoClause(SqlDoClauseSyntax node) => this.DefaultVisit(node);
+
+    /// <summary>Called when the visitor visits a SqlEmptyClauseSyntax node.</summary>
+    public virtual void VisitSqlEmptyClause(SqlEmptyClauseSyntax node) => this.DefaultVisit(node);
+
+    /// <summary>Called when the visitor visits a SqlEndClauseSyntax node.</summary>
+    public virtual void VisitSqlEndClause(SqlEndClauseSyntax node) => this.DefaultVisit(node);
+
     /// <summary>Called when the visitor visits a TryStatementSyntax node.</summary>
     public virtual void VisitTryStatement(TryStatementSyntax node) => this.DefaultVisit(node);
 
@@ -1937,6 +1961,18 @@ public partial class CSharpSyntaxRewriter : CSharpSyntaxVisitor<SyntaxNode?>
 
     public override SyntaxNode? VisitSwitchExpressionArm(SwitchExpressionArmSyntax node)
         => node.Update((PatternSyntax?)Visit(node.Pattern) ?? throw new ArgumentNullException("pattern"), (WhenClauseSyntax?)Visit(node.WhenClause), VisitToken(node.EqualsGreaterThanToken), (ExpressionSyntax?)Visit(node.Expression) ?? throw new ArgumentNullException("expression"));
+
+    public override SyntaxNode? VisitSqlStatement(SqlStatementSyntax node)
+        => node.Update(VisitList(node.AttributeLists), VisitToken(node.SqlKeyword), VisitToken(node.SqlOpenBraceToken), VisitToken(node.SqlTextToken), VisitToken(node.SqlCloseBraceToken), (SqlDoClauseSyntax?)Visit(node.SqlDoClause), (SqlEmptyClauseSyntax?)Visit(node.SqlEmptyClause), (SqlEndClauseSyntax?)Visit(node.SqlEndClause));
+
+    public override SyntaxNode? VisitSqlDoClause(SqlDoClauseSyntax node)
+        => node.Update(VisitToken(node.SqlDoKeyword), (BlockSyntax?)Visit(node.Block) ?? throw new ArgumentNullException("block"));
+
+    public override SyntaxNode? VisitSqlEmptyClause(SqlEmptyClauseSyntax node)
+        => node.Update(VisitToken(node.SqlEmptyKeyword), (BlockSyntax?)Visit(node.Block) ?? throw new ArgumentNullException("block"));
+
+    public override SyntaxNode? VisitSqlEndClause(SqlEndClauseSyntax node)
+        => node.Update(VisitToken(node.SqlEndKeyword), (BlockSyntax?)Visit(node.Block) ?? throw new ArgumentNullException("block"));
 
     public override SyntaxNode? VisitTryStatement(TryStatementSyntax node)
         => node.Update(VisitList(node.AttributeLists), VisitToken(node.TryKeyword), (BlockSyntax?)Visit(node.Block) ?? throw new ArgumentNullException("block"), VisitList(node.Catches), (FinallyClauseSyntax?)Visit(node.Finally));
@@ -4661,6 +4697,60 @@ public static partial class SyntaxFactory
     /// <summary>Creates a new SwitchExpressionArmSyntax instance.</summary>
     public static SwitchExpressionArmSyntax SwitchExpressionArm(PatternSyntax pattern, ExpressionSyntax expression)
         => SyntaxFactory.SwitchExpressionArm(pattern, default, SyntaxFactory.Token(SyntaxKind.EqualsGreaterThanToken), expression);
+
+    /// <summary>Creates a new SqlStatementSyntax instance.</summary>
+    public static SqlStatementSyntax SqlStatement(SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken sqlKeyword, SyntaxToken sqlOpenBraceToken, SyntaxToken sqlTextToken, SyntaxToken sqlCloseBraceToken, SqlDoClauseSyntax? sqlDoClause, SqlEmptyClauseSyntax? sqlEmptyClause, SqlEndClauseSyntax? sqlEndClause)
+    {
+        if (sqlKeyword.Kind() != SyntaxKind.SqlKeyword) throw new ArgumentException(nameof(sqlKeyword));
+        if (sqlOpenBraceToken.Kind() != SyntaxKind.OpenBraceToken) throw new ArgumentException(nameof(sqlOpenBraceToken));
+        if (sqlTextToken.Kind() != SyntaxKind.SqlTextLiteralToken) throw new ArgumentException(nameof(sqlTextToken));
+        if (sqlCloseBraceToken.Kind() != SyntaxKind.CloseBraceToken) throw new ArgumentException(nameof(sqlCloseBraceToken));
+        return (SqlStatementSyntax)Syntax.InternalSyntax.SyntaxFactory.SqlStatement(attributeLists.Node.ToGreenList<Syntax.InternalSyntax.AttributeListSyntax>(), (Syntax.InternalSyntax.SyntaxToken)sqlKeyword.Node!, (Syntax.InternalSyntax.SyntaxToken)sqlOpenBraceToken.Node!, (Syntax.InternalSyntax.SyntaxToken)sqlTextToken.Node!, (Syntax.InternalSyntax.SyntaxToken)sqlCloseBraceToken.Node!, sqlDoClause == null ? null : (Syntax.InternalSyntax.SqlDoClauseSyntax)sqlDoClause.Green, sqlEmptyClause == null ? null : (Syntax.InternalSyntax.SqlEmptyClauseSyntax)sqlEmptyClause.Green, sqlEndClause == null ? null : (Syntax.InternalSyntax.SqlEndClauseSyntax)sqlEndClause.Green).CreateRed();
+    }
+
+    /// <summary>Creates a new SqlStatementSyntax instance.</summary>
+    public static SqlStatementSyntax SqlStatement(SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken sqlTextToken, SqlDoClauseSyntax? sqlDoClause, SqlEmptyClauseSyntax? sqlEmptyClause, SqlEndClauseSyntax? sqlEndClause)
+        => SyntaxFactory.SqlStatement(attributeLists, SyntaxFactory.Token(SyntaxKind.SqlKeyword), SyntaxFactory.Token(SyntaxKind.OpenBraceToken), sqlTextToken, SyntaxFactory.Token(SyntaxKind.CloseBraceToken), sqlDoClause, sqlEmptyClause, sqlEndClause);
+
+    /// <summary>Creates a new SqlStatementSyntax instance.</summary>
+    public static SqlStatementSyntax SqlStatement(SyntaxToken sqlTextToken)
+        => SyntaxFactory.SqlStatement(default, SyntaxFactory.Token(SyntaxKind.SqlKeyword), SyntaxFactory.Token(SyntaxKind.OpenBraceToken), sqlTextToken, SyntaxFactory.Token(SyntaxKind.CloseBraceToken), default, default, default);
+
+    /// <summary>Creates a new SqlDoClauseSyntax instance.</summary>
+    public static SqlDoClauseSyntax SqlDoClause(SyntaxToken sqlDoKeyword, BlockSyntax block)
+    {
+        if (sqlDoKeyword.Kind() != SyntaxKind.SqlDoKeyword) throw new ArgumentException(nameof(sqlDoKeyword));
+        if (block == null) throw new ArgumentNullException(nameof(block));
+        return (SqlDoClauseSyntax)Syntax.InternalSyntax.SyntaxFactory.SqlDoClause((Syntax.InternalSyntax.SyntaxToken)sqlDoKeyword.Node!, (Syntax.InternalSyntax.BlockSyntax)block.Green).CreateRed();
+    }
+
+    /// <summary>Creates a new SqlDoClauseSyntax instance.</summary>
+    public static SqlDoClauseSyntax SqlDoClause(BlockSyntax? block = default)
+        => SyntaxFactory.SqlDoClause(SyntaxFactory.Token(SyntaxKind.SqlDoKeyword), block ?? SyntaxFactory.Block());
+
+    /// <summary>Creates a new SqlEmptyClauseSyntax instance.</summary>
+    public static SqlEmptyClauseSyntax SqlEmptyClause(SyntaxToken sqlEmptyKeyword, BlockSyntax block)
+    {
+        if (sqlEmptyKeyword.Kind() != SyntaxKind.SqlEmptyKeyword) throw new ArgumentException(nameof(sqlEmptyKeyword));
+        if (block == null) throw new ArgumentNullException(nameof(block));
+        return (SqlEmptyClauseSyntax)Syntax.InternalSyntax.SyntaxFactory.SqlEmptyClause((Syntax.InternalSyntax.SyntaxToken)sqlEmptyKeyword.Node!, (Syntax.InternalSyntax.BlockSyntax)block.Green).CreateRed();
+    }
+
+    /// <summary>Creates a new SqlEmptyClauseSyntax instance.</summary>
+    public static SqlEmptyClauseSyntax SqlEmptyClause(BlockSyntax? block = default)
+        => SyntaxFactory.SqlEmptyClause(SyntaxFactory.Token(SyntaxKind.SqlEmptyKeyword), block ?? SyntaxFactory.Block());
+
+    /// <summary>Creates a new SqlEndClauseSyntax instance.</summary>
+    public static SqlEndClauseSyntax SqlEndClause(SyntaxToken sqlEndKeyword, BlockSyntax block)
+    {
+        if (sqlEndKeyword.Kind() != SyntaxKind.SqlEndKeyword) throw new ArgumentException(nameof(sqlEndKeyword));
+        if (block == null) throw new ArgumentNullException(nameof(block));
+        return (SqlEndClauseSyntax)Syntax.InternalSyntax.SyntaxFactory.SqlEndClause((Syntax.InternalSyntax.SyntaxToken)sqlEndKeyword.Node!, (Syntax.InternalSyntax.BlockSyntax)block.Green).CreateRed();
+    }
+
+    /// <summary>Creates a new SqlEndClauseSyntax instance.</summary>
+    public static SqlEndClauseSyntax SqlEndClause(BlockSyntax? block = default)
+        => SyntaxFactory.SqlEndClause(SyntaxFactory.Token(SyntaxKind.SqlEndKeyword), block ?? SyntaxFactory.Block());
 
     /// <summary>Creates a new TryStatementSyntax instance.</summary>
     public static TryStatementSyntax TryStatement(SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken tryKeyword, BlockSyntax block, SyntaxList<CatchClauseSyntax> catches, FinallyClauseSyntax? @finally)

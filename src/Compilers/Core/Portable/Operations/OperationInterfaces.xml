@@ -3739,4 +3739,34 @@
       </Comments>
     </Property>
   </Node>
+  <!--add back ChildrenOrder="Body"-->
+  <Node Name="ISqlOperation" Base="IOperation">
+    <Comments>
+      <summary>
+        Represents an sql operation for exception handling code with an sql statement, event for each line from the table, an empty and end handler.
+        <para>
+        Current usage:
+        <list type="number">
+          <item><description>C# sql statement</description></item>
+        </list>
+        </para>
+      </summary>
+    </Comments>
+    <Property Name="Body" Type="string">
+      <Comments>
+        <summary>The SQL SELECT statement</summary>
+      </Comments>
+    </Property>
+
+    <!--Property Name="Catches" Type="ImmutableArray&lt;ICatchClauseOperation&gt;">
+      <Comments>
+        <summary>Catch clauses of the try.</summary>
+      </Comments>
+    </Property>
+    <Property Name="Finally" Type="IBlockOperation?">
+      <Comments>
+        <summary>Finally handler of the try.</summary>
+      </Comments>
+    </Property-->
+  </Node>
 </Tree>

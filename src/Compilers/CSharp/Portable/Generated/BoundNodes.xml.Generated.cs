@@ -130,6 +130,10 @@ namespace Microsoft.CodeAnalysis.CSharp
         FixedStatement,
         LockStatement,
         TryStatement,
+        SqlStatement,
+        SqlDoClause,
+        SqlEmptyClause,
+        SqlEndClause,
         CatchBlock,
         Literal,
         Utf8String,
@@ -4247,6 +4251,136 @@ namespace Microsoft.CodeAnalysis.CSharp
             if (tryBlock != this.TryBlock || catchBlocks != this.CatchBlocks || finallyBlockOpt != this.FinallyBlockOpt || !Symbols.SymbolEqualityComparer.ConsiderEverything.Equals(finallyLabelOpt, this.FinallyLabelOpt) || preferFaultHandler != this.PreferFaultHandler)
             {
                 var result = new BoundTryStatement(this.Syntax, tryBlock, catchBlocks, finallyBlockOpt, finallyLabelOpt, preferFaultHandler, this.HasErrors);
+                result.CopyAttributes(this);
+                return result;
+            }
+            return this;
+        }
+    }
+
+    internal sealed partial class BoundSqlStatement : BoundStatement
+    {
+        public BoundSqlStatement(SyntaxNode syntax, string sqlContents, BoundSqlDoClause? sqlDoOpt, BoundSqlEmptyClause? sqlEmptyOpt, BoundSqlEndClause? sqlEndOpt, ImmutableArray<Symbol> querySymbols, ImmutableArray<string> querySqlNames, ImmutableArray<Symbol> parameterSymbols, ImmutableArray<string> parameterNames, bool hasErrors = false)
+            : base(BoundKind.SqlStatement, syntax, hasErrors || sqlDoOpt.HasErrors() || sqlEmptyOpt.HasErrors() || sqlEndOpt.HasErrors())
+        {
+
+            RoslynDebug.Assert(sqlContents is object, "Field 'sqlContents' cannot be null (make the type nullable in BoundNodes.xml to remove this check)");
+            RoslynDebug.Assert(!querySymbols.IsDefault, "Field 'querySymbols' cannot be null (use Null=\"allow\" in BoundNodes.xml to remove this check)");
+            RoslynDebug.Assert(!querySqlNames.IsDefault, "Field 'querySqlNames' cannot be null (use Null=\"allow\" in BoundNodes.xml to remove this check)");
+            RoslynDebug.Assert(!parameterSymbols.IsDefault, "Field 'parameterSymbols' cannot be null (use Null=\"allow\" in BoundNodes.xml to remove this check)");
+            RoslynDebug.Assert(!parameterNames.IsDefault, "Field 'parameterNames' cannot be null (use Null=\"allow\" in BoundNodes.xml to remove this check)");
+
+            this.SqlContents = sqlContents;
+            this.SqlDoOpt = sqlDoOpt;
+            this.SqlEmptyOpt = sqlEmptyOpt;
+            this.SqlEndOpt = sqlEndOpt;
+            this.querySymbols = querySymbols;
+            this.querySqlNames = querySqlNames;
+            this.parameterSymbols = parameterSymbols;
+            this.parameterNames = parameterNames;
+        }
+
+        public string SqlContents { get; }
+        public BoundSqlDoClause? SqlDoOpt { get; }
+        public BoundSqlEmptyClause? SqlEmptyOpt { get; }
+        public BoundSqlEndClause? SqlEndOpt { get; }
+        public ImmutableArray<Symbol> querySymbols { get; }
+        public ImmutableArray<string> querySqlNames { get; }
+        public ImmutableArray<Symbol> parameterSymbols { get; }
+        public ImmutableArray<string> parameterNames { get; }
+
+        [DebuggerStepThrough]
+        public override BoundNode? Accept(BoundTreeVisitor visitor) => visitor.VisitSqlStatement(this);
+
+        public BoundSqlStatement Update(string sqlContents, BoundSqlDoClause? sqlDoOpt, BoundSqlEmptyClause? sqlEmptyOpt, BoundSqlEndClause? sqlEndOpt, ImmutableArray<Symbol> querySymbols, ImmutableArray<string> querySqlNames, ImmutableArray<Symbol> parameterSymbols, ImmutableArray<string> parameterNames)
+        {
+            if (sqlContents != this.SqlContents || sqlDoOpt != this.SqlDoOpt || sqlEmptyOpt != this.SqlEmptyOpt || sqlEndOpt != this.SqlEndOpt || querySymbols != this.querySymbols || querySqlNames != this.querySqlNames || parameterSymbols != this.parameterSymbols || parameterNames != this.parameterNames)
+            {
+                var result = new BoundSqlStatement(this.Syntax, sqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, querySymbols, querySqlNames, parameterSymbols, parameterNames, this.HasErrors);
+                result.CopyAttributes(this);
+                return result;
+            }
+            return this;
+        }
+    }
+
+    internal sealed partial class BoundSqlDoClause : BoundStatement
+    {
+        public BoundSqlDoClause(SyntaxNode syntax, BoundBlock body, bool hasErrors = false)
+            : base(BoundKind.SqlDoClause, syntax, hasErrors || body.HasErrors())
+        {
+
+            RoslynDebug.Assert(body is object, "Field 'body' cannot be null (make the type nullable in BoundNodes.xml to remove this check)");
+
+            this.Body = body;
+        }
+
+        public BoundBlock Body { get; }
+
+        [DebuggerStepThrough]
+        public override BoundNode? Accept(BoundTreeVisitor visitor) => visitor.VisitSqlDoClause(this);
+
+        public BoundSqlDoClause Update(BoundBlock body)
+        {
+            if (body != this.Body)
+            {
+                var result = new BoundSqlDoClause(this.Syntax, body, this.HasErrors);
+                result.CopyAttributes(this);
+                return result;
+            }
+            return this;
+        }
+    }
+
+    internal sealed partial class BoundSqlEmptyClause : BoundStatement
+    {
+        public BoundSqlEmptyClause(SyntaxNode syntax, BoundBlock body, bool hasErrors = false)
+            : base(BoundKind.SqlEmptyClause, syntax, hasErrors || body.HasErrors())
+        {
+
+            RoslynDebug.Assert(body is object, "Field 'body' cannot be null (make the type nullable in BoundNodes.xml to remove this check)");
+
+            this.Body = body;
+        }
+
+        public BoundBlock Body { get; }
+
+        [DebuggerStepThrough]
+        public override BoundNode? Accept(BoundTreeVisitor visitor) => visitor.VisitSqlEmptyClause(this);
+
+        public BoundSqlEmptyClause Update(BoundBlock body)
+        {
+            if (body != this.Body)
+            {
+                var result = new BoundSqlEmptyClause(this.Syntax, body, this.HasErrors);
+                result.CopyAttributes(this);
+                return result;
+            }
+            return this;
+        }
+    }
+
+    internal sealed partial class BoundSqlEndClause : BoundStatement
+    {
+        public BoundSqlEndClause(SyntaxNode syntax, BoundBlock body, bool hasErrors = false)
+            : base(BoundKind.SqlEndClause, syntax, hasErrors || body.HasErrors())
+        {
+
+            RoslynDebug.Assert(body is object, "Field 'body' cannot be null (make the type nullable in BoundNodes.xml to remove this check)");
+
+            this.Body = body;
+        }
+
+        public BoundBlock Body { get; }
+
+        [DebuggerStepThrough]
+        public override BoundNode? Accept(BoundTreeVisitor visitor) => visitor.VisitSqlEndClause(this);
+
+        public BoundSqlEndClause Update(BoundBlock body)
+        {
+            if (body != this.Body)
+            {
+                var result = new BoundSqlEndClause(this.Syntax, body, this.HasErrors);
                 result.CopyAttributes(this);
                 return result;
             }
@@ -9085,6 +9219,14 @@ namespace Microsoft.CodeAnalysis.CSharp
                     return VisitLockStatement((BoundLockStatement)node, arg);
                 case BoundKind.TryStatement:
                     return VisitTryStatement((BoundTryStatement)node, arg);
+                case BoundKind.SqlStatement:
+                    return VisitSqlStatement((BoundSqlStatement)node, arg);
+                case BoundKind.SqlDoClause:
+                    return VisitSqlDoClause((BoundSqlDoClause)node, arg);
+                case BoundKind.SqlEmptyClause:
+                    return VisitSqlEmptyClause((BoundSqlEmptyClause)node, arg);
+                case BoundKind.SqlEndClause:
+                    return VisitSqlEndClause((BoundSqlEndClause)node, arg);
                 case BoundKind.CatchBlock:
                     return VisitCatchBlock((BoundCatchBlock)node, arg);
                 case BoundKind.Literal:
@@ -9447,6 +9589,10 @@ namespace Microsoft.CodeAnalysis.CSharp
         public virtual R VisitFixedStatement(BoundFixedStatement node, A arg) => this.DefaultVisit(node, arg);
         public virtual R VisitLockStatement(BoundLockStatement node, A arg) => this.DefaultVisit(node, arg);
         public virtual R VisitTryStatement(BoundTryStatement node, A arg) => this.DefaultVisit(node, arg);
+        public virtual R VisitSqlStatement(BoundSqlStatement node, A arg) => this.DefaultVisit(node, arg);
+        public virtual R VisitSqlDoClause(BoundSqlDoClause node, A arg) => this.DefaultVisit(node, arg);
+        public virtual R VisitSqlEmptyClause(BoundSqlEmptyClause node, A arg) => this.DefaultVisit(node, arg);
+        public virtual R VisitSqlEndClause(BoundSqlEndClause node, A arg) => this.DefaultVisit(node, arg);
         public virtual R VisitCatchBlock(BoundCatchBlock node, A arg) => this.DefaultVisit(node, arg);
         public virtual R VisitLiteral(BoundLiteral node, A arg) => this.DefaultVisit(node, arg);
         public virtual R VisitUtf8String(BoundUtf8String node, A arg) => this.DefaultVisit(node, arg);
@@ -9683,6 +9829,10 @@ namespace Microsoft.CodeAnalysis.CSharp
         public virtual BoundNode? VisitFixedStatement(BoundFixedStatement node) => this.DefaultVisit(node);
         public virtual BoundNode? VisitLockStatement(BoundLockStatement node) => this.DefaultVisit(node);
         public virtual BoundNode? VisitTryStatement(BoundTryStatement node) => this.DefaultVisit(node);
+        public virtual BoundNode? VisitSqlStatement(BoundSqlStatement node) => this.DefaultVisit(node);
+        public virtual BoundNode? VisitSqlDoClause(BoundSqlDoClause node) => this.DefaultVisit(node);
+        public virtual BoundNode? VisitSqlEmptyClause(BoundSqlEmptyClause node) => this.DefaultVisit(node);
+        public virtual BoundNode? VisitSqlEndClause(BoundSqlEndClause node) => this.DefaultVisit(node);
         public virtual BoundNode? VisitCatchBlock(BoundCatchBlock node) => this.DefaultVisit(node);
         public virtual BoundNode? VisitLiteral(BoundLiteral node) => this.DefaultVisit(node);
         public virtual BoundNode? VisitUtf8String(BoundUtf8String node) => this.DefaultVisit(node);
@@ -10252,6 +10402,28 @@ namespace Microsoft.CodeAnalysis.CSharp
             this.Visit(node.TryBlock);
             this.VisitList(node.CatchBlocks);
             this.Visit(node.FinallyBlockOpt);
+            return null;
+        }
+        public override BoundNode? VisitSqlStatement(BoundSqlStatement node)
+        {
+            this.Visit(node.SqlDoOpt);
+            this.Visit(node.SqlEmptyOpt);
+            this.Visit(node.SqlEndOpt);
+            return null;
+        }
+        public override BoundNode? VisitSqlDoClause(BoundSqlDoClause node)
+        {
+            this.Visit(node.Body);
+            return null;
+        }
+        public override BoundNode? VisitSqlEmptyClause(BoundSqlEmptyClause node)
+        {
+            this.Visit(node.Body);
+            return null;
+        }
+        public override BoundNode? VisitSqlEndClause(BoundSqlEndClause node)
+        {
+            this.Visit(node.Body);
             return null;
         }
         public override BoundNode? VisitCatchBlock(BoundCatchBlock node)
@@ -11543,6 +11715,30 @@ namespace Microsoft.CodeAnalysis.CSharp
             ImmutableArray<BoundCatchBlock> catchBlocks = this.VisitList(node.CatchBlocks);
             BoundBlock? finallyBlockOpt = (BoundBlock?)this.Visit(node.FinallyBlockOpt);
             return node.Update(tryBlock, catchBlocks, finallyBlockOpt, finallyLabelOpt, node.PreferFaultHandler);
+        }
+        public override BoundNode? VisitSqlStatement(BoundSqlStatement node)
+        {
+            ImmutableArray<Symbol> querySymbols = this.VisitSymbols<Symbol>(node.querySymbols);
+            ImmutableArray<Symbol> parameterSymbols = this.VisitSymbols<Symbol>(node.parameterSymbols);
+            BoundSqlDoClause? sqlDoOpt = (BoundSqlDoClause?)this.Visit(node.SqlDoOpt);
+            BoundSqlEmptyClause? sqlEmptyOpt = (BoundSqlEmptyClause?)this.Visit(node.SqlEmptyOpt);
+            BoundSqlEndClause? sqlEndOpt = (BoundSqlEndClause?)this.Visit(node.SqlEndOpt);
+            return node.Update(node.SqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, querySymbols, node.querySqlNames, parameterSymbols, node.parameterNames);
+        }
+        public override BoundNode? VisitSqlDoClause(BoundSqlDoClause node)
+        {
+            BoundBlock body = (BoundBlock)this.Visit(node.Body);
+            return node.Update(body);
+        }
+        public override BoundNode? VisitSqlEmptyClause(BoundSqlEmptyClause node)
+        {
+            BoundBlock body = (BoundBlock)this.Visit(node.Body);
+            return node.Update(body);
+        }
+        public override BoundNode? VisitSqlEndClause(BoundSqlEndClause node)
+        {
+            BoundBlock body = (BoundBlock)this.Visit(node.Body);
+            return node.Update(body);
         }
         public override BoundNode? VisitCatchBlock(BoundCatchBlock node)
         {
@@ -13631,6 +13827,16 @@ namespace Microsoft.CodeAnalysis.CSharp
             BoundMultipleLocalDeclarations declarations = (BoundMultipleLocalDeclarations)this.Visit(node.Declarations);
             BoundStatement body = (BoundStatement)this.Visit(node.Body);
             return node.Update(locals, declarations, body);
+        }
+
+        public override BoundNode? VisitSqlStatement(BoundSqlStatement node)
+        {
+            ImmutableArray<Symbol> querySymbols = GetUpdatedArray(node, node.querySymbols);
+            ImmutableArray<Symbol> parameterSymbols = GetUpdatedArray(node, node.parameterSymbols);
+            BoundSqlDoClause? sqlDoOpt = (BoundSqlDoClause?)this.Visit(node.SqlDoOpt);
+            BoundSqlEmptyClause? sqlEmptyOpt = (BoundSqlEmptyClause?)this.Visit(node.SqlEmptyOpt);
+            BoundSqlEndClause? sqlEndOpt = (BoundSqlEndClause?)this.Visit(node.SqlEndOpt);
+            return node.Update(node.SqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, querySymbols, node.querySqlNames, parameterSymbols, node.parameterNames);
         }
 
         public override BoundNode? VisitCatchBlock(BoundCatchBlock node)
@@ -16102,6 +16308,37 @@ namespace Microsoft.CodeAnalysis.CSharp
             new TreeDumperNode("finallyBlockOpt", null, new TreeDumperNode[] { Visit(node.FinallyBlockOpt, null) }),
             new TreeDumperNode("finallyLabelOpt", node.FinallyLabelOpt, null),
             new TreeDumperNode("preferFaultHandler", node.PreferFaultHandler, null),
+            new TreeDumperNode("hasErrors", node.HasErrors, null)
+        }
+        );
+        public override TreeDumperNode VisitSqlStatement(BoundSqlStatement node, object? arg) => new TreeDumperNode("sqlStatement", null, new TreeDumperNode[]
+        {
+            new TreeDumperNode("sqlContents", node.SqlContents, null),
+            new TreeDumperNode("sqlDoOpt", null, new TreeDumperNode[] { Visit(node.SqlDoOpt, null) }),
+            new TreeDumperNode("sqlEmptyOpt", null, new TreeDumperNode[] { Visit(node.SqlEmptyOpt, null) }),
+            new TreeDumperNode("sqlEndOpt", null, new TreeDumperNode[] { Visit(node.SqlEndOpt, null) }),
+            new TreeDumperNode("querySymbols", node.querySymbols, null),
+            new TreeDumperNode("querySqlNames", node.querySqlNames, null),
+            new TreeDumperNode("parameterSymbols", node.parameterSymbols, null),
+            new TreeDumperNode("parameterNames", node.parameterNames, null),
+            new TreeDumperNode("hasErrors", node.HasErrors, null)
+        }
+        );
+        public override TreeDumperNode VisitSqlDoClause(BoundSqlDoClause node, object? arg) => new TreeDumperNode("sqlDoClause", null, new TreeDumperNode[]
+        {
+            new TreeDumperNode("body", null, new TreeDumperNode[] { Visit(node.Body, null) }),
+            new TreeDumperNode("hasErrors", node.HasErrors, null)
+        }
+        );
+        public override TreeDumperNode VisitSqlEmptyClause(BoundSqlEmptyClause node, object? arg) => new TreeDumperNode("sqlEmptyClause", null, new TreeDumperNode[]
+        {
+            new TreeDumperNode("body", null, new TreeDumperNode[] { Visit(node.Body, null) }),
+            new TreeDumperNode("hasErrors", node.HasErrors, null)
+        }
+        );
+        public override TreeDumperNode VisitSqlEndClause(BoundSqlEndClause node, object? arg) => new TreeDumperNode("sqlEndClause", null, new TreeDumperNode[]
+        {
+            new TreeDumperNode("body", null, new TreeDumperNode[] { Visit(node.Body, null) }),
             new TreeDumperNode("hasErrors", node.HasErrors, null)
         }
         );

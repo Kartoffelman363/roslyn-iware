@@ -1926,6 +1926,7 @@ Microsoft.CodeAnalysis.OperationKind.VariableInitializer = 73 -> Microsoft.CodeA
 Microsoft.CodeAnalysis.OperationKind.With = 113 -> Microsoft.CodeAnalysis.OperationKind
 Microsoft.CodeAnalysis.OperationKind.YieldBreak = 10 -> Microsoft.CodeAnalysis.OperationKind
 Microsoft.CodeAnalysis.OperationKind.YieldReturn = 14 -> Microsoft.CodeAnalysis.OperationKind
+Microsoft.CodeAnalysis.OperationKind.Sql = 129 -> Microsoft.CodeAnalysis.OperationKind
 Microsoft.CodeAnalysis.Operations.ArgumentKind
 Microsoft.CodeAnalysis.Operations.ArgumentKind.DefaultValue = 3 -> Microsoft.CodeAnalysis.Operations.ArgumentKind
 Microsoft.CodeAnalysis.Operations.ArgumentKind.Explicit = 1 -> Microsoft.CodeAnalysis.Operations.ArgumentKind
@@ -2350,6 +2351,11 @@ Microsoft.CodeAnalysis.Operations.ITryOperation.Body.get -> Microsoft.CodeAnalys
 Microsoft.CodeAnalysis.Operations.ITryOperation.Catches.get -> System.Collections.Immutable.ImmutableArray<Microsoft.CodeAnalysis.Operations.ICatchClauseOperation!>
 Microsoft.CodeAnalysis.Operations.ITryOperation.ExitLabel.get -> Microsoft.CodeAnalysis.ILabelSymbol?
 Microsoft.CodeAnalysis.Operations.ITryOperation.Finally.get -> Microsoft.CodeAnalysis.Operations.IBlockOperation?
+
+Microsoft.CodeAnalysis.Operations.ISqlOperation
+virtual Microsoft.CodeAnalysis.Operations.OperationVisitor<TArgument, TResult>.VisitSql(Microsoft.CodeAnalysis.Operations.ISqlOperation! operation, TArgument argument) -> TResult?
+Microsoft.CodeAnalysis.Operations.ISqlOperation.Body.get -> Microsoft.CodeAnalysis.Operations.IBlockOperation!
+
 Microsoft.CodeAnalysis.Operations.ITupleBinaryOperation
 Microsoft.CodeAnalysis.Operations.ITupleBinaryOperation.LeftOperand.get -> Microsoft.CodeAnalysis.IOperation!
 Microsoft.CodeAnalysis.Operations.ITupleBinaryOperation.OperatorKind.get -> Microsoft.CodeAnalysis.Operations.BinaryOperatorKind

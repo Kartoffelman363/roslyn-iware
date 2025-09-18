@@ -3993,6 +3993,30 @@ namespace Microsoft.CodeAnalysis.Operations
         /// </summary>
         CommonConversion ElementConversion { get; }
     }
+    /// <summary>
+    /// Represents an sql operation for exception handling code with an sql statement, event for each line from the table, an empty and end handler.
+    /// <para>
+    /// Current usage:
+    /// <list type="number">
+    ///   <item><description>C# sql statement</description></item>
+    /// </list>
+    /// </para>
+    /// </summary>
+    /// <remarks>
+    /// <para>This node is associated with the following operation kinds:</para>
+    /// <list type="bullet">
+    /// <item><description><see cref="OperationKind.Sql"/></description></item>
+    /// </list>
+    /// <para>This interface is reserved for implementation by its associated APIs. We reserve the right to
+    /// change it in the future.</para>
+    /// </remarks>
+    public interface ISqlOperation : IOperation
+    {
+        /// <summary>
+        /// The SQL SELECT statement
+        /// </summary>
+        string Body { get; }
+    }
     #endregion
 
     #region Implementations
@@ -10780,6 +10804,24 @@ namespace Microsoft.CodeAnalysis.Operations
         public override void Accept(OperationVisitor visitor) => visitor.VisitSpread(this);
         public override TResult? Accept<TArgument, TResult>(OperationVisitor<TArgument, TResult> visitor, TArgument argument) where TResult : default => visitor.VisitSpread(this, argument);
     }
+    internal sealed partial class SqlOperation : Operation, ISqlOperation
+    {
+        internal SqlOperation(string body, SemanticModel? semanticModel, SyntaxNode syntax, bool isImplicit)
+            : base(semanticModel, syntax, isImplicit)
+        {
+            Body = body;
+        }
+        public string Body { get; }
+        internal override int ChildOperationsCount => 0;
+        internal override IOperation GetCurrent(int slot, int index) => throw ExceptionUtilities.UnexpectedValue((slot, index));
+        internal override (bool hasNext, int nextSlot, int nextIndex) MoveNext(int previousSlot, int previousIndex) => (false, int.MinValue, int.MinValue);
+        internal override (bool hasNext, int nextSlot, int nextIndex) MoveNextReversed(int previousSlot, int previousIndex) => (false, int.MinValue, int.MinValue);
+        public override ITypeSymbol? Type => null;
+        internal override ConstantValue? OperationConstantValue => null;
+        public override OperationKind Kind => OperationKind.Sql;
+        public override void Accept(OperationVisitor visitor) => visitor.VisitSql(this);
+        public override TResult? Accept<TArgument, TResult>(OperationVisitor<TArgument, TResult> visitor, TArgument argument) where TResult : default => visitor.VisitSql(this, argument);
+    }
     #endregion
     #region Cloner
     internal sealed partial class OperationCloner : OperationVisitor<object?, IOperation>
@@ -11403,6 +11445,11 @@ namespace Microsoft.CodeAnalysis.Operations
             var internalOperation = (SpreadOperation)operation;
             return new SpreadOperation(Visit(internalOperation.Operand), internalOperation.ElementType, internalOperation.ElementConversionConvertible, internalOperation.OwningSemanticModel, internalOperation.Syntax, internalOperation.IsImplicit);
         }
+        public override IOperation VisitSql(ISqlOperation operation, object? argument)
+        {
+            var internalOperation = (SqlOperation)operation;
+            return new SqlOperation(internalOperation.Body, internalOperation.OwningSemanticModel, internalOperation.Syntax, internalOperation.IsImplicit);
+        }
     }
     #endregion
     
@@ -11545,6 +11592,7 @@ namespace Microsoft.CodeAnalysis.Operations
         public virtual void VisitInlineArrayAccess(IInlineArrayAccessOperation operation) => DefaultVisit(operation);
         public virtual void VisitCollectionExpression(ICollectionExpressionOperation operation) => DefaultVisit(operation);
         public virtual void VisitSpread(ISpreadOperation operation) => DefaultVisit(operation);
+        public virtual void VisitSql(ISqlOperation operation) => DefaultVisit(operation);
     }
     public abstract partial class OperationVisitor<TArgument, TResult>
     {
@@ -11684,6 +11732,7 @@ namespace Microsoft.CodeAnalysis.Operations
         public virtual TResult? VisitInlineArrayAccess(IInlineArrayAccessOperation operation, TArgument argument) => DefaultVisit(operation, argument);
         public virtual TResult? VisitCollectionExpression(ICollectionExpressionOperation operation, TArgument argument) => DefaultVisit(operation, argument);
         public virtual TResult? VisitSpread(ISpreadOperation operation, TArgument argument) => DefaultVisit(operation, argument);
+        public virtual TResult? VisitSql(ISqlOperation operation, TArgument argument) => DefaultVisit(operation, argument);
     }
     #endregion
 }
