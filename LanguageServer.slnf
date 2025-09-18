@@ -1,0 +1,21 @@
+{
+  "solution": {
+    "path": "Roslyn.sln",
+    "projects": [
+	  "src\\LanguageServer\\ExternalAccess\\CompilerDeveloperSDK\\Microsoft.CodeAnalysis.ExternalAccess.CompilerDeveloperSDK.csproj",
+	  "src\\LanguageServer\\ExternalAccess\\Copilot\\Microsoft.CodeAnalysis.LanguageServer.ExternalAccess.Copilot.csproj",
+	  "src\\LanguageServer\\ExternalAccess\\VisualDiagnostics\\Microsoft.CodeAnalysis.ExternalAccess.VisualDiagnostics.csproj",
+	  "src\\LanguageServer\\Microsoft.CodeAnalysis.LanguageServer\\Microsoft.CodeAnalysis.LanguageServer.csproj",
+	  "src\\LanguageServer\\Microsoft.CodeAnalysis.LanguageServer.UnitTests\\Microsoft.CodeAnalysis.LanguageServer.UnitTests.csproj",
+	  "src\\LanguageServer\\Microsoft.CommonLanguageServerProtocol.Framework\\Microsoft.CommonLanguageServerProtocol.Framework.Package.csproj",
+	  "src\\LanguageServer\\Microsoft.CommonLanguageServerProtocol.Framework.Example\\Microsoft.CommonLanguageServerProtocol.Framework.Example.csproj",
+	  "src\\LanguageServer\\Microsoft.CommonLanguageServerProtocol.Framework.UnitTests\\Microsoft.CommonLanguageServerProtocol.Framework.UnitTests.csproj",
+	  "src\\LanguageServer\\Protocol\\Microsoft.CodeAnalysis.LanguageServer.Protocol.csproj",
+	  "src\\LanguageServer\\Protocol.TestUtilities\\Microsoft.CodeAnalysis.LanguageServer.Protocol.Test.Utilities.csproj",
+	  "src\\LanguageServer\\ProtocolUnitTests\\Microsoft.CodeAnalysis.LanguageServer.Protocol.UnitTests.csproj",
+	  "src\\Features\\Lsif\\Generator\\Microsoft.CodeAnalysis.LanguageServerIndexFormat.Generator.csproj",
+	  "src\\Features\\Lsif\\GeneratorTest\\Microsoft.CodeAnalysis.LanguageServerIndexFormat.Generator.UnitTests.vbproj",
+	  "src\\LanguageServer\\Microsoft.CommonLanguageServerProtocol.Framework\\Microsoft.CommonLanguageServerProtocol.Framework.Shared.shproj"
+    ]
+  }
+}
