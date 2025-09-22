@@ -29,12 +29,26 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             }
         }
 
-        public static bool Verify(string projectRootDir, string sqlText, ImmutableArray<string> inputNames, ImmutableArray<string> outputNames, out string reason)
+        public static bool Verify(
+            string projectRootDir,
+            string sqlText,
+            ImmutableArray<string> inputNames,
+            ImmutableArray<string> outputNames,
+            out string reason,
+            BindingDiagnosticBag diagnostics,
+            Location location)
         {
-            return Verify(projectRootDir, sqlText, inputNames.ToArray(), outputNames.ToArray(), out reason);
+            return Verify(projectRootDir, sqlText, inputNames.ToArray(), outputNames.ToArray(), out reason, diagnostics, location);
         }
 
-        public static bool Verify(string projectRootDir, string sqlText, string[] inputNames, string[] outputNames, out string reason)
+        public static bool Verify(
+            string projectRootDir,
+            string sqlText,
+            string[] inputNames,
+            string[] outputNames,
+            out string reason,
+            BindingDiagnosticBag diagnostics,
+            Location location)
         {
             reason = string.Empty;
 
@@ -67,7 +81,12 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                 CreateNoWindow = true,
             };
             var proc = new Process { StartInfo = procInfo };
-            Trace.Assert(proc.Start(), $"Could not start SqlVerifier.exe at path {sqlVerifierPath}");
+            //Trace.Assert(proc.Start(), $"Could not start SqlVerifier.exe at path {sqlVerifierPath}");
+            if (!proc.Start())
+            {
+                diagnostics.Add(ErrorCode.ERR_SQL_VerifierMissingError, location);
+                return false;
+            }
             while (!proc.StandardOutput.EndOfStream)
             {
                 reason += proc.StandardOutput.ReadLine();

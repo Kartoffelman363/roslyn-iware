@@ -2297,6 +2297,21 @@
         <target state="translated">El entorno de ejecución de destino no admite convenciones de llamada predeterminadas de entorno en tiempo de ejecución o extensible.</target>
         <note />
       </trans-unit>
+      <trans-unit id="ERR_SQL_SymbolError">
+        <source>SQL Symbol error '{0}''{1}'</source>
+        <target state="new">SQL Symbol error '{0}''{1}'</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="ERR_SQL_VerificationError">
+        <source>SQL Verification error '{0}'</source>
+        <target state="new">SQL Verification error '{0}'</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="ERR_SQL_VerifierMissingError">
+        <source>SQL verifier component is missing</source>
+        <target state="new">SQL verifier component is missing</target>
+        <note />
+      </trans-unit>
       <trans-unit id="ERR_ScopedDiscard">
         <source>The 'scoped' modifier cannot be used with discard.</source>
         <target state="translated">El modificador “scoped” no se puede usar con discard.</target>

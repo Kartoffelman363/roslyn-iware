@@ -2297,6 +2297,21 @@
         <target state="translated">대상 런타임에서 확장 가능 또는 런타임 환경 기본 호출 규칙을 지원하지 않습니다.</target>
         <note />
       </trans-unit>
+      <trans-unit id="ERR_SQL_SymbolError">
+        <source>SQL Symbol error '{0}''{1}'</source>
+        <target state="new">SQL Symbol error '{0}''{1}'</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="ERR_SQL_VerificationError">
+        <source>SQL Verification error '{0}'</source>
+        <target state="new">SQL Verification error '{0}'</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="ERR_SQL_VerifierMissingError">
+        <source>SQL verifier component is missing</source>
+        <target state="new">SQL verifier component is missing</target>
+        <note />
+      </trans-unit>
       <trans-unit id="ERR_ScopedDiscard">
         <source>The 'scoped' modifier cannot be used with discard.</source>
         <target state="translated">'scoped' 한정자는 무시 항목과 함께 사용할 수 없습니다.</target>

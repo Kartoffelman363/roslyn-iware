@@ -8228,4 +8228,13 @@ To remove the warning, you can use /reference instead (set the Embed Interop Typ
   <data name="ERR_ExtensionBlockCollision" xml:space="preserve">
     <value>This extension block collides with another extension block. They result in conflicting content-based type names in metadata, so must be in separate enclosing static classes.</value>
   </data>
+  <data name="ERR_SQL_VerifierMissingError" xml:space="preserve">
+    <value>SQL verifier component is missing</value>
+  </data>
+  <data name="ERR_SQL_VerificationError" xml:space="preserve">
+    <value>SQL Verification error '{0}'</value>
+  </data>
+  <data name="ERR_SQL_SymbolError" xml:space="preserve">
+    <value>SQL Symbol error '{0}''{1}'</value>
+  </data>
 </root>

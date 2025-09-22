@@ -3267,21 +3267,29 @@ namespace Microsoft.CodeAnalysis.CSharp
             outputNames = outputSymbols.Select(s => s.Name).ToImmutableArray();
 
             var inputSymbols = GetSymbols(inputNames, out var inputSymbolsIsOk, out var inputSymbolsErrorMessage);
-            Trace.Assert(
-                outputSymbolsIsOk && inputSymbolsIsOk,
-                $"{(outputSymbolsIsOk ? string.Empty : $"SQL output symbols error: {outputSymbolsErrorMessage} ")}{(inputSymbolsIsOk ? string.Empty : $"SQL input symbols error: {inputSymbolsErrorMessage}")}");
+
+            if (!(outputSymbolsIsOk && inputSymbolsIsOk))
+            {
+                diagnostics.Add(
+                    ErrorCode.ERR_SQL_SymbolError,
+                    node.SqlTextToken.GetLocation(),
+                    (outputSymbolsIsOk ? string.Empty : $"SQL output symbols error: {outputSymbolsErrorMessage} "),
+                    (inputSymbolsIsOk ? string.Empty : $"SQL input symbols error: {inputSymbolsErrorMessage}"));
+            }
 
             var fileDir = Path.GetDirectoryName(Compilation.SyntaxTrees.First().FilePath);
 
-            //TODO-aljaz figure out how to do warnings and errors correctly
-            Trace.Assert(
-                VerifySql.Verify(
+            if (!VerifySql.Verify(
                     fileDir,
                     sqlText,
                     inputNames,
                     outputNames,
-                    out var reason),
-                reason);
+                    out var reason,
+                    diagnostics,
+                    node.SqlTextToken.GetLocation()))
+            {
+                diagnostics.Add(ErrorCode.ERR_SQL_VerificationError, node.SqlTextToken.GetLocation(), reason);
+            }
 
             BoundSqlDoClause boundSqlDoClause = null;
             if (node.SqlDoClause is not null)

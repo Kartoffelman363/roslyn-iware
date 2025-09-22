@@ -645,6 +645,9 @@ namespace Microsoft.CodeAnalysis.CSharp
                     => true,
 
                 ErrorCode.Void
+                or ErrorCode.ERR_SQL_SymbolError
+                or ErrorCode.ERR_SQL_VerificationError
+                or ErrorCode.ERR_SQL_VerifierMissingError
                 or ErrorCode.Unknown
                 or ErrorCode.ERR_NoMetadataFile
                 or ErrorCode.FTL_MetadataCantOpenFile
