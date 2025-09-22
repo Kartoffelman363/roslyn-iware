@@ -33,7 +33,6 @@
   <ItemGroup>
     <None Include="BoundTree\BoundNodes.xml" />
     <None Include="BoundTree\BoundNodes.xsd" />
-    <None Include="csc-prebuild.ps1" />
     <None Include="Generated\CSharp.Generated.g4" />
     <AdditionalFiles Include="Syntax\Syntax.xml" />
     <None Include="Syntax\Syntax.xsd" />
