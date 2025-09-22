@@ -301,6 +301,10 @@ namespace Microsoft.CodeAnalysis.CSharp
         IDS_FeaturePartialEventsAndConstructors = MessageBase + 12852,
         IDS_FeatureExtensions = MessageBase + 12853,
         IDS_FeatureNullConditionalAssignment = MessageBase + 12854,
+        IDS_FeatureExpressionOptionalAndNamedArguments = MessageBase + 12855,
+        IDS_CollectionExpression = MessageBase + 12856,
+
+        IDS_FeatureUserDefinedCompoundAssignmentOperators = MessageBase + 12857,
     }
 
     // Message IDs may refer to strings that need to be localized.
@@ -481,6 +485,9 @@ namespace Microsoft.CodeAnalysis.CSharp
                 // PREFER reporting diagnostics in binding when diagnostics do not affect the shape of the syntax tree
 
                 // C# preview features.
+                //return LanguageVersion.Preview;
+
+                // C# 13.0 features.
                 case MessageID.IDS_FeatureFieldKeyword:
                 case MessageID.IDS_FeatureFirstClassSpan:
                 case MessageID.IDS_FeatureUnboundGenericTypesInNameof:
@@ -488,7 +495,9 @@ namespace Microsoft.CodeAnalysis.CSharp
                 case MessageID.IDS_FeaturePartialEventsAndConstructors:
                 case MessageID.IDS_FeatureExtensions:
                 case MessageID.IDS_FeatureNullConditionalAssignment:
-                    return LanguageVersion.Preview;
+                case MessageID.IDS_FeatureExpressionOptionalAndNamedArguments:
+                case MessageID.IDS_FeatureUserDefinedCompoundAssignmentOperators:
+                    return LanguageVersion.CSharp14;
 
                 // C# 13.0 features.
                 case MessageID.IDS_FeatureStringEscapeCharacter: // lexer check

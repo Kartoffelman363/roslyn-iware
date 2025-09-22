@@ -7,11 +7,11 @@ Imports System.Collections.Immutable
 Imports System.Reflection.PortableExecutable
 Imports System.Runtime.InteropServices
 Imports Microsoft.CodeAnalysis.CodeGen
+Imports Microsoft.CodeAnalysis.Collections
 Imports Microsoft.CodeAnalysis.Emit
 Imports Microsoft.CodeAnalysis.PooledObjects
 Imports Microsoft.CodeAnalysis.Symbols
 Imports Microsoft.CodeAnalysis.VisualBasic.Symbols
-Imports ReferenceEqualityComparer = Roslyn.Utilities.ReferenceEqualityComparer
 
 Namespace Microsoft.CodeAnalysis.VisualBasic.Emit
 
@@ -323,10 +323,6 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Emit
 
         Friend Overridable Function GetMethodBodyInstrumentations(method As MethodSymbol) As MethodInstrumentation
             Return New MethodInstrumentation() With {.Kinds = EmitOptions.InstrumentationKinds}
-        End Function
-
-        Friend Overridable Function GetPreviousAnonymousTypes() As ImmutableArray(Of AnonymousTypeKey)
-            Return ImmutableArray(Of AnonymousTypeKey).Empty
         End Function
 
         Friend Overridable Function GetNextAnonymousTypeIndex(fromDelegates As Boolean) As Integer

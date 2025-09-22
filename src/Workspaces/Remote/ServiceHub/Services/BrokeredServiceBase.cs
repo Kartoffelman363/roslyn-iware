@@ -23,7 +23,8 @@ namespace Microsoft.CodeAnalysis.Remote;
 internal abstract partial class BrokeredServiceBase : IDisposable
 {
     protected readonly TraceSource TraceLogger;
-    protected readonly RemoteWorkspaceManager WorkspaceManager;
+    protected RemoteWorkspaceManager WorkspaceManager
+        => TestData?.WorkspaceManager ?? RemoteWorkspaceManager.Default;
 
     protected readonly SolutionAssetSource SolutionAssetSource;
     protected readonly ServiceBrokerClient ServiceBrokerClient;
@@ -60,7 +61,6 @@ internal abstract partial class BrokeredServiceBase : IDisposable
         TraceLogger = traceSource;
 
         TestData = (RemoteHostTestData?)arguments.ServiceProvider.GetService(typeof(RemoteHostTestData));
-        WorkspaceManager = TestData?.WorkspaceManager ?? RemoteWorkspaceManager.Default;
 
 #pragma warning disable VSTHRD012 // Provide JoinableTaskFactory where allowed
         ServiceBrokerClient = new ServiceBrokerClient(arguments.ServiceBroker);
@@ -77,6 +77,9 @@ internal abstract partial class BrokeredServiceBase : IDisposable
 
     public SolutionServices GetWorkspaceServices()
         => GetWorkspace().Services.SolutionServices;
+
+    public static TService GetRequiredService<TService>()
+        => RemoteExportProviderBuilder.ExportProvider.GetExportedValue<TService>();
 
     protected void Log(TraceEventType errorType, string message)
         => TraceLogger.TraceEvent(errorType, 0, $"{GetType()}: {message}");

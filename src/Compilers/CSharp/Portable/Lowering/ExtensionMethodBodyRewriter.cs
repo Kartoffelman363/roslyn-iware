@@ -4,11 +4,10 @@
 
 using System;
 using System.Collections.Immutable;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Symbols;
-using Roslyn.Utilities;
-using ReferenceEqualityComparer = Roslyn.Utilities.ReferenceEqualityComparer;
 
 namespace Microsoft.CodeAnalysis.CSharp
 {
@@ -18,8 +17,6 @@ namespace Microsoft.CodeAnalysis.CSharp
     /// </summary>
     internal sealed class ExtensionMethodBodyRewriter : BoundTreeToDifferentEnclosingContextRewriter
     {
-        private readonly SourceExtensionImplementationMethodSymbol _implementationMethod;
-
         /// <summary>
         /// Maps parameters and local functions from original enclosing context to corresponding rewritten symbols for rewritten context.
         /// </summary>
@@ -27,13 +24,17 @@ namespace Microsoft.CodeAnalysis.CSharp
 
         private RewrittenMethodSymbol _rewrittenContainingMethod;
 
+        /// <summary>
+        /// To allow regular capture analysis we do not want to reuse locals with an incorrect containing symbol
+        /// </summary>
+        protected override bool EnforceAccurateContainerForLocals => true;
+
         public ExtensionMethodBodyRewriter(MethodSymbol sourceMethod, SourceExtensionImplementationMethodSymbol implementationMethod)
         {
             Debug.Assert(sourceMethod is not null);
             Debug.Assert(implementationMethod is not null);
             Debug.Assert(sourceMethod == (object)implementationMethod.UnderlyingMethod);
 
-            _implementationMethod = implementationMethod;
             _symbolMap = ImmutableDictionary<Symbol, Symbol>.Empty.WithComparers(ReferenceEqualityComparer.Instance, ReferenceEqualityComparer.Instance);
 
             bool haveExtraParameter = sourceMethod.ParameterCount != implementationMethod.ParameterCount;
@@ -93,6 +94,10 @@ namespace Microsoft.CodeAnalysis.CSharp
             var rewritten = new RewrittenLambdaOrLocalFunctionSymbol(node.Symbol, _rewrittenContainingMethod);
 
             var savedState = EnterMethod(node.Symbol, rewritten);
+
+            // BoundMethodDefIndex in instrumentation will refer to the lambda method symbol, so we need to map it.
+            _symbolMap = _symbolMap.Add(node.Symbol, rewritten);
+
             BoundBlock body = (BoundBlock)this.Visit(node.Body);
             (_rewrittenContainingMethod, _symbolMap) = savedState;
 
@@ -146,7 +151,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             switch (symbol?.MethodKind)
             {
                 case MethodKind.LambdaMethod:
-                    throw ExceptionUtilities.Unreachable();
+                    return (MethodSymbol)_symbolMap[symbol];
 
                 case MethodKind.LocalFunction:
                     if (symbol.IsDefinition)
@@ -193,6 +198,21 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
             Debug.Assert(symbol?.GetIsNewExtensionMember() != true);
             return base.VisitPropertySymbol(symbol);
+        }
+
+        public override BoundNode VisitUnaryOperator(BoundUnaryOperator node)
+        {
+            return ExtensionMethodReferenceRewriter.VisitUnaryOperator(this, node);
+        }
+
+        protected override BoundBinaryOperator.UncommonData? VisitBinaryOperatorData(BoundBinaryOperator node)
+        {
+            return ExtensionMethodReferenceRewriter.VisitBinaryOperatorData(this, node);
+        }
+
+        public override BoundNode? VisitMethodDefIndex(BoundMethodDefIndex node)
+        {
+            return ExtensionMethodReferenceRewriter.VisitMethodDefIndex(this, node);
         }
     }
 }

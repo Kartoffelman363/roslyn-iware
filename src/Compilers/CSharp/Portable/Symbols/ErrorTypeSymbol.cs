@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using Microsoft.CodeAnalysis.Collections;
 using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.CSharp.Symbols
@@ -115,7 +116,10 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
             }
         }
 
-        internal override string ExtensionName
+        internal sealed override string ExtensionGroupingName
+            => throw ExceptionUtilities.Unreachable();
+
+        internal sealed override string ExtensionMarkerName
             => throw ExceptionUtilities.Unreachable();
 
         public sealed override bool IsReadOnly

@@ -245,7 +245,7 @@ type_constraint
   ;
 
 operator_declaration
-  : attribute_list* modifier* type explicit_interface_specifier? 'operator' 'checked'? ('+' | '-' | '!' | '~' | '++' | '--' | '*' | '/' | '%' | '<<' | '>>' | '>>>' | '|' | '&' | '^' | '==' | '!=' | '<' | '<=' | '>' | '>=' | 'false' | 'true' | 'is') parameter_list (block | (arrow_expression_clause ';'))
+  : attribute_list* modifier* type explicit_interface_specifier? 'operator' 'checked'? ('+' | '-' | '!' | '~' | '++' | '--' | '*' | '/' | '%' | '<<' | '>>' | '>>>' | '|' | '&' | '^' | '==' | '!=' | '<' | '<=' | '>' | '>=' | 'false' | 'true' | 'is' | '+=' | '-=' | '*=' | '/=' | '%=' | '&=' | '|=' | '^=' | '<<=' | '>>=' | '>>>=') parameter_list (block | (arrow_expression_clause ';'))
   ;
 
 base_namespace_declaration
@@ -323,7 +323,7 @@ enum_member_declaration
 
 type_declaration
   : class_declaration
-  | extension_declaration
+  | extension_block_declaration
   | interface_declaration
   | record_declaration
   | struct_declaration
@@ -333,7 +333,7 @@ class_declaration
   : attribute_list* modifier* 'class' identifier_token type_parameter_list? parameter_list? base_list? type_parameter_constraint_clause* '{'? member_declaration* '}'? ';'?
   ;
 
-extension_declaration
+extension_block_declaration
   : attribute_list* modifier* 'extension' type_parameter_list? parameter_list? type_parameter_constraint_clause* '{'? member_declaration* '}'? ';'?
   ;
 
@@ -1215,6 +1215,7 @@ cref
 
 member_cref
   : conversion_operator_member_cref
+  | extension_member_cref
   | indexer_member_cref
   | name_member_cref
   | operator_member_cref
@@ -1235,6 +1236,10 @@ cref_parameter
   | 'ref'? 'readonly'? type
   ;
 
+extension_member_cref
+  : 'extension' type_argument_list? cref_parameter_list '.' member_cref
+  ;
+
 indexer_member_cref
   : 'this' cref_bracketed_parameter_list?
   ;
@@ -1248,7 +1253,7 @@ name_member_cref
   ;
 
 operator_member_cref
-  : 'operator' 'checked'? ('+' | '-' | '!' | '~' | '++' | '--' | '*' | '/' | '%' | '<<' | '>>' | '>>>' | '|' | '&' | '^' | '==' | '!=' | '<' | '<=' | '>' | '>=' | 'false' | 'true') cref_parameter_list?
+  : 'operator' 'checked'? ('+' | '-' | '!' | '~' | '++' | '--' | '*' | '/' | '%' | '<<' | '>>' | '>>>' | '|' | '&' | '^' | '==' | '!=' | '<' | '<=' | '>' | '>=' | 'false' | 'true' | '+=' | '-=' | '*=' | '/=' | '%=' | '&=' | '|=' | '^=' | '<<=' | '>>=' | '>>>=') cref_parameter_list?
   ;
 
 qualified_cref
@@ -1352,7 +1357,7 @@ error_directive_trivia
   ;
 
 ignored_directive_trivia
-  : '#' ':'
+  : '#' ':' string_literal_token?
   ;
 
 line_or_span_directive_trivia

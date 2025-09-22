@@ -15,14 +15,13 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
         private readonly ImmutableArray<TypeParameterSymbol> _typeParameters;
         private ImmutableArray<ParameterSymbol> _lazyParameters;
 
-        protected RewrittenMethodSymbol(MethodSymbol originalMethod, TypeMap typeMap, ImmutableArray<TypeParameterSymbol> typeParametersToAlphaRename)
+        protected RewrittenMethodSymbol(MethodSymbol originalMethod, TypeMap typeMap, ImmutableArray<TypeParameterSymbol> typeParametersToAlphaRename, bool propagateTypeParameterAttributes)
         {
             Debug.Assert(originalMethod.IsDefinition);
             Debug.Assert(originalMethod.ExplicitInterfaceImplementations.IsEmpty);
 
             _originalMethod = originalMethod;
-            // Tracked by https://github.com/dotnet/roslyn/issues/76130 : Are we creating type parameters with the right emit behavior? Attributes, etc.
-            _typeMap = typeMap.WithAlphaRename(typeParametersToAlphaRename, this, out _typeParameters);
+            _typeMap = typeMap.WithAlphaRename(typeParametersToAlphaRename, this, propagateAttributes: propagateTypeParameterAttributes, out _typeParameters);
         }
 
         public TypeMap TypeMap => _typeMap;
@@ -76,6 +75,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
         internal sealed override UnmanagedCallersOnlyAttributeData? GetUnmanagedCallersOnlyAttributeData(bool forceComplete)
             => _originalMethod.GetUnmanagedCallersOnlyAttributeData(forceComplete);
 
+        internal sealed override bool HasSpecialNameAttribute => throw ExceptionUtilities.Unreachable();
+
         public sealed override ImmutableArray<CustomModifier> RefCustomModifiers
         {
             get { return _typeMap.SubstituteCustomModifiers(_originalMethod.RefCustomModifiers); }
@@ -107,7 +108,6 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
 
         internal sealed override bool HasAsyncMethodBuilderAttribute(out TypeSymbol? builderArgument)
         {
-            // Tracked by https://github.com/dotnet/roslyn/issues/76130 : Test this code path
             return _originalMethod.HasAsyncMethodBuilderAttribute(out builderArgument);
         }
 
@@ -137,6 +137,11 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
                 {
                     return _containingMethod._typeMap.SubstituteCustomModifiers(this._underlyingParameter.RefCustomModifiers);
                 }
+            }
+
+            internal sealed override bool HasEnumeratorCancellationAttribute
+            {
+                get { return _underlyingParameter.HasEnumeratorCancellationAttribute; }
             }
         }
     }

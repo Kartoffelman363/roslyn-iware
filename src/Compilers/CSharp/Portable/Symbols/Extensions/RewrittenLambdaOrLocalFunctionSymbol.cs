@@ -13,7 +13,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
         private readonly RewrittenMethodSymbol _containingMethod;
 
         public RewrittenLambdaOrLocalFunctionSymbol(MethodSymbol lambdaOrLocalFunctionSymbol, RewrittenMethodSymbol containingMethod)
-            : base(lambdaOrLocalFunctionSymbol, containingMethod.TypeMap, lambdaOrLocalFunctionSymbol.TypeParameters)
+            : base(lambdaOrLocalFunctionSymbol, containingMethod.TypeMap, lambdaOrLocalFunctionSymbol.TypeParameters, propagateTypeParameterAttributes: false)
         {
             Debug.Assert(lambdaOrLocalFunctionSymbol.AssociatedSymbol is null);
             Debug.Assert(lambdaOrLocalFunctionSymbol.TryGetThisParameter(out var thisParameter) && thisParameter is null);
@@ -29,6 +29,9 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
             thisParameter = null;
             return true;
         }
+
+        internal override int TryGetOverloadResolutionPriority()
+            => _originalMethod.TryGetOverloadResolutionPriority();
 
         protected override ImmutableArray<ParameterSymbol> MakeParameters()
         {

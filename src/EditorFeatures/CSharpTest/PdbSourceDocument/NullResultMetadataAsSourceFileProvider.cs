@@ -22,7 +22,7 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.PdbSourceDocument;
 /// </summary>
 [ExportMetadataAsSourceFileProvider("Dummy"), Shared]
 [ExtensionOrder(After = PdbSourceDocumentMetadataAsSourceFileProvider.ProviderName)]
-internal class NullResultMetadataAsSourceFileProvider : IMetadataAsSourceFileProvider
+internal sealed class NullResultMetadataAsSourceFileProvider : IMetadataAsSourceFileProvider
 {
     // Represents a null result
     public static MetadataAsSourceFile NullResult = new("", null!, null!, null!);
@@ -45,17 +45,6 @@ internal class NullResultMetadataAsSourceFileProvider : IMetadataAsSourceFilePro
     public Project? MapDocument(Document document)
     {
         return null;
-    }
-
-    public bool TryAddDocumentToWorkspace(MetadataAsSourceWorkspace workspace, string filePath, Text.SourceTextContainer sourceTextContainer, [NotNullWhen(true)] out DocumentId? documentId)
-    {
-        documentId = null!;
-        return true;
-    }
-
-    public bool TryRemoveDocumentFromWorkspace(MetadataAsSourceWorkspace workspace, string filePath)
-    {
-        return true;
     }
 
     public bool ShouldCollapseOnOpen(MetadataAsSourceWorkspace workspace, string filePath, BlockStructureOptions options)

@@ -54206,8 +54206,9 @@ public static class Extensions
         }
 
         // <remarks>Ported from <see cref="FlowTests.NullCoalescing_CondAccess_NonNullConstantLeft"/>.</remarks>
-        [Fact]
-        public void NullCoalescing_CondAccess_NonNullConstantLeft()
+        [Theory, CombinatorialData, WorkItem("https://github.com/dotnet/roslyn/issues/78386")]
+        public void NullCoalescing_CondAccess_NonNullConstantLeft(
+            [CombinatorialValues(TargetFramework.Standard, TargetFramework.NetCoreApp)] TargetFramework targetFramework)
         {
             var source = @"
 static class C
@@ -54229,10 +54230,51 @@ static class C
     }
 }
 ";
-            CreateNullableCompilation(source).VerifyDiagnostics(
+            CreateCompilation(source, targetFramework: targetFramework, options: WithNullableEnable()).VerifyDiagnostics(
                 // (17,30): warning CS8602: Dereference of a possibly null reference.
                 //             : x.ToString() + y.ToString(); // 1
                 Diagnostic(ErrorCode.WRN_NullReferenceReceiver, "y").WithLocation(17, 30));
+        }
+
+        [Fact, WorkItem("https://github.com/dotnet/roslyn/issues/78386")]
+        public void CondAccess_PostConditionInArgument_01()
+        {
+            var source = """
+                using System.Diagnostics.CodeAnalysis;
+                static class C
+                {
+                    static bool M1(this string s, [NotNullWhen(true)] string? x) => true;
+                    static void M2(string? x)
+                    {
+                        _ = ""?.M1(x = "s") ?? false
+                            ? x.ToString()
+                            : x.ToString();
+                    }
+                }
+                """;
+            CreateCompilation([source, NotNullWhenAttributeDefinition], options: WithNullableEnable()).VerifyDiagnostics();
+        }
+
+        [Fact, WorkItem("https://github.com/dotnet/roslyn/issues/78386")]
+        public void CondAccess_PostConditionInArgument_02()
+        {
+            var source = """
+                using System.Diagnostics.CodeAnalysis;
+                static class C
+                {
+                    static bool M1(this string s, [NotNullWhen(true)] string? x) => true;
+                    static void M2(string? x)
+                    {
+                        _ = ""?.M1(x) ?? false
+                            ? x.ToString()
+                            : x.ToString();
+                    }
+                }
+                """;
+            CreateCompilation([source, NotNullWhenAttributeDefinition], options: WithNullableEnable()).VerifyDiagnostics(
+                // (9,15): warning CS8602: Dereference of a possibly null reference.
+                //             : x.ToString();
+                Diagnostic(ErrorCode.WRN_NullReferenceReceiver, "x").WithLocation(9, 15));
         }
 
         // <remarks>Ported from <see cref="FlowTests.NullCoalescing_NonNullConstantLeft"/>.</remarks>
@@ -147176,11 +147218,24 @@ class Program
     }
 }";
             var comp = CreateCompilation(source);
-            // https://github.com/dotnet/roslyn/issues/29605: Missing warnings.
+            // https://github.com/dotnet/roslyn/issues/29605: Some warnings might still be missing.
             comp.VerifyDiagnostics(
                 // (20,15): warning CS8600: Converting null literal or possible null value to non-nullable type.
                 //         T x = null; // 1
-                Diagnostic(ErrorCode.WRN_ConvertingNullableToNonNullable, "null").WithLocation(20, 15));
+                Diagnostic(ErrorCode.WRN_ConvertingNullableToNonNullable, "null").WithLocation(20, 15),
+                // (26,20): warning CS8620: Argument of type 'A<T>' cannot be used for parameter 'y' of type 'A<T?>' in 'A<T?> A<T?>.operator &(A<T?> x, A<T?> y)' due to differences in the nullability of reference types.
+                //         _ = (ax && ay); // 2
+                Diagnostic(ErrorCode.WRN_NullabilityMismatchInArgument, "ay").WithArguments("A<T>", "A<T?>", "y", "A<T?> A<T?>.operator &(A<T?> x, A<T?> y)").WithLocation(26, 20),
+                // (28,20): warning CS8620: Argument of type 'B<T>' cannot be used for parameter 'y' of type 'A<T?>' in 'A<T?> A<T?>.operator |(A<T?> x, A<T?> y)' due to differences in the nullability of reference types.
+                //         _ = (ax || by); // 3
+                Diagnostic(ErrorCode.WRN_NullabilityMismatchInArgument, "by").WithArguments("B<T>", "A<T?>", "y", "A<T?> A<T?>.operator |(A<T?> x, A<T?> y)").WithLocation(28, 20),
+                // (29,20): warning CS8620: Argument of type 'A<T?>' cannot be used for parameter 'y' of type 'A<T>' in 'A<T> A<T>.operator &(A<T> x, A<T> y)' due to differences in the nullability of reference types.
+                //         _ = (by && ax); // 4
+                Diagnostic(ErrorCode.WRN_NullabilityMismatchInArgument, "ax").WithArguments("A<T?>", "A<T>", "y", "A<T> A<T>.operator &(A<T> x, A<T> y)").WithLocation(29, 20),
+                // (31,20): warning CS8620: Argument of type 'B<T?>' cannot be used for parameter 'y' of type 'A<T>' in 'A<T> A<T>.operator |(A<T> x, A<T> y)' due to differences in the nullability of reference types.
+                //         _ = (by || bx); // 5
+                Diagnostic(ErrorCode.WRN_NullabilityMismatchInArgument, "bx").WithArguments("B<T?>", "A<T>", "y", "A<T> A<T>.operator |(A<T> x, A<T> y)").WithLocation(31, 20)
+                );
         }
 
         [Fact]
@@ -147219,11 +147274,24 @@ class Program
     }
 }";
             var comp = CreateCompilation(source);
-            // https://github.com/dotnet/roslyn/issues/29605: Missing warnings.
+            // https://github.com/dotnet/roslyn/issues/29605: Some warnings might still be missing.
             comp.VerifyDiagnostics(
                 // (17,15): warning CS8600: Converting null literal or possible null value to non-nullable type.
                 //         T x = null; // 1
-                Diagnostic(ErrorCode.WRN_ConvertingNullableToNonNullable, "null").WithLocation(17, 15));
+                Diagnostic(ErrorCode.WRN_ConvertingNullableToNonNullable, "null").WithLocation(17, 15),
+                // (23,21): warning CS8620: Argument of type 'S<T>' cannot be used for parameter 'y' of type 'S<T?>' in 'S<T?> S<T?>.operator &(S<T?> x, S<T?> y)' due to differences in the nullability of reference types.
+                //         _ = (s1x && s1y); // 2
+                Diagnostic(ErrorCode.WRN_NullabilityMismatchInArgument, "s1y").WithArguments("S<T>", "S<T?>", "y", "S<T?> S<T?>.operator &(S<T?> x, S<T?> y)").WithLocation(23, 21),
+                // (25,21): warning CS8620: Argument of type 'S<T>' cannot be used for parameter 'y' of type 'S<T?>' in 'S<T?> S<T?>.operator |(S<T?> x, S<T?> y)' due to differences in the nullability of reference types.
+                //         _ = (s1x || s2y); // 3
+                Diagnostic(ErrorCode.WRN_NullabilityMismatchInArgument, "s2y").WithArguments("S<T>", "S<T?>", "y", "S<T?> S<T?>.operator |(S<T?> x, S<T?> y)").WithLocation(25, 21),
+                // (26,21): warning CS8620: Argument of type 'S<T?>' cannot be used for parameter 'y' of type 'S<T>' in 'S<T> S<T>.operator &(S<T> x, S<T> y)' due to differences in the nullability of reference types.
+                //         _ = (s2y && s1x); // 4
+                Diagnostic(ErrorCode.WRN_NullabilityMismatchInArgument, "s1x").WithArguments("S<T?>", "S<T>", "y", "S<T> S<T>.operator &(S<T> x, S<T> y)").WithLocation(26, 21),
+                // (28,21): warning CS8620: Argument of type 'S<T?>' cannot be used for parameter 'y' of type 'S<T>' in 'S<T> S<T>.operator |(S<T> x, S<T> y)' due to differences in the nullability of reference types.
+                //         _ = (s2y || s2x); // 5
+                Diagnostic(ErrorCode.WRN_NullabilityMismatchInArgument, "s2x").WithArguments("S<T?>", "S<T>", "y", "S<T> S<T>.operator |(S<T> x, S<T> y)").WithLocation(28, 21)
+                );
         }
 
         [Fact]

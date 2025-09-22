@@ -11,10 +11,12 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.Collections;
+using Microsoft.CodeAnalysis.Host;
 using Microsoft.CodeAnalysis.PooledObjects;
+using Microsoft.CodeAnalysis.Remote;
 using Microsoft.CodeAnalysis.Shared.Extensions;
-using Microsoft.CodeAnalysis.Shared.Utilities;
 using Microsoft.CodeAnalysis.Text;
+using Microsoft.CodeAnalysis.Threading;
 using Microsoft.CodeAnalysis.Workspaces.Diagnostics;
 using Roslyn.Utilities;
 
@@ -128,6 +130,13 @@ internal static partial class Extensions
         var builder = ImmutableDictionary.CreateBuilder<DiagnosticAnalyzer, DiagnosticAnalysisResultBuilder>();
         foreach (var analyzer in projectAnalyzers.ConcatFast(hostAnalyzers))
         {
+            if (builder.ContainsKey(analyzer))
+            {
+                // If we already have a result for this analyzer, we had a duplicate. We already processed the results
+                // for this so no reason to process it a second time.
+                continue;
+            }
+
             cancellationToken.ThrowIfCancellationRequested();
 
             if (skippedAnalyzersInfo.SkippedAnalyzers.Contains(analyzer))
@@ -407,7 +416,7 @@ internal static partial class Extensions
             else
             {
                 using var _ = ArrayBuilder<Diagnostic>.GetInstance(out var diagnosticsBuilder);
-                await foreach (var document in project.GetAllRegularAndSourceGeneratedDocumentsAsync(cancellationToken))
+                await foreach (var document in project.GetAllRegularAndSourceGeneratedDocumentsAsync(cancellationToken).ConfigureAwait(false))
                 {
                     await AnalyzeDocumentAsync(
                         compilationWithAnalyzers.HostCompilationWithAnalyzers, analyzerInfoCache, suppressionAnalyzer,
@@ -503,5 +512,79 @@ internal static partial class Extensions
 
             return Checksum.Create(tempChecksumArray);
         }
+    }
+
+    public static async Task<ImmutableArray<Diagnostic>> GetSourceGeneratorDiagnosticsAsync(Project project, CancellationToken cancellationToken)
+    {
+        var options = project.Solution.Services.GetRequiredService<IWorkspaceConfigurationService>().Options;
+        var remoteHostClient = await RemoteHostClient.TryGetClientAsync(project, cancellationToken).ConfigureAwait(false);
+        if (remoteHostClient != null)
+        {
+            var result = await remoteHostClient.TryInvokeAsync<IRemoteDiagnosticAnalyzerService, ImmutableArray<DiagnosticData>>(
+                project.Solution,
+                invocation: (service, solutionInfo, cancellationToken) => service.GetSourceGeneratorDiagnosticsAsync(solutionInfo, project.Id, cancellationToken),
+                cancellationToken).ConfigureAwait(false);
+
+            if (!result.HasValue)
+                return [];
+
+            return await result.Value.ToDiagnosticsAsync(project, cancellationToken).ConfigureAwait(false);
+        }
+
+        return await project.GetSourceGeneratorDiagnosticsAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public static ImmutableArray<DiagnosticData> ConvertToLocalDiagnostics(ImmutableArray<Diagnostic> diagnostics, TextDocument targetTextDocument, TextSpan? span = null)
+    {
+        using var _ = ArrayBuilder<DiagnosticData>.GetInstance(out var result);
+        foreach (var diagnostic in diagnostics)
+        {
+            if (!IsReportedInDocument(diagnostic, targetTextDocument))
+                continue;
+
+            if (span.HasValue && !span.Value.IntersectsWith(diagnostic.Location.SourceSpan))
+                continue;
+
+            result.Add(DiagnosticData.Create(diagnostic, targetTextDocument));
+        }
+
+        return result.ToImmutableAndClear();
+    }
+
+    public static bool IsReportedInDocument(Diagnostic diagnostic, TextDocument targetTextDocument)
+    {
+        if (diagnostic.Location.SourceTree != null)
+        {
+            return targetTextDocument.Project.GetDocument(diagnostic.Location.SourceTree) == targetTextDocument;
+        }
+        else if (diagnostic.Location.Kind == LocationKind.ExternalFile)
+        {
+            var lineSpan = diagnostic.Location.GetLineSpan();
+
+            var documentIds = targetTextDocument.Project.Solution.GetDocumentIdsWithFilePath(lineSpan.Path);
+            return documentIds.Any(static (id, targetTextDocument) => id == targetTextDocument.Id, targetTextDocument);
+        }
+
+        return false;
+    }
+
+    public static ImmutableArray<DiagnosticAnalyzer> FilterAnalyzers(
+        this ImmutableArray<DiagnosticAnalyzer> analyzers,
+        ImmutableHashSet<string> analyzerIds)
+    {
+        using var _ = PooledDictionary<string, DiagnosticAnalyzer>.GetInstance(out var analyzerMap);
+        foreach (var analyzer in analyzers)
+        {
+            // In the case of multiple analyzers with the same ID, we keep the last one.
+            var analyzerId = analyzer.GetAnalyzerId();
+            if (analyzerIds.Contains(analyzerId))
+                analyzerMap[analyzerId] = analyzer;
+        }
+
+        var result = new FixedSizeArrayBuilder<DiagnosticAnalyzer>(analyzerMap.Count);
+        foreach (var (_, analyzer) in analyzerMap)
+            result.Add(analyzer);
+
+        return result.MoveToImmutable();
     }
 }

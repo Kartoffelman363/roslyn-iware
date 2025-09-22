@@ -52,7 +52,7 @@ internal sealed class SyncNamespacesCommandHandler
         _serviceProvider = (IServiceProvider)serviceProvider;
 
         // Hook up the "Remove Unused References" menu command for CPS based managed projects.
-        var menuCommandService = await serviceProvider.GetServiceAsync<IMenuCommandService, IMenuCommandService>(_threadingContext.JoinableTaskFactory, throwOnFailure: false).ConfigureAwait(false);
+        var menuCommandService = await serviceProvider.GetServiceAsync<IMenuCommandService, IMenuCommandService>(throwOnFailure: false, cancellationToken).ConfigureAwait(false);
         if (menuCommandService != null)
         {
             await _threadingContext.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
@@ -104,8 +104,7 @@ internal sealed class SyncNamespacesCommandHandler
         {
             // The solution node is selected, so collect all the C# projects for update.
             var projects = _workspace.CurrentSolution.Projects
-                .Where(project => project.Language.Equals(LanguageNames.CSharp, StringComparison.OrdinalIgnoreCase))
-                .ToImmutableArray();
+                .WhereAsArray(project => project.Language.Equals(LanguageNames.CSharp, StringComparison.OrdinalIgnoreCase));
 
             SyncNamespaces(projects);
         }

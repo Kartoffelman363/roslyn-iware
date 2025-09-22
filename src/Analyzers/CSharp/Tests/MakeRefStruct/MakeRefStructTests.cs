@@ -15,7 +15,7 @@ using Xunit.Abstractions;
 namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.MakeRefStruct;
 
 [Trait(Traits.Feature, Traits.Features.CodeActionsMakeRefStruct)]
-public class MakeRefStructTests : AbstractCSharpDiagnosticProviderBasedUserDiagnosticTest_NoEditor
+public sealed class MakeRefStructTests : AbstractCSharpDiagnosticProviderBasedUserDiagnosticTest_NoEditor
 {
     private static readonly CSharpParseOptions s_parseOptions =
         CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.CSharp7_3);
@@ -56,7 +56,7 @@ public class MakeRefStructTests : AbstractCSharpDiagnosticProviderBasedUserDiagn
                 Span<int> m;
             }
             """);
-        await TestInRegularAndScriptAsync(text, expected, parseOptions: s_parseOptions);
+        await TestInRegularAndScriptAsync(text, expected, new(parseOptions: s_parseOptions));
     }
 
     [Fact]
@@ -115,7 +115,7 @@ public class MakeRefStructTests : AbstractCSharpDiagnosticProviderBasedUserDiagn
                 static Span<int> m;
             }
             """);
-        await TestInRegularAndScriptAsync(text, expected, parseOptions: s_parseOptions);
+        await TestInRegularAndScriptAsync(text, expected, new(parseOptions: s_parseOptions));
     }
 
     [Fact]
@@ -133,7 +133,7 @@ public class MakeRefStructTests : AbstractCSharpDiagnosticProviderBasedUserDiagn
                 Span<int> M { get; }
             }
             """);
-        await TestInRegularAndScriptAsync(text, expected, parseOptions: s_parseOptions);
+        await TestInRegularAndScriptAsync(text, expected, new(parseOptions: s_parseOptions));
     }
 
     [Fact]
@@ -181,7 +181,7 @@ public class MakeRefStructTests : AbstractCSharpDiagnosticProviderBasedUserDiagn
                 static Span<int> M { get; }
             }
             """);
-        await TestInRegularAndScriptAsync(text, expected, parseOptions: s_parseOptions);
+        await TestInRegularAndScriptAsync(text, expected, new(parseOptions: s_parseOptions));
     }
 
     [Fact]
@@ -223,7 +223,7 @@ public class MakeRefStructTests : AbstractCSharpDiagnosticProviderBasedUserDiagn
                 Span<int>[||] M { get; }
             }
             """);
-        await TestInRegularAndScriptAsync(text, expected, parseOptions: s_parseOptions);
+        await TestInRegularAndScriptAsync(text, expected, new(parseOptions: s_parseOptions));
     }
 
     [Fact]
@@ -249,7 +249,7 @@ public class MakeRefStructTests : AbstractCSharpDiagnosticProviderBasedUserDiagn
                 Span<int>[||] M { get; }
             }
             """);
-        await TestInRegularAndScriptAsync(text, expected, parseOptions: s_parseOptions);
+        await TestInRegularAndScriptAsync(text, expected, new(parseOptions: s_parseOptions));
     }
 
     private static string CreateTestSource(string testSource) => SpanDeclarationSourceText + testSource;

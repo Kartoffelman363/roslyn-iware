@@ -97,8 +97,6 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols.Retargeting
         {
             get
             {
-                // Tracked by https://github.com/dotnet/roslyn/issues/76130 : Test this method
-
                 if (_lazyExtensionParameter is null)
                 {
                     var extensionParameter = _underlyingType.ExtensionParameter is { } receiverParameter ? new RetargetingExtensionReceiverParameterSymbol(this, receiverParameter) : null;
@@ -111,8 +109,6 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols.Retargeting
 
         public override MethodSymbol TryGetCorrespondingExtensionImplementationMethod(MethodSymbol method)
         {
-            // Tracked by https://github.com/dotnet/roslyn/issues/76130 : Test this method
-
             Debug.Assert(this.IsExtension);
             Debug.Assert(method.IsDefinition);
             Debug.Assert(method.ContainingType == (object)this);
@@ -475,5 +471,11 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols.Retargeting
         }
 
         internal override bool HasCompilerLoweringPreserveAttribute => _underlyingType.HasCompilerLoweringPreserveAttribute;
+
+        internal override string ExtensionGroupingName
+            => _underlyingType.ExtensionGroupingName;
+
+        internal override string ExtensionMarkerName
+            => _underlyingType.ExtensionMarkerName;
     }
 }

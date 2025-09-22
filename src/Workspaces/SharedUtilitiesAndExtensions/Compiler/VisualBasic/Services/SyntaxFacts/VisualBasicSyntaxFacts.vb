@@ -3,21 +3,16 @@
 ' See the LICENSE file in the project root for more information.
 
 Imports System.Collections.Immutable
+Imports System.Diagnostics.CodeAnalysis
 Imports System.Text
 Imports System.Threading
 Imports Microsoft.CodeAnalysis
+Imports Microsoft.CodeAnalysis.Collections
 Imports Microsoft.CodeAnalysis.LanguageService
 Imports Microsoft.CodeAnalysis.PooledObjects
 Imports Microsoft.CodeAnalysis.Text
 Imports Microsoft.CodeAnalysis.VisualBasic.Syntax
 Imports Microsoft.CodeAnalysis.VisualBasic.SyntaxFacts
-Imports System.Diagnostics.CodeAnalysis
-
-#If CODE_STYLE Then
-Imports Microsoft.CodeAnalysis.Internal.Editing
-#Else
-Imports Microsoft.CodeAnalysis.Editing
-#End If
 
 Namespace Microsoft.CodeAnalysis.VisualBasic.LanguageService
     Friend Class VisualBasicSyntaxFacts
@@ -1869,6 +1864,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.LanguageService
             openParen = parenthesizedExpression.OpenParenToken
             expression = parenthesizedExpression.Expression
             closeParen = parenthesizedExpression.CloseParenToken
+        End Sub
+
+        Public Sub GetPartsOfPostfixUnaryExpression(node As SyntaxNode, ByRef operand As SyntaxNode, ByRef operatorToken As SyntaxToken) Implements ISyntaxFacts.GetPartsOfPostfixUnaryExpression
+            Throw New InvalidOperationException(DoesNotExistInVBErrorMessage)
         End Sub
 
         Public Sub GetPartsOfPrefixUnaryExpression(node As SyntaxNode, ByRef operatorToken As SyntaxToken, ByRef operand As SyntaxNode) Implements ISyntaxFacts.GetPartsOfPrefixUnaryExpression

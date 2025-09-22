@@ -593,6 +593,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         CrefParameterList = 8603,
         CrefBracketedParameterList = 8604,
         CrefParameter = 8605,
+        ExtensionMemberCref = 8607,
 
         // names & type-names
         IdentifierName = 8616,
@@ -943,7 +944,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         ExpressionElement = 9077,
         SpreadElement = 9078,
 
-        ExtensionDeclaration = 9079,
+        ExtensionBlockDeclaration = 9079,
 
         IgnoredDirectiveTrivia = 9080,
     }

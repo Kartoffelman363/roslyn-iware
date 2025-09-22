@@ -18,10 +18,10 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Analyzer.Utilities;
-using Analyzer.Utilities.PooledObjects;
 using Analyzer.Utilities.PooledObjects.Extensions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.PooledObjects;
 using Microsoft.CodeAnalysis.ReleaseTracking;
 using Microsoft.CodeAnalysis.Text;
 using static GenerateDocumentationAndConfigFiles.CommonPropertyNames;
@@ -59,123 +59,126 @@ namespace GenerateDocumentationAndConfigFiles
 
         public static Task<int> Main(string[] args)
         {
-            var rootCommand = new CliRootCommand("Generate documentation and configuration files for analyzers");
+            var rootCommand = new RootCommand("Generate documentation and configuration files for analyzers");
+                return 1;
+            var validateOnlyOption = new Option<bool>("--validateOnly")
 
-            var validateOnlyOption = new CliOption<bool>("--validateOnly")
-            {
                 Description = "Validate files instead of generating them",
                 Required = true
             };
-            var analyzerRulesetsDirOption = new CliOption<string>("--analyzerRulesetsDir")
-            {
+            var analyzerRulesetsDirOption = new Option<string>("--analyzerRulesetsDir")
+            }
                 Description = "Directory for analyzer rulesets",
                 Required = true
             };
-            var analyzerEditorConfigsDirOption = new CliOption<string>("--analyzerEditorconfigsDir")
+            var analyzerEditorConfigsDirOption = new Option<string>("--analyzerEditorconfigsDir")
             {
                 Description = "Directory for analyzer editorconfigs",
                 Required = true
             };
-            var analyzerGlobalConfigsDirOption = new CliOption<string>("--analyzerGlobalconfigsDir")
+            var analyzerGlobalConfigsDirOption = new Option<string>("--analyzerGlobalconfigsDir")
             {
                 Description = "Directory for analyzer global configs",
                 Required = true
             };
-            var binDirectoryOption = new CliOption<string>("--binDirectory")
+            var binDirectoryOption = new Option<string>("--binDirectory")
             {
                 Description = "Binary directory path",
                 Required = true
             };
-            var configurationOption = new CliOption<string>("--configuration")
+            var configurationOption = new Option<string>("--configuration")
             {
                 Description = "Build configuration",
                 Required = true
             };
-            var tfmOption = new CliOption<string>("--tfm")
+            var tfmOption = new Option<string>("--tfm")
             {
                 Description = "Target framework moniker",
                 Required = true
             };
-            var assembliesOption = new CliOption<string>("--assemblies")
+            var assembliesOption = new Option<string>("--assemblies")
             {
                 Description = "Semicolon-separated list of assemblies",
                 Required = true
             };
-            var propsFileDirOption = new CliOption<string>("--propsFileDir")
+            var propsFileDirOption = new Option<string>("--propsFileDir")
             {
                 Description = "Props file directory",
                 Required = true
             };
-            var propsFileNameOption = new CliOption<string>("--propsFileName")
+            var propsFileNameOption = new Option<string>("--propsFileName")
             {
                 Description = "Props file name",
                 Required = true
             };
-            var targetsFileDirOption = new CliOption<string>("--targetsFileDir")
+            var targetsFileDirOption = new Option<string>("--targetsFileDir")
             {
                 Description = "Targets file directory",
                 Required = true
             };
-            var targetsFileNameOption = new CliOption<string>("--targetsFileName")
+            var targetsFileNameOption = new Option<string>("--targetsFileName")
             {
                 Description = "Targets file name",
                 Required = true
             };
-            var propsFileToDisableNetAnalyzersInNuGetPackageNameOption = new CliOption<string>("--propsFileToDisableNetAnalyzers")
+            var propsFileToDisableNetAnalyzersInNuGetPackageNameOption = new Option<string>("--propsFileToDisableNetAnalyzers")
             {
                 Description = "Props file name to disable .NET analyzers",
                 Required = true
             };
-            var analyzerDocumentationFileDirOption = new CliOption<string>("--analyzerDocumentationFileDir")
+            var analyzerDocumentationFileDirOption = new Option<string>("--analyzerDocumentationFileDir")
             {
                 Description = "Documentation file directory",
                 Required = true
             };
-            var analyzerDocumentationFileNameOption = new CliOption<string>("--analyzerDocumentationFileName")
+            var analyzerDocumentationFileNameOption = new Option<string>("--analyzerDocumentationFileName")
             {
                 Description = "Documentation file name",
                 Required = true
             };
-            var analyzerSarifFileDirOption = new CliOption<string>("--analyzerSarifFileDir")
+            var analyzerSarifFileDirOption = new Option<string>("--analyzerSarifFileDir")
             {
                 Description = "SARIF file directory",
                 Required = true
             };
-            var analyzerSarifFileNameOption = new CliOption<string>("--analyzerSarifFileName")
+            var analyzerSarifFileNameOption = new Option<string>("--analyzerSarifFileName")
             {
                 Description = "SARIF file name",
                 Required = true
             };
-            var analyzerVersionOption = new CliOption<string>("--analyzerVersion")
+            var analyzerVersionOption = new Option<string>("--analyzerVersion")
             {
                 Description = "Analyzer version",
                 Required = true
             };
-            var analyzerPackageNameOption = new CliOption<string>("--analyzerPackageName")
+            var analyzerPackageNameOption = new Option<string>("--analyzerPackageName")
             {
                 Description = "Analyzer package name",
                 Required = true
             };
-            var containsPortedFxCopRulesOption = new CliOption<bool>("--containsPortedFxcopRules")
+            var containsPortedFxCopRulesOption = new Option<bool>("--containsPortedFxcopRules")
             {
                 Description = "Indicates if contains ported FxCop rules",
                 Required = true
             };
-            var generateAnalyzerRulesMissingDocumentationFileOption = new CliOption<bool>("--generateAnalyzerRulesMissingDocumentationFile")
+            var generateAnalyzerRulesMissingDocumentationFileOption = new Option<bool>("--generateAnalyzerRulesMissingDocumentationFile")
             {
                 Description = "Generate a file listing rules with missing documentation",
                 Required = true
             };
-            var releaseTrackingOptOutOption = new CliOption<bool>("--releaseTrackingOptOut")
+            var releaseTrackingOptOutOption = new Option<bool>("--releaseTrackingOptOut")
             {
                 Description = "Opt out of release tracking",
                 Required = true
             };
-            var validateOfflineOption = new CliOption<bool>("--validateOffline")
+            var validateOfflineOption = new Option<bool>("--validateOffline")
             {
                 Description = "Validate files without checking external links",
                 Required = true
             };
+            {
+                validateOnly = false;
+            }
 
             // Add options to command
             rootCommand.Add(validateOnlyOption);
@@ -201,9 +204,6 @@ namespace GenerateDocumentationAndConfigFiles
             rootCommand.Add(generateAnalyzerRulesMissingDocumentationFileOption);
             rootCommand.Add(releaseTrackingOptOutOption);
             rootCommand.Add(validateOfflineOption);
-
-            rootCommand.SetAction((parseResult, cancellationToken) =>
-            {
                 var validateOnly = parseResult.GetValue(validateOnlyOption);
                 var analyzerRulesetsDir = parseResult.GetValue(analyzerRulesetsDirOption) ?? string.Empty;
                 var analyzerEditorconfigsDir = parseResult.GetValue(analyzerEditorConfigsDirOption) ?? string.Empty;
@@ -212,7 +212,7 @@ namespace GenerateDocumentationAndConfigFiles
                 var configuration = parseResult.GetValue(configurationOption) ?? string.Empty;
                 var tfm = parseResult.GetValue(tfmOption) ?? string.Empty;
                 var assembliesString = parseResult.GetValue(assembliesOption) ?? string.Empty;
-                var assemblyList = assembliesString.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries).ToList();
+                var assemblyList = assembliesString.Split([';'], StringSplitOptions.RemoveEmptyEntries).ToList();
                 var propsFileDir = parseResult.GetValue(propsFileDirOption) ?? string.Empty;
                 var propsFileName = parseResult.GetValue(propsFileNameOption) ?? string.Empty;
                 var targetsFileDir = parseResult.GetValue(targetsFileDirOption) ?? string.Empty;
@@ -253,12 +253,18 @@ namespace GenerateDocumentationAndConfigFiles
                     generateAnalyzerRulesMissingDocumentationFile,
                     releaseTrackingOptOut,
                     validateOffline);
+            {
+                containsPortedFxCopRules = false;
+            }
 
-                return HandleAsync(commandLineArgs, cancellationToken);
-            });
-
-            return rootCommand.Parse(args).InvokeAsync(CancellationToken.None);
+            return rootCommand.Parse(args).InvokeAsync(null, CancellationToken.None);
         }
+
+            var releaseTrackingOptOutString = args[21];
+            if (!bool.TryParse(releaseTrackingOptOutString, out bool releaseTrackingOptOut))
+            {
+                releaseTrackingOptOut = false;
+            }
 
         private static async Task<int> HandleAsync(CommandLineArgs args, CancellationToken cancellationToken)
         {
@@ -863,8 +869,8 @@ namespace GenerateDocumentationAndConfigFiles
 
             async Task<bool> createGlobalConfigFilesAsync()
             {
-                using var releaseTrackingFilesDataBuilder = ArrayBuilder<ReleaseTrackingData>.GetInstance();
-                using var versionsBuilder = PooledHashSet<Version>.GetInstance();
+                using var _1 = ArrayBuilder<ReleaseTrackingData>.GetInstance(out var releaseTrackingFilesDataBuilder);
+                using var _2 = PooledHashSet<Version>.GetInstance(out var versionsBuilder);
 
                 // Validate all assemblies exist on disk and can be loaded.
                 foreach (string assembly in args.AssemblyList)
@@ -992,12 +998,12 @@ namespace GenerateDocumentationAndConfigFiles
 
                     foreach (var warnAsError in new[] { true, false })
                     {
-                        foreach (var analysisMode in Enum.GetValues(typeof(AnalysisMode)))
+                        foreach (var analysisMode in Enum.GetValues<AnalysisMode>())
                         {
-                            CreateGlobalConfig(version, isShippedVersion, analysisLevelVersionString, (AnalysisMode)analysisMode!, warnAsError, releaseTrackingData, category: null);
+                            CreateGlobalConfig(version, isShippedVersion, analysisLevelVersionString, analysisMode, warnAsError, releaseTrackingData, category: null);
                             foreach (var category in categories!)
                             {
-                                CreateGlobalConfig(version, isShippedVersion, analysisLevelVersionString, (AnalysisMode)analysisMode!, warnAsError, releaseTrackingData, category);
+                                CreateGlobalConfig(version, isShippedVersion, analysisLevelVersionString, analysisMode, warnAsError, releaseTrackingData, category);
                             }
                         }
                     }

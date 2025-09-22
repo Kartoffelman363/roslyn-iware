@@ -13,7 +13,7 @@ using static Microsoft.CodeAnalysis.BraceCompletion.AbstractBraceCompletionServi
 namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.AutomaticCompletion;
 
 [Trait(Traits.Feature, Traits.Features.AutomaticCompletion)]
-public class AutomaticParenthesisCompletionTests : AbstractAutomaticBraceCompletionTests
+public sealed class AutomaticParenthesisCompletionTests : AbstractAutomaticBraceCompletionTests
 {
     [WpfFact]
     public void Creation()
@@ -203,7 +203,7 @@ public class AutomaticParenthesisCompletionTests : AbstractAutomaticBraceComplet
             }
             """;
 
-        using var session = CreateSession(code, CSharpParseOptions.Default.WithLanguageVersion(LanguageVersionExtensions.CSharpNext));
+        using var session = CreateSession(code, CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.CSharp14));
         Assert.NotNull(session);
         CheckStart(session.Session);
         CheckBackspace(session.Session);

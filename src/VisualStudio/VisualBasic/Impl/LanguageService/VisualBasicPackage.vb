@@ -2,8 +2,8 @@
 ' The .NET Foundation licenses this file to you under the MIT license.
 ' See the LICENSE file in the project root for more information.
 
+Imports System.ComponentModel.Design
 Imports System.Runtime.InteropServices
-Imports System.Threading
 Imports Microsoft.CodeAnalysis
 Imports Microsoft.CodeAnalysis.ErrorReporting
 Imports Microsoft.CodeAnalysis.Options
@@ -38,6 +38,7 @@ Namespace Microsoft.VisualStudio.LanguageServices.VisualBasic
     <ProvideLanguageEditorOptionPage(GetType(NamingStylesOptionPage), "Basic", "Code Style", "Naming", "#110", 10162)>
     <ProvideLanguageEditorOptionPage(GetType(IntelliSenseOptionPage), "Basic", Nothing, "IntelliSense", "#112", 312)>
     <ProvideSettingsManifest(PackageRelativeManifestFile:="UnifiedSettings\visualBasicSettings.registration.json")>
+    <ProvideService(GetType(IVbTempPECompilerFactory), IsAsyncQueryable:=False, IsCacheable:=True, IsFreeThreaded:=True, ServiceName:="Visual Basic TempPE Compiler Factory Service")>
     <Guid(Guids.VisualBasicPackageIdString)>
     Friend NotInheritable Class VisualBasicPackage
         Inherits AbstractPackage(Of VisualBasicPackage, VisualBasicLanguageService)
@@ -64,23 +65,26 @@ Namespace Microsoft.VisualStudio.LanguageServices.VisualBasic
             _comAggregate = Implementation.Interop.ComAggregate.CreateAggregatedObject(Me)
         End Sub
 
-        Protected Overrides Async Function InitializeAsync(cancellationToken As CancellationToken, progress As IProgress(Of ServiceProgressData)) As Task
-            Try
-                Await MyBase.InitializeAsync(cancellationToken, progress).ConfigureAwait(True)
-                Await JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken)
+        Protected Overrides Sub RegisterInitializeAsyncWork(packageInitializationTasks As PackageLoadTasks)
 
-                RegisterLanguageService(GetType(IVbCompilerService), Function() Task.FromResult(_comAggregate))
+            MyBase.RegisterInitializeAsyncWork(packageInitializationTasks)
 
-                RegisterService(Of IVbTempPECompilerFactory)(
-                    Async Function(ct)
-                        Dim workspace = Me.ComponentModel.GetService(Of VisualStudioWorkspace)()
-                        Await JoinableTaskFactory.SwitchToMainThreadAsync(ct)
-                        Return New TempPECompilerFactory(workspace)
-                    End Function)
-            Catch ex As Exception When FatalError.ReportAndPropagateUnlessCanceled(ex)
-                Throw ExceptionUtilities.Unreachable
-            End Try
-        End Function
+            packageInitializationTasks.AddTask(
+                isMainThreadTask:=False,
+                task:=Function() As Task
+                          Try
+                              RegisterLanguageService(GetType(IVbCompilerService), Function() Task.FromResult(_comAggregate))
+
+                              DirectCast(Me, IServiceContainer).AddService(
+                                  GetType(IVbTempPECompilerFactory),
+                                  Function(_1, _2) New TempPECompilerFactory(Me.ComponentModel.GetService(Of VisualStudioWorkspace)()))
+                          Catch ex As Exception When FatalError.ReportAndPropagateUnlessCanceled(ex)
+                              Throw ExceptionUtilities.Unreachable
+                          End Try
+
+                          Return Task.CompletedTask
+                      End Function)
+        End Sub
 
         Protected Overrides Sub RegisterObjectBrowserLibraryManager()
             Dim workspace As VisualStudioWorkspace = ComponentModel.GetService(Of VisualStudioWorkspace)()

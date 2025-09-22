@@ -13,6 +13,7 @@ using Microsoft.CodeAnalysis.FindUsages;
 using Microsoft.CodeAnalysis.Host;
 using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.CodeAnalysis.SemanticSearch;
+using Microsoft.CodeAnalysis.Text;
 using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.ExternalAccess.Copilot.Internal.SemanticSearch;
@@ -22,7 +23,7 @@ namespace Microsoft.CodeAnalysis.ExternalAccess.Copilot.Internal.SemanticSearch;
 [method: Obsolete(MefConstruction.ImportingConstructorMessage, error: true)]
 internal sealed class CopilotSemanticSearchQueryExecutor(IHostWorkspaceProvider workspaceProvider) : ICopilotSemanticSearchQueryExecutor
 {
-    private sealed class ResultsObserver(CancellationTokenSource cancellationSource, int resultCountLimit) : ISemanticSearchResultsObserver
+    private sealed class ResultsObserver(CancellationTokenSource cancellationSource, int resultCountLimit) : ISemanticSearchResultsDefinitionObserver
     {
         private ImmutableList<string> _results = [];
         public string? RuntimeException { get; private set; }
@@ -30,17 +31,23 @@ internal sealed class CopilotSemanticSearchQueryExecutor(IHostWorkspaceProvider 
 
         public ImmutableList<string> Results => _results;
 
+        /// <summary>
+        /// We only use symbol display names, classification is not relevant.
+        /// </summary>
+        public ValueTask<ClassificationOptions> GetClassificationOptionsAsync(LanguageServices language, CancellationToken cancellationToken)
+            => new(ClassificationOptions.Default);
+
         public ValueTask AddItemsAsync(int itemCount, CancellationToken cancellationToken)
-            => ValueTaskFactory.CompletedTask;
+            => ValueTask.CompletedTask;
 
         public ValueTask ItemsCompletedAsync(int itemCount, CancellationToken cancellationToken)
-            => ValueTaskFactory.CompletedTask;
+            => ValueTask.CompletedTask;
 
         public ValueTask OnUserCodeExceptionAsync(UserCodeExceptionInfo exception, CancellationToken cancellationToken)
         {
             RuntimeException ??= $"{exception.TypeName.ToVisibleDisplayString(includeLeftToRightMarker: false)}: {exception.Message}{Environment.NewLine}{exception.StackTrace.ToVisibleDisplayString(includeLeftToRightMarker: false)}";
             cancellationSource.Cancel();
-            return ValueTaskFactory.CompletedTask;
+            return ValueTask.CompletedTask;
         }
 
         public ValueTask OnDefinitionFoundAsync(DefinitionItem definition, CancellationToken cancellationToken)
@@ -52,19 +59,17 @@ internal sealed class CopilotSemanticSearchQueryExecutor(IHostWorkspaceProvider 
                 cancellationSource.Cancel();
             }
 
-            return ValueTaskFactory.CompletedTask;
+            return ValueTask.CompletedTask;
         }
-    }
 
-    /// <summary>
-    /// We only use symbol display names, classification is not relevant.
-    /// </summary>
-    private sealed class DefaultClassificationOptionsProvider : OptionsProvider<ClassificationOptions>
-    {
-        public static readonly DefaultClassificationOptionsProvider Instance = new();
+        public ValueTask OnDocumentUpdatedAsync(DocumentId documentId, ImmutableArray<TextChange> changes, CancellationToken cancellationToken)
+            => throw new NotImplementedException(); // TODO
 
-        public ValueTask<ClassificationOptions> GetOptionsAsync(LanguageServices languageServices, CancellationToken cancellationToken)
-            => new(ClassificationOptions.Default);
+        public ValueTask OnLogMessageAsync(string message, CancellationToken cancellationToken)
+            => ValueTask.CompletedTask; // TODO
+
+        public ValueTask OnTextFileUpdatedAsync(string filePath, string? newContent, CancellationToken cancellationToken)
+            => ValueTask.CompletedTask; // TODO
     }
 
     private readonly Workspace _workspace = workspaceProvider.Workspace;
@@ -78,20 +83,48 @@ internal sealed class CopilotSemanticSearchQueryExecutor(IHostWorkspaceProvider 
 
         try
         {
-            var result = await RemoteSemanticSearchServiceProxy.ExecuteQueryAsync(
-                _workspace.CurrentSolution,
-                LanguageNames.CSharp,
+            var services = _workspace.CurrentSolution.Services;
+
+            var compileResult = await RemoteSemanticSearchServiceProxy.CompileQueryAsync(
+                services,
                 query,
-                SemanticSearchUtilities.ReferenceAssembliesDirectory,
+                targetLanguage: null,
+                cancellationSource.Token).ConfigureAwait(false);
+
+            if (compileResult == null)
+            {
+                return new CopilotSemanticSearchQueryResults()
+                {
+                    Symbols = observer.Results,
+                    CompilationErrors = [],
+                    Error = FeaturesResources.Semantic_search_only_supported_on_net_core,
+                    LimitReached = false,
+                };
+            }
+
+            if (!compileResult.Value.CompilationErrors.IsEmpty)
+            {
+                return new CopilotSemanticSearchQueryResults()
+                {
+                    Symbols = observer.Results,
+                    CompilationErrors = compileResult.Value.CompilationErrors.SelectAsArray(e => (e.Id, e.Message)),
+                    Error = null,
+                    LimitReached = false,
+                };
+            }
+
+            var executeResult = await RemoteSemanticSearchServiceProxy.ExecuteQueryAsync(
+                _workspace.CurrentSolution,
+                compileResult.Value.QueryId,
                 observer,
-                DefaultClassificationOptionsProvider.Instance,
+                new QueryExecutionOptions(),
                 cancellationSource.Token).ConfigureAwait(false);
 
             return new CopilotSemanticSearchQueryResults()
             {
                 Symbols = observer.Results,
-                CompilationErrors = result.compilationErrors.SelectAsArray(e => (e.Id, e.Message)),
-                Error = (result.ErrorMessage != null) ? string.Format(result.ErrorMessage, result.ErrorMessageArgs ?? []) : null,
+                CompilationErrors = [],
+                Error = (executeResult.ErrorMessage != null) ? string.Format(executeResult.ErrorMessage, executeResult.ErrorMessageArgs ?? []) : null,
                 LimitReached = false,
             };
         }
