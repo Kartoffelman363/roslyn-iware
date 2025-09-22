@@ -10,8 +10,6 @@ using System;
 using System.Diagnostics;
 using System.Text;
 using System.Threading;
-using Microsoft.CodeAnalysis.CSharp.Symbols;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.PooledObjects;
 using Microsoft.CodeAnalysis.Text;
 using Roslyn.Utilities;
@@ -113,7 +111,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
 
             // Read the first chunk of the file into the character window.
             this.ReadChunkAt(0);
-        public void Dispose()
+        }
 
         public void Free()
         {
@@ -352,10 +350,10 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
             var ch = PeekChar();
             this.Reset(position);
             return ch;
+        }
+
         public char PreviousChar()
             => PeekChar(-1);
-
-        }
 
         /// <summary>
         /// If the next characters in the window match the given string,
@@ -470,17 +468,6 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
             public static int GetOffset(in SlidingTextWindow window) => window._positionInText - window._characterWindowStartPositionInText;
             public static int GetCharacterWindowStartPositionInText(in SlidingTextWindow window) => window._characterWindowStartPositionInText;
             public static ArraySegment<char> GetCharacterWindow(in SlidingTextWindow window) => window._characterWindow;
-        }
-
-        internal TestAccessor GetTestAccessor()
-            => new TestAccessor(this);
-
-        internal readonly struct TestAccessor(SlidingTextWindow window)
-        {
-            private readonly SlidingTextWindow _window = window;
-
-            internal void SetDefaultCharacterWindow()
-                => _window._characterWindow = new char[DefaultWindowLength];
         }
     }
 }

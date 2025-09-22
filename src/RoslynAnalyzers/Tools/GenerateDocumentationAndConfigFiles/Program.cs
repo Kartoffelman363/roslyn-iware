@@ -60,14 +60,14 @@ namespace GenerateDocumentationAndConfigFiles
         public static Task<int> Main(string[] args)
         {
             var rootCommand = new RootCommand("Generate documentation and configuration files for analyzers");
-                return 1;
-            var validateOnlyOption = new Option<bool>("--validateOnly")
 
+            var validateOnlyOption = new Option<bool>("--validateOnly")
+            {
                 Description = "Validate files instead of generating them",
                 Required = true
             };
             var analyzerRulesetsDirOption = new Option<string>("--analyzerRulesetsDir")
-            }
+            {
                 Description = "Directory for analyzer rulesets",
                 Required = true
             };
@@ -176,9 +176,6 @@ namespace GenerateDocumentationAndConfigFiles
                 Description = "Validate files without checking external links",
                 Required = true
             };
-            {
-                validateOnly = false;
-            }
 
             // Add options to command
             rootCommand.Add(validateOnlyOption);
@@ -204,6 +201,9 @@ namespace GenerateDocumentationAndConfigFiles
             rootCommand.Add(generateAnalyzerRulesMissingDocumentationFileOption);
             rootCommand.Add(releaseTrackingOptOutOption);
             rootCommand.Add(validateOfflineOption);
+
+            rootCommand.SetAction((parseResult, cancellationToken) =>
+            {
                 var validateOnly = parseResult.GetValue(validateOnlyOption);
                 var analyzerRulesetsDir = parseResult.GetValue(analyzerRulesetsDirOption) ?? string.Empty;
                 var analyzerEditorconfigsDir = parseResult.GetValue(analyzerEditorConfigsDirOption) ?? string.Empty;
@@ -253,18 +253,12 @@ namespace GenerateDocumentationAndConfigFiles
                     generateAnalyzerRulesMissingDocumentationFile,
                     releaseTrackingOptOut,
                     validateOffline);
-            {
-                containsPortedFxCopRules = false;
-            }
+
+                return HandleAsync(commandLineArgs, cancellationToken);
+            });
 
             return rootCommand.Parse(args).InvokeAsync(null, CancellationToken.None);
         }
-
-            var releaseTrackingOptOutString = args[21];
-            if (!bool.TryParse(releaseTrackingOptOutString, out bool releaseTrackingOptOut))
-            {
-                releaseTrackingOptOut = false;
-            }
 
         private static async Task<int> HandleAsync(CommandLineArgs args, CancellationToken cancellationToken)
         {
