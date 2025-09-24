@@ -453,6 +453,15 @@ public partial class CSharpSyntaxVisitor<TResult>
     /// <summary>Called when the visitor visits a SqlStatementSyntax node.</summary>
     public virtual TResult? VisitSqlStatement(SqlStatementSyntax node) => this.DefaultVisit(node);
 
+    /// <summary>Called when the visitor visits a SqlTextBlockSyntax node.</summary>
+    public virtual TResult? VisitSqlTextBlock(SqlTextBlockSyntax node) => this.DefaultVisit(node);
+
+    /// <summary>Called when the visitor visits a SqlTextSegmentSyntax node.</summary>
+    public virtual TResult? VisitSqlTextSegment(SqlTextSegmentSyntax node) => this.DefaultVisit(node);
+
+    /// <summary>Called when the visitor visits a SqlIdentifierSegmentSyntax node.</summary>
+    public virtual TResult? VisitSqlIdentifierSegment(SqlIdentifierSegmentSyntax node) => this.DefaultVisit(node);
+
     /// <summary>Called when the visitor visits a SqlDoClauseSyntax node.</summary>
     public virtual TResult? VisitSqlDoClause(SqlDoClauseSyntax node) => this.DefaultVisit(node);
 
@@ -1209,6 +1218,15 @@ public partial class CSharpSyntaxVisitor
     /// <summary>Called when the visitor visits a SqlStatementSyntax node.</summary>
     public virtual void VisitSqlStatement(SqlStatementSyntax node) => this.DefaultVisit(node);
 
+    /// <summary>Called when the visitor visits a SqlTextBlockSyntax node.</summary>
+    public virtual void VisitSqlTextBlock(SqlTextBlockSyntax node) => this.DefaultVisit(node);
+
+    /// <summary>Called when the visitor visits a SqlTextSegmentSyntax node.</summary>
+    public virtual void VisitSqlTextSegment(SqlTextSegmentSyntax node) => this.DefaultVisit(node);
+
+    /// <summary>Called when the visitor visits a SqlIdentifierSegmentSyntax node.</summary>
+    public virtual void VisitSqlIdentifierSegment(SqlIdentifierSegmentSyntax node) => this.DefaultVisit(node);
+
     /// <summary>Called when the visitor visits a SqlDoClauseSyntax node.</summary>
     public virtual void VisitSqlDoClause(SqlDoClauseSyntax node) => this.DefaultVisit(node);
 
@@ -1963,7 +1981,16 @@ public partial class CSharpSyntaxRewriter : CSharpSyntaxVisitor<SyntaxNode?>
         => node.Update((PatternSyntax?)Visit(node.Pattern) ?? throw new ArgumentNullException("pattern"), (WhenClauseSyntax?)Visit(node.WhenClause), VisitToken(node.EqualsGreaterThanToken), (ExpressionSyntax?)Visit(node.Expression) ?? throw new ArgumentNullException("expression"));
 
     public override SyntaxNode? VisitSqlStatement(SqlStatementSyntax node)
-        => node.Update(VisitList(node.AttributeLists), VisitToken(node.SqlKeyword), VisitToken(node.SqlOpenBraceToken), VisitToken(node.SqlTextToken), VisitToken(node.SqlCloseBraceToken), (SqlDoClauseSyntax?)Visit(node.SqlDoClause), (SqlEmptyClauseSyntax?)Visit(node.SqlEmptyClause), (SqlEndClauseSyntax?)Visit(node.SqlEndClause));
+        => node.Update(VisitList(node.AttributeLists), VisitToken(node.SqlKeyword), (SqlTextBlockSyntax?)Visit(node.SqlTextBlock) ?? throw new ArgumentNullException("sqlTextBlock"), (SqlDoClauseSyntax?)Visit(node.SqlDoClause), (SqlEmptyClauseSyntax?)Visit(node.SqlEmptyClause), (SqlEndClauseSyntax?)Visit(node.SqlEndClause));
+
+    public override SyntaxNode? VisitSqlTextBlock(SqlTextBlockSyntax node)
+        => node.Update(VisitToken(node.SqlOpenBraceToken), VisitList(node.Segments), VisitToken(node.SqlCloseBraceToken));
+
+    public override SyntaxNode? VisitSqlTextSegment(SqlTextSegmentSyntax node)
+        => node.Update(VisitToken(node.SqlTextToken));
+
+    public override SyntaxNode? VisitSqlIdentifierSegment(SqlIdentifierSegmentSyntax node)
+        => node.Update((IdentifierNameSyntax?)Visit(node.SqlIdentifierToken) ?? throw new ArgumentNullException("sqlIdentifierToken"));
 
     public override SyntaxNode? VisitSqlDoClause(SqlDoClauseSyntax node)
         => node.Update(VisitToken(node.SqlDoKeyword), (BlockSyntax?)Visit(node.Block) ?? throw new ArgumentNullException("block"));
@@ -4699,22 +4726,45 @@ public static partial class SyntaxFactory
         => SyntaxFactory.SwitchExpressionArm(pattern, default, SyntaxFactory.Token(SyntaxKind.EqualsGreaterThanToken), expression);
 
     /// <summary>Creates a new SqlStatementSyntax instance.</summary>
-    public static SqlStatementSyntax SqlStatement(SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken sqlKeyword, SyntaxToken sqlOpenBraceToken, SyntaxToken sqlTextToken, SyntaxToken sqlCloseBraceToken, SqlDoClauseSyntax? sqlDoClause, SqlEmptyClauseSyntax? sqlEmptyClause, SqlEndClauseSyntax? sqlEndClause)
+    public static SqlStatementSyntax SqlStatement(SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken sqlKeyword, SqlTextBlockSyntax sqlTextBlock, SqlDoClauseSyntax? sqlDoClause, SqlEmptyClauseSyntax? sqlEmptyClause, SqlEndClauseSyntax? sqlEndClause)
     {
         if (sqlKeyword.Kind() != SyntaxKind.SqlKeyword) throw new ArgumentException(nameof(sqlKeyword));
-        if (sqlOpenBraceToken.Kind() != SyntaxKind.OpenBraceToken) throw new ArgumentException(nameof(sqlOpenBraceToken));
-        if (sqlTextToken.Kind() != SyntaxKind.SqlTextLiteralToken) throw new ArgumentException(nameof(sqlTextToken));
-        if (sqlCloseBraceToken.Kind() != SyntaxKind.CloseBraceToken) throw new ArgumentException(nameof(sqlCloseBraceToken));
-        return (SqlStatementSyntax)Syntax.InternalSyntax.SyntaxFactory.SqlStatement(attributeLists.Node.ToGreenList<Syntax.InternalSyntax.AttributeListSyntax>(), (Syntax.InternalSyntax.SyntaxToken)sqlKeyword.Node!, (Syntax.InternalSyntax.SyntaxToken)sqlOpenBraceToken.Node!, (Syntax.InternalSyntax.SyntaxToken)sqlTextToken.Node!, (Syntax.InternalSyntax.SyntaxToken)sqlCloseBraceToken.Node!, sqlDoClause == null ? null : (Syntax.InternalSyntax.SqlDoClauseSyntax)sqlDoClause.Green, sqlEmptyClause == null ? null : (Syntax.InternalSyntax.SqlEmptyClauseSyntax)sqlEmptyClause.Green, sqlEndClause == null ? null : (Syntax.InternalSyntax.SqlEndClauseSyntax)sqlEndClause.Green).CreateRed();
+        if (sqlTextBlock == null) throw new ArgumentNullException(nameof(sqlTextBlock));
+        return (SqlStatementSyntax)Syntax.InternalSyntax.SyntaxFactory.SqlStatement(attributeLists.Node.ToGreenList<Syntax.InternalSyntax.AttributeListSyntax>(), (Syntax.InternalSyntax.SyntaxToken)sqlKeyword.Node!, (Syntax.InternalSyntax.SqlTextBlockSyntax)sqlTextBlock.Green, sqlDoClause == null ? null : (Syntax.InternalSyntax.SqlDoClauseSyntax)sqlDoClause.Green, sqlEmptyClause == null ? null : (Syntax.InternalSyntax.SqlEmptyClauseSyntax)sqlEmptyClause.Green, sqlEndClause == null ? null : (Syntax.InternalSyntax.SqlEndClauseSyntax)sqlEndClause.Green).CreateRed();
     }
 
     /// <summary>Creates a new SqlStatementSyntax instance.</summary>
-    public static SqlStatementSyntax SqlStatement(SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken sqlTextToken, SqlDoClauseSyntax? sqlDoClause, SqlEmptyClauseSyntax? sqlEmptyClause, SqlEndClauseSyntax? sqlEndClause)
-        => SyntaxFactory.SqlStatement(attributeLists, SyntaxFactory.Token(SyntaxKind.SqlKeyword), SyntaxFactory.Token(SyntaxKind.OpenBraceToken), sqlTextToken, SyntaxFactory.Token(SyntaxKind.CloseBraceToken), sqlDoClause, sqlEmptyClause, sqlEndClause);
+    public static SqlStatementSyntax SqlStatement(SyntaxList<AttributeListSyntax> attributeLists, SqlTextBlockSyntax sqlTextBlock, SqlDoClauseSyntax? sqlDoClause, SqlEmptyClauseSyntax? sqlEmptyClause, SqlEndClauseSyntax? sqlEndClause)
+        => SyntaxFactory.SqlStatement(attributeLists, SyntaxFactory.Token(SyntaxKind.SqlKeyword), sqlTextBlock, sqlDoClause, sqlEmptyClause, sqlEndClause);
 
     /// <summary>Creates a new SqlStatementSyntax instance.</summary>
-    public static SqlStatementSyntax SqlStatement(SyntaxToken sqlTextToken)
-        => SyntaxFactory.SqlStatement(default, SyntaxFactory.Token(SyntaxKind.SqlKeyword), SyntaxFactory.Token(SyntaxKind.OpenBraceToken), sqlTextToken, SyntaxFactory.Token(SyntaxKind.CloseBraceToken), default, default, default);
+    public static SqlStatementSyntax SqlStatement()
+        => SyntaxFactory.SqlStatement(default, SyntaxFactory.Token(SyntaxKind.SqlKeyword), SyntaxFactory.SqlTextBlock(), default, default, default);
+
+    /// <summary>Creates a new SqlTextBlockSyntax instance.</summary>
+    public static SqlTextBlockSyntax SqlTextBlock(SyntaxToken sqlOpenBraceToken, SyntaxList<CSharpSyntaxNode> segments, SyntaxToken sqlCloseBraceToken)
+    {
+        if (sqlOpenBraceToken.Kind() != SyntaxKind.OpenBraceToken) throw new ArgumentException(nameof(sqlOpenBraceToken));
+        if (sqlCloseBraceToken.Kind() != SyntaxKind.CloseBraceToken) throw new ArgumentException(nameof(sqlCloseBraceToken));
+        return (SqlTextBlockSyntax)Syntax.InternalSyntax.SyntaxFactory.SqlTextBlock((Syntax.InternalSyntax.SyntaxToken)sqlOpenBraceToken.Node!, segments.Node.ToGreenList<Syntax.InternalSyntax.CSharpSyntaxNode>(), (Syntax.InternalSyntax.SyntaxToken)sqlCloseBraceToken.Node!).CreateRed();
+    }
+
+    /// <summary>Creates a new SqlTextBlockSyntax instance.</summary>
+    public static SqlTextBlockSyntax SqlTextBlock(SyntaxList<CSharpSyntaxNode> segments = default)
+        => SyntaxFactory.SqlTextBlock(SyntaxFactory.Token(SyntaxKind.OpenBraceToken), segments, SyntaxFactory.Token(SyntaxKind.CloseBraceToken));
+
+    /// <summary>Creates a new SqlTextSegmentSyntax instance.</summary>
+    public static SqlTextSegmentSyntax SqlTextSegment(SyntaxToken sqlTextToken)
+    {
+        return (SqlTextSegmentSyntax)Syntax.InternalSyntax.SyntaxFactory.SqlTextSegment((Syntax.InternalSyntax.SyntaxToken)sqlTextToken.Node!).CreateRed();
+    }
+
+    /// <summary>Creates a new SqlIdentifierSegmentSyntax instance.</summary>
+    public static SqlIdentifierSegmentSyntax SqlIdentifierSegment(IdentifierNameSyntax sqlIdentifierToken)
+    {
+        if (sqlIdentifierToken == null) throw new ArgumentNullException(nameof(sqlIdentifierToken));
+        return (SqlIdentifierSegmentSyntax)Syntax.InternalSyntax.SyntaxFactory.SqlIdentifierSegment((Syntax.InternalSyntax.IdentifierNameSyntax)sqlIdentifierToken.Green).CreateRed();
+    }
 
     /// <summary>Creates a new SqlDoClauseSyntax instance.</summary>
     public static SqlDoClauseSyntax SqlDoClause(SyntaxToken sqlDoKeyword, BlockSyntax block)

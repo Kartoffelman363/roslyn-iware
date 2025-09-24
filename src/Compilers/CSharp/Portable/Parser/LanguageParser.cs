@@ -15,7 +15,9 @@ using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
 {
+    using System.Text;
     using Microsoft.CodeAnalysis.Syntax.InternalSyntax;
+    using static System.Net.Mime.MediaTypeNames;
 
     internal sealed partial class LanguageParser : SyntaxParser
     {
@@ -9043,15 +9045,11 @@ done:
             Debug.Assert(this.CurrentToken.Kind is SyntaxKind.SqlKeyword, "sql statement should begin with an sql clause");
 
             // sql
-            var @sql = this.EatToken(SyntaxKind.SqlKeyword);
-            SyntaxToken openBrace = null;
-            SyntaxToken closeBrace = null;
-            SyntaxToken sqlContents = null;
+            var sqlKeyword = this.EatToken(SyntaxKind.SqlKeyword);
+            SqlTextBlockSyntax sqlContents = null;
             if (this.CurrentToken.Kind == SyntaxKind.OpenBraceToken)
             {
-                openBrace = this.EatToken(SyntaxKind.OpenBraceToken);
                 sqlContents = this.ParseSqlBlock();
-                closeBrace = this.EatToken(SyntaxKind.CloseBraceToken);
             }
             else
             {
@@ -9079,21 +9077,27 @@ done:
 
             return _syntaxFactory.SqlStatement(
                 attributes,
-                @sql,
-                openBrace,
+                sqlKeyword,
                 sqlContents,
-                closeBrace,
                 sqlDo,
                 sqlEmpty,
                 sqlEnd);
         }
 
-        private SyntaxToken ParseSqlBlock()
+        private SqlTextBlockSyntax ParseSqlBlock()
         {
+            var openBrace = this.EatToken(SyntaxKind.OpenBraceToken);
+            var sqlBlockBuilder = _pool.Allocate<CSharpSyntaxNode>();
             var pooled = PooledStringBuilder.GetInstance();
             var stringBuilder = pooled.Builder;
             int braceDepth = 1;
             bool isComment = false;
+            bool isOutput = false;
+            bool isInput = false;
+            bool appendTokenToBlock = false;
+            bool appendIdentifierToBlock = false;
+            bool skipStringAppend = false;
+            string trailingTrivia = "";
             while (CurrentToken.Kind != SyntaxKind.EndOfFileToken)
             {
                 //Ignore curly braces in SQL dash-dash comments --, until end of line
@@ -9105,6 +9109,33 @@ done:
                         {
                             isComment = false;
                             break;
+                        }
+                    }
+                }
+                else if (CurrentToken.Text[0] == '@')
+                {
+                    var leading = CurrentToken.GetLeadingTrivia()?.ToFullString() ?? "";
+                    sqlBlockBuilder.Add(sqlTextSegmentBuilder(ref pooled, ref stringBuilder, leading + "@"));
+                    stringBuilder.Append(CurrentToken.ToFullString().Trim().Substring(1));
+                    skipStringAppend = true;
+                    // if token doesn't have trailing trivia keep reading
+                    isInput = !CurrentToken.HasTrailingTrivia;
+                    if (!isInput)
+                    {
+                        appendIdentifierToBlock = true;
+                        trailingTrivia = CurrentToken.GetTrailingTrivia().ToFullString();
+                    }
+                }
+                else if (isInput)
+                {
+                    if (CurrentToken.HasTrailingTrivia || CurrentToken.Kind != SyntaxKind.IdentifierToken)
+                    {
+                        appendIdentifierToBlock = true;
+                        appendTokenToBlock = true;
+                        isInput = false;
+                        if (CurrentToken.Kind == SyntaxKind.MinusMinusToken)
+                        {
+                            isComment = true;
                         }
                     }
                 }
@@ -9123,22 +9154,84 @@ done:
                         case SyntaxKind.MinusMinusToken:
                             isComment = true;
                             break;
+                        case SyntaxKind.OpenBracketToken:
+                            // Add query text
+                            appendTokenToBlock = true;
+                            isOutput = true;
+                            break;
+                        case SyntaxKind.CloseBracketToken:
+                            if (isOutput)
+                            {
+                                // Add output symbol
+                                sqlBlockBuilder.Add(sqlTextSegmentBuilder(ref pooled, ref stringBuilder));
+                                isOutput = false;
+                            }
+                            break;
                     }
                 }
 
-                stringBuilder.Append(CurrentToken.ToFullString());
+                if (!skipStringAppend)
+                {
+                    stringBuilder.Append(CurrentToken.ToFullString());
+                }
+                else
+                {
+                    skipStringAppend = false;
+                }
+                if (appendTokenToBlock)
+                {
+                    sqlBlockBuilder.Add(sqlTextSegmentBuilder(ref pooled, ref stringBuilder));
+                    appendTokenToBlock = false;
+                }
+                else if (appendIdentifierToBlock)
+                {
+                    sqlBlockBuilder.Add(sqlIdentifierSegmentBuilder(ref pooled, ref stringBuilder));
+                    appendIdentifierToBlock = false;
+                    stringBuilder.Append(trailingTrivia);
+                }
                 EatToken();
             }
 parseSqlEnd:
 
-            var text = pooled.ToStringAndFree();
-            return SyntaxFactory.Token(
+            if (stringBuilder.Length != 0)
+            {
+                sqlBlockBuilder.Add(sqlTextSegmentBuilder(ref pooled, ref stringBuilder));
+            }
+            var closeBrace = this.EatToken(SyntaxKind.CloseBraceToken);
+            return _syntaxFactory.SqlTextBlock(
+                openBrace,
+                _pool.ToListAndFree(sqlBlockBuilder),
+                closeBrace);
+
+            string sqlGetStringFromBuilder(
+                ref PooledStringBuilder pooled,
+                ref StringBuilder stringBuilder)
+            {
+                var text = pooled.ToStringAndFree();
+                pooled = PooledStringBuilder.GetInstance();
+                stringBuilder = pooled.Builder;
+                return text;
+            }
+
+            SqlIdentifierSegmentSyntax sqlIdentifierSegmentBuilder(ref PooledStringBuilder pooled, ref StringBuilder stringBuilder)
+            {
+                return _syntaxFactory.SqlIdentifierSegment(
+                    SyntaxFactory.IdentifierName(
+                        SyntaxFactory.Identifier(
+                            sqlGetStringFromBuilder(ref pooled, ref stringBuilder))));
+            }
+
+            SqlTextSegmentSyntax sqlTextSegmentBuilder(ref PooledStringBuilder pooled, ref StringBuilder stringBuilder, string appendage = "")
+            {
+                string text = sqlGetStringFromBuilder(ref pooled, ref stringBuilder) + appendage;
+                return _syntaxFactory.SqlTextSegment(
+                    SyntaxFactory.Token(
                     leading: null,
-                    kind: SyntaxKind.SqlTextLiteralToken,
+                    kind: SyntaxKind.SqlTextSegment,
                     text: text,
                     valueText: text,
-                    trailing: null
-                );
+                    trailing: null));
+            }
         }
 
         private SqlDoClauseSyntax ParseSqlDoClause()

@@ -1696,6 +1696,7 @@ namespace Microsoft.CodeAnalysis.CSharp.CodeGen
             var sqlDoClause = (BoundSqlDoClause)this.Visit(node.SqlDoOpt);
             var sqlEmptyClause = (BoundSqlEmptyClause)this.Visit(node.SqlEmptyOpt);
             var sqlEndClause = (BoundSqlEndClause)this.Visit(node.SqlEndOpt);
+            var boundIdentifiers = (ImmutableArray<BoundExpression>)this.VisitList(node.boundIdentifiers);
 
             return node.Update(
                 sqlText,
@@ -1705,7 +1706,8 @@ namespace Microsoft.CodeAnalysis.CSharp.CodeGen
                 node.querySymbols,
                 node.querySqlNames,
                 node.parameterSymbols,
-                node.parameterNames
+                node.parameterNames,
+                boundIdentifiers
             );
         }
 

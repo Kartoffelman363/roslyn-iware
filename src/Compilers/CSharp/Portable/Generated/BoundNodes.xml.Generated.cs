@@ -4260,8 +4260,8 @@ namespace Microsoft.CodeAnalysis.CSharp
 
     internal sealed partial class BoundSqlStatement : BoundStatement
     {
-        public BoundSqlStatement(SyntaxNode syntax, string sqlContents, BoundSqlDoClause? sqlDoOpt, BoundSqlEmptyClause? sqlEmptyOpt, BoundSqlEndClause? sqlEndOpt, ImmutableArray<Symbol> querySymbols, ImmutableArray<string> querySqlNames, ImmutableArray<Symbol> parameterSymbols, ImmutableArray<string> parameterNames, bool hasErrors = false)
-            : base(BoundKind.SqlStatement, syntax, hasErrors || sqlDoOpt.HasErrors() || sqlEmptyOpt.HasErrors() || sqlEndOpt.HasErrors())
+        public BoundSqlStatement(SyntaxNode syntax, string sqlContents, BoundSqlDoClause? sqlDoOpt, BoundSqlEmptyClause? sqlEmptyOpt, BoundSqlEndClause? sqlEndOpt, ImmutableArray<Symbol> querySymbols, ImmutableArray<string> querySqlNames, ImmutableArray<Symbol> parameterSymbols, ImmutableArray<string> parameterNames, ImmutableArray<BoundExpression> boundIdentifiers, bool hasErrors = false)
+            : base(BoundKind.SqlStatement, syntax, hasErrors || sqlDoOpt.HasErrors() || sqlEmptyOpt.HasErrors() || sqlEndOpt.HasErrors() || boundIdentifiers.HasErrors())
         {
 
             RoslynDebug.Assert(sqlContents is object, "Field 'sqlContents' cannot be null (make the type nullable in BoundNodes.xml to remove this check)");
@@ -4269,6 +4269,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             RoslynDebug.Assert(!querySqlNames.IsDefault, "Field 'querySqlNames' cannot be null (use Null=\"allow\" in BoundNodes.xml to remove this check)");
             RoslynDebug.Assert(!parameterSymbols.IsDefault, "Field 'parameterSymbols' cannot be null (use Null=\"allow\" in BoundNodes.xml to remove this check)");
             RoslynDebug.Assert(!parameterNames.IsDefault, "Field 'parameterNames' cannot be null (use Null=\"allow\" in BoundNodes.xml to remove this check)");
+            RoslynDebug.Assert(!boundIdentifiers.IsDefault, "Field 'boundIdentifiers' cannot be null (use Null=\"allow\" in BoundNodes.xml to remove this check)");
 
             this.SqlContents = sqlContents;
             this.SqlDoOpt = sqlDoOpt;
@@ -4278,6 +4279,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             this.querySqlNames = querySqlNames;
             this.parameterSymbols = parameterSymbols;
             this.parameterNames = parameterNames;
+            this.boundIdentifiers = boundIdentifiers;
         }
 
         public string SqlContents { get; }
@@ -4288,15 +4290,16 @@ namespace Microsoft.CodeAnalysis.CSharp
         public ImmutableArray<string> querySqlNames { get; }
         public ImmutableArray<Symbol> parameterSymbols { get; }
         public ImmutableArray<string> parameterNames { get; }
+        public ImmutableArray<BoundExpression> boundIdentifiers { get; }
 
         [DebuggerStepThrough]
         public override BoundNode? Accept(BoundTreeVisitor visitor) => visitor.VisitSqlStatement(this);
 
-        public BoundSqlStatement Update(string sqlContents, BoundSqlDoClause? sqlDoOpt, BoundSqlEmptyClause? sqlEmptyOpt, BoundSqlEndClause? sqlEndOpt, ImmutableArray<Symbol> querySymbols, ImmutableArray<string> querySqlNames, ImmutableArray<Symbol> parameterSymbols, ImmutableArray<string> parameterNames)
+        public BoundSqlStatement Update(string sqlContents, BoundSqlDoClause? sqlDoOpt, BoundSqlEmptyClause? sqlEmptyOpt, BoundSqlEndClause? sqlEndOpt, ImmutableArray<Symbol> querySymbols, ImmutableArray<string> querySqlNames, ImmutableArray<Symbol> parameterSymbols, ImmutableArray<string> parameterNames, ImmutableArray<BoundExpression> boundIdentifiers)
         {
-            if (sqlContents != this.SqlContents || sqlDoOpt != this.SqlDoOpt || sqlEmptyOpt != this.SqlEmptyOpt || sqlEndOpt != this.SqlEndOpt || querySymbols != this.querySymbols || querySqlNames != this.querySqlNames || parameterSymbols != this.parameterSymbols || parameterNames != this.parameterNames)
+            if (sqlContents != this.SqlContents || sqlDoOpt != this.SqlDoOpt || sqlEmptyOpt != this.SqlEmptyOpt || sqlEndOpt != this.SqlEndOpt || querySymbols != this.querySymbols || querySqlNames != this.querySqlNames || parameterSymbols != this.parameterSymbols || parameterNames != this.parameterNames || boundIdentifiers != this.boundIdentifiers)
             {
-                var result = new BoundSqlStatement(this.Syntax, sqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, querySymbols, querySqlNames, parameterSymbols, parameterNames, this.HasErrors);
+                var result = new BoundSqlStatement(this.Syntax, sqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, querySymbols, querySqlNames, parameterSymbols, parameterNames, boundIdentifiers, this.HasErrors);
                 result.CopyAttributes(this);
                 return result;
             }
@@ -10409,6 +10412,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             this.Visit(node.SqlDoOpt);
             this.Visit(node.SqlEmptyOpt);
             this.Visit(node.SqlEndOpt);
+            this.VisitList(node.boundIdentifiers);
             return null;
         }
         public override BoundNode? VisitSqlDoClause(BoundSqlDoClause node)
@@ -11723,7 +11727,8 @@ namespace Microsoft.CodeAnalysis.CSharp
             BoundSqlDoClause? sqlDoOpt = (BoundSqlDoClause?)this.Visit(node.SqlDoOpt);
             BoundSqlEmptyClause? sqlEmptyOpt = (BoundSqlEmptyClause?)this.Visit(node.SqlEmptyOpt);
             BoundSqlEndClause? sqlEndOpt = (BoundSqlEndClause?)this.Visit(node.SqlEndOpt);
-            return node.Update(node.SqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, querySymbols, node.querySqlNames, parameterSymbols, node.parameterNames);
+            ImmutableArray<BoundExpression> boundIdentifiers = this.VisitList(node.boundIdentifiers);
+            return node.Update(node.SqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, querySymbols, node.querySqlNames, parameterSymbols, node.parameterNames, boundIdentifiers);
         }
         public override BoundNode? VisitSqlDoClause(BoundSqlDoClause node)
         {
@@ -13836,7 +13841,8 @@ namespace Microsoft.CodeAnalysis.CSharp
             BoundSqlDoClause? sqlDoOpt = (BoundSqlDoClause?)this.Visit(node.SqlDoOpt);
             BoundSqlEmptyClause? sqlEmptyOpt = (BoundSqlEmptyClause?)this.Visit(node.SqlEmptyOpt);
             BoundSqlEndClause? sqlEndOpt = (BoundSqlEndClause?)this.Visit(node.SqlEndOpt);
-            return node.Update(node.SqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, querySymbols, node.querySqlNames, parameterSymbols, node.parameterNames);
+            ImmutableArray<BoundExpression> boundIdentifiers = this.VisitList(node.boundIdentifiers);
+            return node.Update(node.SqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, querySymbols, node.querySqlNames, parameterSymbols, node.parameterNames, boundIdentifiers);
         }
 
         public override BoundNode? VisitCatchBlock(BoundCatchBlock node)
@@ -16321,6 +16327,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             new TreeDumperNode("querySqlNames", node.querySqlNames, null),
             new TreeDumperNode("parameterSymbols", node.parameterSymbols, null),
             new TreeDumperNode("parameterNames", node.parameterNames, null),
+            new TreeDumperNode("boundIdentifiers", null, from x in node.boundIdentifiers select Visit(x, null)),
             new TreeDumperNode("hasErrors", node.HasErrors, null)
         }
         );

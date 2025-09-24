@@ -1366,8 +1366,13 @@
     <Field Name="querySqlNames" Type="ImmutableArray&lt;string&gt;"/>
     <Field Name="parameterSymbols" Type="ImmutableArray&lt;Symbol&gt;"/>
     <Field Name="parameterNames" Type="ImmutableArray&lt;string&gt;"/>
+    <Field Name="boundIdentifiers" Type="ImmutableArray&lt;BoundExpression&gt;"/>
   </Node>
 
+  <!--Node Name="BoundSqlBlock" Type="BoundStatement">
+    <Field Name=""
+  </Node-->
+  
   <Node Name="BoundSqlDoClause" Base="BoundStatement">
     <Field Name="Body" Type="BoundBlock"/>
   </Node>

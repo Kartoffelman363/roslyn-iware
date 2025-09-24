@@ -850,6 +850,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
         public override void VisitSqlStatement(SqlStatementSyntax node)
         {
+            Visit(node.SqlTextBlock);
             Visit(node.SqlDoClause);
             Visit(node.SqlEmptyClause);
             Visit(node.SqlEndClause);

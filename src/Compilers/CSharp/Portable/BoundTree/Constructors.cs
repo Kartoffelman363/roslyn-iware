@@ -632,9 +632,10 @@ namespace Microsoft.CodeAnalysis.CSharp
             ImmutableArray<Symbol> querySymbols,
             ImmutableArray<string> querySqlNames,
             ImmutableArray<Symbol> parameterSymbols,
-            ImmutableArray<string> parameterNames
+            ImmutableArray<string> parameterNames,
+            ImmutableArray<BoundExpression> boundIdentifiers
                 )
-            : this(syntax, sqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, querySymbols, querySqlNames, parameterSymbols, parameterNames, hasErrors: false)
+            : this(syntax, sqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, querySymbols, querySqlNames, parameterSymbols, parameterNames, boundIdentifiers, hasErrors: false)
         {
         }
     }

@@ -8954,6 +8954,7 @@ public sealed partial class SwitchExpressionArmSyntax : CSharpSyntaxNode
 public sealed partial class SqlStatementSyntax : StatementSyntax
 {
     private SyntaxNode? attributeLists;
+    private SqlTextBlockSyntax? sqlTextBlock;
     private SqlDoClauseSyntax? sqlDoClause;
     private SqlEmptyClauseSyntax? sqlEmptyClause;
     private SqlEndClauseSyntax? sqlEndClause;
@@ -8967,25 +8968,22 @@ public sealed partial class SqlStatementSyntax : StatementSyntax
 
     public SyntaxToken SqlKeyword => new SyntaxToken(this, ((InternalSyntax.SqlStatementSyntax)this.Green).sqlKeyword, GetChildPosition(1), GetChildIndex(1));
 
-    public SyntaxToken SqlOpenBraceToken => new SyntaxToken(this, ((InternalSyntax.SqlStatementSyntax)this.Green).sqlOpenBraceToken, GetChildPosition(2), GetChildIndex(2));
+    public SqlTextBlockSyntax SqlTextBlock => GetRed(ref this.sqlTextBlock, 2)!;
 
-    public SyntaxToken SqlTextToken => new SyntaxToken(this, ((InternalSyntax.SqlStatementSyntax)this.Green).sqlTextToken, GetChildPosition(3), GetChildIndex(3));
+    public SqlDoClauseSyntax? SqlDoClause => GetRed(ref this.sqlDoClause, 3);
 
-    public SyntaxToken SqlCloseBraceToken => new SyntaxToken(this, ((InternalSyntax.SqlStatementSyntax)this.Green).sqlCloseBraceToken, GetChildPosition(4), GetChildIndex(4));
+    public SqlEmptyClauseSyntax? SqlEmptyClause => GetRed(ref this.sqlEmptyClause, 4);
 
-    public SqlDoClauseSyntax? SqlDoClause => GetRed(ref this.sqlDoClause, 5);
-
-    public SqlEmptyClauseSyntax? SqlEmptyClause => GetRed(ref this.sqlEmptyClause, 6);
-
-    public SqlEndClauseSyntax? SqlEndClause => GetRed(ref this.sqlEndClause, 7);
+    public SqlEndClauseSyntax? SqlEndClause => GetRed(ref this.sqlEndClause, 5);
 
     internal override SyntaxNode? GetNodeSlot(int index)
         => index switch
         {
             0 => GetRedAtZero(ref this.attributeLists)!,
-            5 => GetRed(ref this.sqlDoClause, 5),
-            6 => GetRed(ref this.sqlEmptyClause, 6),
-            7 => GetRed(ref this.sqlEndClause, 7),
+            2 => GetRed(ref this.sqlTextBlock, 2)!,
+            3 => GetRed(ref this.sqlDoClause, 3),
+            4 => GetRed(ref this.sqlEmptyClause, 4),
+            5 => GetRed(ref this.sqlEndClause, 5),
             _ => null,
         };
 
@@ -8993,20 +8991,21 @@ public sealed partial class SqlStatementSyntax : StatementSyntax
         => index switch
         {
             0 => this.attributeLists,
-            5 => this.sqlDoClause,
-            6 => this.sqlEmptyClause,
-            7 => this.sqlEndClause,
+            2 => this.sqlTextBlock,
+            3 => this.sqlDoClause,
+            4 => this.sqlEmptyClause,
+            5 => this.sqlEndClause,
             _ => null,
         };
 
     public override void Accept(CSharpSyntaxVisitor visitor) => visitor.VisitSqlStatement(this);
     public override TResult? Accept<TResult>(CSharpSyntaxVisitor<TResult> visitor) where TResult : default => visitor.VisitSqlStatement(this);
 
-    public SqlStatementSyntax Update(SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken sqlKeyword, SyntaxToken sqlOpenBraceToken, SyntaxToken sqlTextToken, SyntaxToken sqlCloseBraceToken, SqlDoClauseSyntax? sqlDoClause, SqlEmptyClauseSyntax? sqlEmptyClause, SqlEndClauseSyntax? sqlEndClause)
+    public SqlStatementSyntax Update(SyntaxList<AttributeListSyntax> attributeLists, SyntaxToken sqlKeyword, SqlTextBlockSyntax sqlTextBlock, SqlDoClauseSyntax? sqlDoClause, SqlEmptyClauseSyntax? sqlEmptyClause, SqlEndClauseSyntax? sqlEndClause)
     {
-        if (attributeLists != this.AttributeLists || sqlKeyword != this.SqlKeyword || sqlOpenBraceToken != this.SqlOpenBraceToken || sqlTextToken != this.SqlTextToken || sqlCloseBraceToken != this.SqlCloseBraceToken || sqlDoClause != this.SqlDoClause || sqlEmptyClause != this.SqlEmptyClause || sqlEndClause != this.SqlEndClause)
+        if (attributeLists != this.AttributeLists || sqlKeyword != this.SqlKeyword || sqlTextBlock != this.SqlTextBlock || sqlDoClause != this.SqlDoClause || sqlEmptyClause != this.SqlEmptyClause || sqlEndClause != this.SqlEndClause)
         {
-            var newNode = SyntaxFactory.SqlStatement(attributeLists, sqlKeyword, sqlOpenBraceToken, sqlTextToken, sqlCloseBraceToken, sqlDoClause, sqlEmptyClause, sqlEndClause);
+            var newNode = SyntaxFactory.SqlStatement(attributeLists, sqlKeyword, sqlTextBlock, sqlDoClause, sqlEmptyClause, sqlEndClause);
             var annotations = GetAnnotations();
             return annotations?.Length > 0 ? newNode.WithAnnotations(annotations) : newNode;
         }
@@ -9015,17 +9014,140 @@ public sealed partial class SqlStatementSyntax : StatementSyntax
     }
 
     internal override StatementSyntax WithAttributeListsCore(SyntaxList<AttributeListSyntax> attributeLists) => WithAttributeLists(attributeLists);
-    public new SqlStatementSyntax WithAttributeLists(SyntaxList<AttributeListSyntax> attributeLists) => Update(attributeLists, this.SqlKeyword, this.SqlOpenBraceToken, this.SqlTextToken, this.SqlCloseBraceToken, this.SqlDoClause, this.SqlEmptyClause, this.SqlEndClause);
-    public SqlStatementSyntax WithSqlKeyword(SyntaxToken sqlKeyword) => Update(this.AttributeLists, sqlKeyword, this.SqlOpenBraceToken, this.SqlTextToken, this.SqlCloseBraceToken, this.SqlDoClause, this.SqlEmptyClause, this.SqlEndClause);
-    public SqlStatementSyntax WithSqlOpenBraceToken(SyntaxToken sqlOpenBraceToken) => Update(this.AttributeLists, this.SqlKeyword, sqlOpenBraceToken, this.SqlTextToken, this.SqlCloseBraceToken, this.SqlDoClause, this.SqlEmptyClause, this.SqlEndClause);
-    public SqlStatementSyntax WithSqlTextToken(SyntaxToken sqlTextToken) => Update(this.AttributeLists, this.SqlKeyword, this.SqlOpenBraceToken, sqlTextToken, this.SqlCloseBraceToken, this.SqlDoClause, this.SqlEmptyClause, this.SqlEndClause);
-    public SqlStatementSyntax WithSqlCloseBraceToken(SyntaxToken sqlCloseBraceToken) => Update(this.AttributeLists, this.SqlKeyword, this.SqlOpenBraceToken, this.SqlTextToken, sqlCloseBraceToken, this.SqlDoClause, this.SqlEmptyClause, this.SqlEndClause);
-    public SqlStatementSyntax WithSqlDoClause(SqlDoClauseSyntax? sqlDoClause) => Update(this.AttributeLists, this.SqlKeyword, this.SqlOpenBraceToken, this.SqlTextToken, this.SqlCloseBraceToken, sqlDoClause, this.SqlEmptyClause, this.SqlEndClause);
-    public SqlStatementSyntax WithSqlEmptyClause(SqlEmptyClauseSyntax? sqlEmptyClause) => Update(this.AttributeLists, this.SqlKeyword, this.SqlOpenBraceToken, this.SqlTextToken, this.SqlCloseBraceToken, this.SqlDoClause, sqlEmptyClause, this.SqlEndClause);
-    public SqlStatementSyntax WithSqlEndClause(SqlEndClauseSyntax? sqlEndClause) => Update(this.AttributeLists, this.SqlKeyword, this.SqlOpenBraceToken, this.SqlTextToken, this.SqlCloseBraceToken, this.SqlDoClause, this.SqlEmptyClause, sqlEndClause);
+    public new SqlStatementSyntax WithAttributeLists(SyntaxList<AttributeListSyntax> attributeLists) => Update(attributeLists, this.SqlKeyword, this.SqlTextBlock, this.SqlDoClause, this.SqlEmptyClause, this.SqlEndClause);
+    public SqlStatementSyntax WithSqlKeyword(SyntaxToken sqlKeyword) => Update(this.AttributeLists, sqlKeyword, this.SqlTextBlock, this.SqlDoClause, this.SqlEmptyClause, this.SqlEndClause);
+    public SqlStatementSyntax WithSqlTextBlock(SqlTextBlockSyntax sqlTextBlock) => Update(this.AttributeLists, this.SqlKeyword, sqlTextBlock, this.SqlDoClause, this.SqlEmptyClause, this.SqlEndClause);
+    public SqlStatementSyntax WithSqlDoClause(SqlDoClauseSyntax? sqlDoClause) => Update(this.AttributeLists, this.SqlKeyword, this.SqlTextBlock, sqlDoClause, this.SqlEmptyClause, this.SqlEndClause);
+    public SqlStatementSyntax WithSqlEmptyClause(SqlEmptyClauseSyntax? sqlEmptyClause) => Update(this.AttributeLists, this.SqlKeyword, this.SqlTextBlock, this.SqlDoClause, sqlEmptyClause, this.SqlEndClause);
+    public SqlStatementSyntax WithSqlEndClause(SqlEndClauseSyntax? sqlEndClause) => Update(this.AttributeLists, this.SqlKeyword, this.SqlTextBlock, this.SqlDoClause, this.SqlEmptyClause, sqlEndClause);
 
     internal override StatementSyntax AddAttributeListsCore(params AttributeListSyntax[] items) => AddAttributeLists(items);
     public new SqlStatementSyntax AddAttributeLists(params AttributeListSyntax[] items) => WithAttributeLists(this.AttributeLists.AddRange(items));
+    public SqlStatementSyntax AddSqlTextBlockSegments(params CSharpSyntaxNode[] items) => WithSqlTextBlock(this.SqlTextBlock.WithSegments(this.SqlTextBlock.Segments.AddRange(items)));
+}
+
+/// <remarks>
+/// <para>This node is associated with the following syntax kinds:</para>
+/// <list type="bullet">
+/// <item><description><see cref="SyntaxKind.SqlTextBlock"/></description></item>
+/// </list>
+/// </remarks>
+public sealed partial class SqlTextBlockSyntax : CSharpSyntaxNode
+{
+    private SyntaxNode? segments;
+
+    internal SqlTextBlockSyntax(InternalSyntax.CSharpSyntaxNode green, SyntaxNode? parent, int position)
+      : base(green, parent, position)
+    {
+    }
+
+    public SyntaxToken SqlOpenBraceToken => new SyntaxToken(this, ((InternalSyntax.SqlTextBlockSyntax)this.Green).sqlOpenBraceToken, Position, 0);
+
+    public SyntaxList<CSharpSyntaxNode> Segments => new SyntaxList<CSharpSyntaxNode>(GetRed(ref this.segments, 1));
+
+    public SyntaxToken SqlCloseBraceToken => new SyntaxToken(this, ((InternalSyntax.SqlTextBlockSyntax)this.Green).sqlCloseBraceToken, GetChildPosition(2), GetChildIndex(2));
+
+    internal override SyntaxNode? GetNodeSlot(int index) => index == 1 ? GetRed(ref this.segments, 1)! : null;
+
+    internal override SyntaxNode? GetCachedSlot(int index) => index == 1 ? this.segments : null;
+
+    public override void Accept(CSharpSyntaxVisitor visitor) => visitor.VisitSqlTextBlock(this);
+    public override TResult? Accept<TResult>(CSharpSyntaxVisitor<TResult> visitor) where TResult : default => visitor.VisitSqlTextBlock(this);
+
+    public SqlTextBlockSyntax Update(SyntaxToken sqlOpenBraceToken, SyntaxList<CSharpSyntaxNode> segments, SyntaxToken sqlCloseBraceToken)
+    {
+        if (sqlOpenBraceToken != this.SqlOpenBraceToken || segments != this.Segments || sqlCloseBraceToken != this.SqlCloseBraceToken)
+        {
+            var newNode = SyntaxFactory.SqlTextBlock(sqlOpenBraceToken, segments, sqlCloseBraceToken);
+            var annotations = GetAnnotations();
+            return annotations?.Length > 0 ? newNode.WithAnnotations(annotations) : newNode;
+        }
+
+        return this;
+    }
+
+    public SqlTextBlockSyntax WithSqlOpenBraceToken(SyntaxToken sqlOpenBraceToken) => Update(sqlOpenBraceToken, this.Segments, this.SqlCloseBraceToken);
+    public SqlTextBlockSyntax WithSegments(SyntaxList<CSharpSyntaxNode> segments) => Update(this.SqlOpenBraceToken, segments, this.SqlCloseBraceToken);
+    public SqlTextBlockSyntax WithSqlCloseBraceToken(SyntaxToken sqlCloseBraceToken) => Update(this.SqlOpenBraceToken, this.Segments, sqlCloseBraceToken);
+
+    public SqlTextBlockSyntax AddSegments(params CSharpSyntaxNode[] items) => WithSegments(this.Segments.AddRange(items));
+}
+
+/// <remarks>
+/// <para>This node is associated with the following syntax kinds:</para>
+/// <list type="bullet">
+/// <item><description><see cref="SyntaxKind.SqlTextSegment"/></description></item>
+/// </list>
+/// </remarks>
+public sealed partial class SqlTextSegmentSyntax : CSharpSyntaxNode
+{
+
+    internal SqlTextSegmentSyntax(InternalSyntax.CSharpSyntaxNode green, SyntaxNode? parent, int position)
+      : base(green, parent, position)
+    {
+    }
+
+    public SyntaxToken SqlTextToken => new SyntaxToken(this, ((InternalSyntax.SqlTextSegmentSyntax)this.Green).sqlTextToken, Position, 0);
+
+    internal override SyntaxNode? GetNodeSlot(int index) => null;
+
+    internal override SyntaxNode? GetCachedSlot(int index) => null;
+
+    public override void Accept(CSharpSyntaxVisitor visitor) => visitor.VisitSqlTextSegment(this);
+    public override TResult? Accept<TResult>(CSharpSyntaxVisitor<TResult> visitor) where TResult : default => visitor.VisitSqlTextSegment(this);
+
+    public SqlTextSegmentSyntax Update(SyntaxToken sqlTextToken)
+    {
+        if (sqlTextToken != this.SqlTextToken)
+        {
+            var newNode = SyntaxFactory.SqlTextSegment(sqlTextToken);
+            var annotations = GetAnnotations();
+            return annotations?.Length > 0 ? newNode.WithAnnotations(annotations) : newNode;
+        }
+
+        return this;
+    }
+
+    public SqlTextSegmentSyntax WithSqlTextToken(SyntaxToken sqlTextToken) => Update(sqlTextToken);
+}
+
+/// <remarks>
+/// <para>This node is associated with the following syntax kinds:</para>
+/// <list type="bullet">
+/// <item><description><see cref="SyntaxKind.SqlIdentifierSegment"/></description></item>
+/// </list>
+/// </remarks>
+public sealed partial class SqlIdentifierSegmentSyntax : CSharpSyntaxNode
+{
+    private IdentifierNameSyntax? sqlIdentifierToken;
+
+    internal SqlIdentifierSegmentSyntax(InternalSyntax.CSharpSyntaxNode green, SyntaxNode? parent, int position)
+      : base(green, parent, position)
+    {
+    }
+
+    public IdentifierNameSyntax SqlIdentifierToken => GetRedAtZero(ref this.sqlIdentifierToken)!;
+
+    internal override SyntaxNode? GetNodeSlot(int index) => index == 0 ? GetRedAtZero(ref this.sqlIdentifierToken)! : null;
+
+    internal override SyntaxNode? GetCachedSlot(int index) => index == 0 ? this.sqlIdentifierToken : null;
+
+    public override void Accept(CSharpSyntaxVisitor visitor) => visitor.VisitSqlIdentifierSegment(this);
+    public override TResult? Accept<TResult>(CSharpSyntaxVisitor<TResult> visitor) where TResult : default => visitor.VisitSqlIdentifierSegment(this);
+
+    public SqlIdentifierSegmentSyntax Update(IdentifierNameSyntax sqlIdentifierToken)
+    {
+        if (sqlIdentifierToken != this.SqlIdentifierToken)
+        {
+            var newNode = SyntaxFactory.SqlIdentifierSegment(sqlIdentifierToken);
+            var annotations = GetAnnotations();
+            return annotations?.Length > 0 ? newNode.WithAnnotations(annotations) : newNode;
+        }
+
+        return this;
+    }
+
+    public SqlIdentifierSegmentSyntax WithSqlIdentifierToken(IdentifierNameSyntax sqlIdentifierToken) => Update(sqlIdentifierToken);
 }
 
 /// <remarks>

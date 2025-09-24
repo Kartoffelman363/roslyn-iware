@@ -869,7 +869,9 @@ namespace Microsoft.CodeAnalysis.CSharp
         SqlDoClause = 8931,
         SqlEmptyClause = 8932,
         SqlEndClause = 8933,
-        SqlTextLiteralToken = 8934,
+        SqlTextBlock = 8934,
+        SqlTextSegment = 8935,
+        SqlIdentifierSegment = 8936,
 
         // patterns (for pattern-matching)
         DeclarationPattern = 9000,

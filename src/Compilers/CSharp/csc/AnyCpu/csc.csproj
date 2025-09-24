@@ -16,4 +16,10 @@
   </ItemGroup>
 
   <Import Project="..\CscCommandLine.projitems" Label="Shared" />
+
+  <Target Name="CopyToRoslynBinCore" AfterTargets="Build">
+    <!-- Only run for net9.0 -->
+    <Exec Condition="'$(TargetFramework)' == 'net9.0' and '$(Configuration)' == 'Debug'"
+          Command="xcopy /y /e /i &quot;$(TargetDir)*&quot; &quot;$(MSBuildProjectDirectory)\..\..\..\..\..\.dotnet\sdk\9.0.304-sql\Roslyn\bincore&quot;" />
+  </Target>
 </Project>

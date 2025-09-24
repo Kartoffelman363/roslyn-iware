@@ -244,7 +244,9 @@ namespace Microsoft.CodeAnalysis.CSharp
                 case SyntaxKind.UnderscoreToken:
                 case SyntaxKind.MultiLineRawStringLiteralToken:
                 case SyntaxKind.SingleLineRawStringLiteralToken:
-                case SyntaxKind.SqlTextLiteralToken:
+                case SyntaxKind.SqlTextBlock:
+                case SyntaxKind.SqlIdentifierSegment:
+                case SyntaxKind.SqlTextSegment:
                     return true;
                 default:
                     return false;

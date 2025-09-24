@@ -1916,7 +1916,16 @@ namespace Microsoft.CodeAnalysis.CSharp
             {
                 VisitSqlEndClause(node.SqlEndOpt);
             }
+            VisitSqlBoundIdentifiers(node.boundIdentifiers);
             return null;
+        }
+
+        private void VisitSqlBoundIdentifiers(ImmutableArray<BoundExpression> boundIdentifiers)
+        {
+            foreach (var identifier in boundIdentifiers)
+            {
+                Visit(identifier);
+            }
         }
 
         public override BoundNode VisitSqlDoClause(BoundSqlDoClause node)

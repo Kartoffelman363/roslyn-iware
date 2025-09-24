@@ -446,7 +446,16 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
             => InternalSyntaxFactory.SwitchExpressionArm(GenerateDiscardPattern(), null, InternalSyntaxFactory.Token(SyntaxKind.EqualsGreaterThanToken), GenerateIdentifierName());
 
         private static Syntax.InternalSyntax.SqlStatementSyntax GenerateSqlStatement()
-            => InternalSyntaxFactory.SqlStatement(new Microsoft.CodeAnalysis.Syntax.InternalSyntax.SyntaxList<Syntax.InternalSyntax.AttributeListSyntax>(), InternalSyntaxFactory.Token(SyntaxKind.SqlKeyword), InternalSyntaxFactory.Token(SyntaxKind.OpenBraceToken), InternalSyntaxFactory.Token(SyntaxKind.SqlTextLiteralToken), InternalSyntaxFactory.Token(SyntaxKind.CloseBraceToken), null, null, null);
+            => InternalSyntaxFactory.SqlStatement(new Microsoft.CodeAnalysis.Syntax.InternalSyntax.SyntaxList<Syntax.InternalSyntax.AttributeListSyntax>(), InternalSyntaxFactory.Token(SyntaxKind.SqlKeyword), GenerateSqlTextBlock(), null, null, null);
+
+        private static Syntax.InternalSyntax.SqlTextBlockSyntax GenerateSqlTextBlock()
+            => InternalSyntaxFactory.SqlTextBlock(InternalSyntaxFactory.Token(SyntaxKind.OpenBraceToken), new Microsoft.CodeAnalysis.Syntax.InternalSyntax.SyntaxList<Syntax.InternalSyntax.CSharpSyntaxNode>(), InternalSyntaxFactory.Token(SyntaxKind.CloseBraceToken));
+
+        private static Syntax.InternalSyntax.SqlTextSegmentSyntax GenerateSqlTextSegment()
+            => InternalSyntaxFactory.SqlTextSegment(InternalSyntaxFactory.Identifier("SqlTextToken"));
+
+        private static Syntax.InternalSyntax.SqlIdentifierSegmentSyntax GenerateSqlIdentifierSegment()
+            => InternalSyntaxFactory.SqlIdentifierSegment(GenerateIdentifierName());
 
         private static Syntax.InternalSyntax.SqlDoClauseSyntax GenerateSqlDoClause()
             => InternalSyntaxFactory.SqlDoClause(InternalSyntaxFactory.Token(SyntaxKind.SqlDoKeyword), GenerateBlock());
@@ -2548,12 +2557,42 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
 
             Assert.Equal(default, node.AttributeLists);
             Assert.Equal(SyntaxKind.SqlKeyword, node.SqlKeyword.Kind);
-            Assert.Equal(SyntaxKind.OpenBraceToken, node.SqlOpenBraceToken.Kind);
-            Assert.Equal(SyntaxKind.SqlTextLiteralToken, node.SqlTextToken.Kind);
-            Assert.Equal(SyntaxKind.CloseBraceToken, node.SqlCloseBraceToken.Kind);
+            Assert.NotNull(node.SqlTextBlock);
             Assert.Null(node.SqlDoClause);
             Assert.Null(node.SqlEmptyClause);
             Assert.Null(node.SqlEndClause);
+
+            AttachAndCheckDiagnostics(node);
+        }
+
+        [Fact]
+        public void TestSqlTextBlockFactoryAndProperties()
+        {
+            var node = GenerateSqlTextBlock();
+
+            Assert.Equal(SyntaxKind.OpenBraceToken, node.SqlOpenBraceToken.Kind);
+            Assert.Equal(default, node.Segments);
+            Assert.Equal(SyntaxKind.CloseBraceToken, node.SqlCloseBraceToken.Kind);
+
+            AttachAndCheckDiagnostics(node);
+        }
+
+        [Fact]
+        public void TestSqlTextSegmentFactoryAndProperties()
+        {
+            var node = GenerateSqlTextSegment();
+
+            Assert.Equal(SyntaxKind.IdentifierToken, node.SqlTextToken.Kind);
+
+            AttachAndCheckDiagnostics(node);
+        }
+
+        [Fact]
+        public void TestSqlIdentifierSegmentFactoryAndProperties()
+        {
+            var node = GenerateSqlIdentifierSegment();
+
+            Assert.NotNull(node.SqlIdentifierToken);
 
             AttachAndCheckDiagnostics(node);
         }
@@ -7792,6 +7831,84 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
         }
 
         [Fact]
+        public void TestSqlTextBlockTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlTextBlock();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlTextBlockIdentityRewriter()
+        {
+            var oldNode = GenerateSqlTextBlock();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlTextSegmentTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlTextSegment();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlTextSegmentIdentityRewriter()
+        {
+            var oldNode = GenerateSqlTextSegment();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlIdentifierSegmentTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlIdentifierSegment();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlIdentifierSegmentIdentityRewriter()
+        {
+            var oldNode = GenerateSqlIdentifierSegment();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
         public void TestSqlDoClauseTokenDeleteRewriter()
         {
             var oldNode = GenerateSqlDoClause();
@@ -10962,7 +11079,16 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
             => SyntaxFactory.SwitchExpressionArm(GenerateDiscardPattern(), default(WhenClauseSyntax), SyntaxFactory.Token(SyntaxKind.EqualsGreaterThanToken), GenerateIdentifierName());
 
         private static SqlStatementSyntax GenerateSqlStatement()
-            => SyntaxFactory.SqlStatement(new SyntaxList<AttributeListSyntax>(), SyntaxFactory.Token(SyntaxKind.SqlKeyword), SyntaxFactory.Token(SyntaxKind.OpenBraceToken), SyntaxFactory.Token(SyntaxKind.SqlTextLiteralToken), SyntaxFactory.Token(SyntaxKind.CloseBraceToken), default(SqlDoClauseSyntax), default(SqlEmptyClauseSyntax), default(SqlEndClauseSyntax));
+            => SyntaxFactory.SqlStatement(new SyntaxList<AttributeListSyntax>(), SyntaxFactory.Token(SyntaxKind.SqlKeyword), GenerateSqlTextBlock(), default(SqlDoClauseSyntax), default(SqlEmptyClauseSyntax), default(SqlEndClauseSyntax));
+
+        private static SqlTextBlockSyntax GenerateSqlTextBlock()
+            => SyntaxFactory.SqlTextBlock(SyntaxFactory.Token(SyntaxKind.OpenBraceToken), new SyntaxList<CSharpSyntaxNode>(), SyntaxFactory.Token(SyntaxKind.CloseBraceToken));
+
+        private static SqlTextSegmentSyntax GenerateSqlTextSegment()
+            => SyntaxFactory.SqlTextSegment(SyntaxFactory.Identifier("SqlTextToken"));
+
+        private static SqlIdentifierSegmentSyntax GenerateSqlIdentifierSegment()
+            => SyntaxFactory.SqlIdentifierSegment(GenerateIdentifierName());
 
         private static SqlDoClauseSyntax GenerateSqlDoClause()
             => SyntaxFactory.SqlDoClause(SyntaxFactory.Token(SyntaxKind.SqlDoKeyword), GenerateBlock());
@@ -13064,13 +13190,43 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
 
             Assert.Equal(default, node.AttributeLists);
             Assert.Equal(SyntaxKind.SqlKeyword, node.SqlKeyword.Kind());
-            Assert.Equal(SyntaxKind.OpenBraceToken, node.SqlOpenBraceToken.Kind());
-            Assert.Equal(SyntaxKind.SqlTextLiteralToken, node.SqlTextToken.Kind());
-            Assert.Equal(SyntaxKind.CloseBraceToken, node.SqlCloseBraceToken.Kind());
+            Assert.NotNull(node.SqlTextBlock);
             Assert.Null(node.SqlDoClause);
             Assert.Null(node.SqlEmptyClause);
             Assert.Null(node.SqlEndClause);
-            var newNode = node.WithAttributeLists(node.AttributeLists).WithSqlKeyword(node.SqlKeyword).WithSqlOpenBraceToken(node.SqlOpenBraceToken).WithSqlTextToken(node.SqlTextToken).WithSqlCloseBraceToken(node.SqlCloseBraceToken).WithSqlDoClause(node.SqlDoClause).WithSqlEmptyClause(node.SqlEmptyClause).WithSqlEndClause(node.SqlEndClause);
+            var newNode = node.WithAttributeLists(node.AttributeLists).WithSqlKeyword(node.SqlKeyword).WithSqlTextBlock(node.SqlTextBlock).WithSqlDoClause(node.SqlDoClause).WithSqlEmptyClause(node.SqlEmptyClause).WithSqlEndClause(node.SqlEndClause);
+            Assert.Equal(node, newNode);
+        }
+
+        [Fact]
+        public void TestSqlTextBlockFactoryAndProperties()
+        {
+            var node = GenerateSqlTextBlock();
+
+            Assert.Equal(SyntaxKind.OpenBraceToken, node.SqlOpenBraceToken.Kind());
+            Assert.Equal(default, node.Segments);
+            Assert.Equal(SyntaxKind.CloseBraceToken, node.SqlCloseBraceToken.Kind());
+            var newNode = node.WithSqlOpenBraceToken(node.SqlOpenBraceToken).WithSegments(node.Segments).WithSqlCloseBraceToken(node.SqlCloseBraceToken);
+            Assert.Equal(node, newNode);
+        }
+
+        [Fact]
+        public void TestSqlTextSegmentFactoryAndProperties()
+        {
+            var node = GenerateSqlTextSegment();
+
+            Assert.Equal(SyntaxKind.IdentifierToken, node.SqlTextToken.Kind());
+            var newNode = node.WithSqlTextToken(node.SqlTextToken);
+            Assert.Equal(node, newNode);
+        }
+
+        [Fact]
+        public void TestSqlIdentifierSegmentFactoryAndProperties()
+        {
+            var node = GenerateSqlIdentifierSegment();
+
+            Assert.NotNull(node.SqlIdentifierToken);
+            var newNode = node.WithSqlIdentifierToken(node.SqlIdentifierToken);
             Assert.Equal(node, newNode);
         }
 
@@ -18301,6 +18457,84 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
         public void TestSqlStatementIdentityRewriter()
         {
             var oldNode = GenerateSqlStatement();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlTextBlockTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlTextBlock();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlTextBlockIdentityRewriter()
+        {
+            var oldNode = GenerateSqlTextBlock();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlTextSegmentTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlTextSegment();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlTextSegmentIdentityRewriter()
+        {
+            var oldNode = GenerateSqlTextSegment();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlIdentifierSegmentTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlIdentifierSegment();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlIdentifierSegmentIdentityRewriter()
+        {
+            var oldNode = GenerateSqlIdentifierSegment();
             var rewriter = new IdentityRewriter();
             var newNode = rewriter.Visit(oldNode);
 

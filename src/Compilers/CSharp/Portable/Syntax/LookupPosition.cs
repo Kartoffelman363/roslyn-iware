@@ -432,7 +432,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax
                     }
                     return tryStmt.Block.CloseBraceToken;
                 case SyntaxKind.SqlStatement:
-                    return ((SqlStatementSyntax)statement).SqlCloseBraceToken;
+                    return ((SqlStatementSyntax)statement).SqlTextBlock.SqlCloseBraceToken;
                 case SyntaxKind.UnsafeStatement:
                     return ((UnsafeStatementSyntax)statement).Block.CloseBraceToken;
                 case SyntaxKind.UsingStatement:

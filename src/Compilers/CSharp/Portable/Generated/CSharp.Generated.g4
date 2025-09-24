@@ -560,7 +560,11 @@ return_statement
   ;
 
 sql_statement
-  : attribute_list* 'sql' '{' sql_text_literal_token '}' sql_do_clause? sql_empty_clause? sql_end_clause?
+  : attribute_list* 'sql' sql_text_block sql_do_clause? sql_empty_clause? sql_end_clause?
+  ;
+
+sql_text_block
+  : '{' c_sharp_syntax_node* '}'
   ;
 
 sql_do_clause
@@ -1806,8 +1810,12 @@ single_line_raw_string_literal_token
   : /* see lexical specification */
   ;
 
-sql_text_literal_token
-  : /* see lexical specification */
+sql_identifier_segment
+  : identifier_name
+  ;
+
+sql_text_segment
+  : syntax_token
   ;
 
 xml_text_literal_token

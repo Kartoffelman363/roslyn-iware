@@ -3252,30 +3252,47 @@ namespace Microsoft.CodeAnalysis.CSharp
         private BoundSqlStatement BindSqlStatement(SqlStatementSyntax node, BindingDiagnosticBag diagnostics)
         {
             Debug.Assert(node != null);
-            var sqlText = node.SqlTextToken.ValueText;
 
-            sqlText = ParseSql.getNamesFromSqlText(
-                out var outputNames,
-                out var inputNames,
-                sqlText);
-            inputNames = inputNames
-                    .Select(name => name.First() == '@' ? name.Substring(1) : name)
-                    .ToImmutableArray();
+            var sqlTextSegments = node.SqlTextBlock;
+
+            ParseSql.getNamesFromSqlText(
+                out var sqlOutputs,
+                out var sqlInputs,
+                sqlTextSegments.Segments,
+                out var sqlText);
 
             // TODO-aljaz symbols that are object or struct properties don't work eg. sql { select whatever [myObj.Whatever] ... }
-            var outputSymbols = GetSymbols(outputNames, out var outputSymbolsIsOk, out var outputSymbolsErrorMessage, true);
-            outputNames = outputSymbols.Select(s => s.Name).ToImmutableArray();
+            var outputSymbols = GetSymbols(
+                sqlOutputs,
+                out var outputSymbolsIsOk,
+                out var outputSymbolsErrorMessage,
+                diagnostics, true);
 
-            var inputSymbols = GetSymbols(inputNames, out var inputSymbolsIsOk, out var inputSymbolsErrorMessage);
+            var inputSymbols = GetSymbols(
+                sqlInputs,
+                out var inputSymbolsIsOk,
+                out var inputSymbolsErrorMessage,
+                diagnostics);
 
             if (!(outputSymbolsIsOk && inputSymbolsIsOk))
             {
                 diagnostics.Add(
                     ErrorCode.ERR_SQL_SymbolError,
-                    node.SqlTextToken.GetLocation(),
+                    sqlTextSegments.GetLocation(),
                     (outputSymbolsIsOk ? string.Empty : $"SQL output symbols error: {outputSymbolsErrorMessage} "),
                     (inputSymbolsIsOk ? string.Empty : $"SQL input symbols error: {inputSymbolsErrorMessage}"));
             }
+            var outputNames = outputSymbols.Select(s => s.Name).ToImmutableArray();
+            var inputNames = inputSymbols.Select(s => s.Name).ToImmutableArray();
+            var boundIdentifiersBuilder = ImmutableArray.CreateBuilder<BoundExpression>();
+            for (var i = 0; i < sqlInputs.Length; i++)
+            {
+                //var exprSyntax = SyntaxFactory.IdentifierName(sqlInputs[i].ToString().Trim());
+                boundIdentifiersBuilder.Add(BindExpression(sqlInputs[i].SqlIdentifierToken, diagnostics));
+                //var localSymbol = (LocalSymbol)inputSymbols[i];
+                //boundIdentifiersBuilder.Add(new BoundLocal(sqlInputs[i], localSymbol, null, localSymbol.Type));
+            }
+            var boundIdentifiers = boundIdentifiersBuilder.ToImmutableArray();
 
             var fileDir = Path.GetDirectoryName(Compilation.SyntaxTrees.First().FilePath);
 
@@ -3286,9 +3303,9 @@ namespace Microsoft.CodeAnalysis.CSharp
                     outputNames,
                     out var reason,
                     diagnostics,
-                    node.SqlTextToken.GetLocation()))
+                    node.SqlTextBlock.GetLocation()))
             {
-                diagnostics.Add(ErrorCode.ERR_SQL_VerificationError, node.SqlTextToken.GetLocation(), reason);
+                diagnostics.Add(ErrorCode.ERR_SQL_VerificationError, node.SqlTextBlock.GetLocation(), reason);
             }
 
             BoundSqlDoClause boundSqlDoClause = null;
@@ -3306,16 +3323,55 @@ namespace Microsoft.CodeAnalysis.CSharp
             {
                 sqlEndClause = BindSqlEndClause(node.SqlEndClause, diagnostics);
             }
-            return new BoundSqlStatement(node, sqlText, boundSqlDoClause, sqlEmptyClause, sqlEndClause, outputSymbols, outputNames, inputSymbols, inputNames);
+            return new BoundSqlStatement(node, sqlText, boundSqlDoClause, sqlEmptyClause, sqlEndClause, outputSymbols, outputNames, inputSymbols, inputNames, boundIdentifiers);
         }
 
-        private ImmutableArray<Symbol> GetSymbols(ImmutableArray<string> names, out bool isOk, out string errorMessage, bool skipIfNull = false)
+        private ImmutableArray<Symbol> GetSymbols(ImmutableArray<SqlIdentifierSegmentSyntax> names, out bool isOk, out string errorMessage, BindingDiagnosticBag diagnostics, bool skipIfNull = false)
+        {
+            return GetSymbols(
+                names.Select(it => it.ToString()).ToArray(),
+                out isOk,
+                out errorMessage,
+                diagnostics,
+                skipIfNull);
+        }
+
+        private ImmutableArray<Symbol> GetSymbols(ImmutableArray<SqlTextSegmentSyntax> names, out bool isOk, out string errorMessage, BindingDiagnosticBag diagnostics, bool skipIfNull = false)
+        {
+            return GetSymbols(
+                names.Select(it => it.ToString()).ToArray(),
+                out isOk,
+                out errorMessage,
+                diagnostics,
+                skipIfNull);
+        }
+
+        private ImmutableArray<Symbol> GetSymbols(string[] names, out bool isOk, out string errorMessage, BindingDiagnosticBag diagnostics, bool skipIfNull = false)
         {
             var useSiteInfo = CompoundUseSiteInfo<AssemblySymbol>.Discarded;
             var symbolsBuilder = ImmutableArray.CreateBuilder<Symbol>();
             errorMessage = string.Empty;
             isOk = true;
             foreach (var name in names)
+            {
+                var nameString = name.Trim();
+                var res = sqlLookupSymbol(nameString);
+                if (res is null && nameString.StartsWith("@"))
+                {
+                    res = sqlLookupSymbol(nameString.Substring(1));
+                }
+                if (res is null)
+                {
+                    if (skipIfNull)
+                        continue;
+                    errorMessage += $"Missing symbol for {nameString}; ";
+                    isOk = false;
+                }
+                symbolsBuilder.Add(res);
+            }
+            return symbolsBuilder.ToImmutableArray();
+
+            Symbol sqlLookupSymbol(string name)
             {
                 var lookupResult = LookupResult.GetInstance();
                 LookupSymbolsWithFallback(
@@ -3325,16 +3381,8 @@ namespace Microsoft.CodeAnalysis.CSharp
                     ref useSiteInfo);
                 var res = lookupResult.Symbols.FirstOrDefault();
                 lookupResult.Free();
-                if (res is null)
-                {
-                    if (skipIfNull)
-                        continue;
-                    errorMessage += $"Missing symbol for {name}; ";
-                    isOk = false;
-                }
-                symbolsBuilder.Add(res);
+                return res;
             }
-            return symbolsBuilder.ToImmutableArray();
         }
 
         private BoundSqlDoClause BindSqlDoClause(SqlDoClauseSyntax node, BindingDiagnosticBag diagnostics)

@@ -8,8 +8,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax
 {
     public partial class SqlStatementSyntax
     {
-        public SqlStatementSyntax Update(SyntaxToken sqlKeyword, SyntaxToken sqlOpenBraceToken, SyntaxToken sqlContents, SyntaxToken sqlCloseBraceToken, SqlDoClauseSyntax? sqlDo, SqlEmptyClauseSyntax? sqlEmpty, SqlEndClauseSyntax? sqlEnd)
-            => Update(AttributeLists, sqlKeyword, sqlOpenBraceToken, sqlContents, sqlCloseBraceToken, sqlDo, sqlEmpty, sqlEnd);
+        public SqlStatementSyntax Update(SyntaxToken sqlKeyword, SqlTextBlockSyntax sqlContents, SqlDoClauseSyntax? sqlDo, SqlEmptyClauseSyntax? sqlEmpty, SqlEndClauseSyntax? sqlEnd)
+            => Update(AttributeLists, sqlKeyword, sqlContents, sqlDo, sqlEmpty, sqlEnd);
     }
 }
 
@@ -18,7 +18,7 @@ namespace Microsoft.CodeAnalysis.CSharp
     public partial class SyntaxFactory
     {
         public static SqlStatementSyntax SqlStatement(
-            SyntaxToken sqlContents,
+            SqlTextBlockSyntax sqlContents,
             SqlDoClauseSyntax? sqlDo,
             SqlEmptyClauseSyntax? sqlEmpty,
             SqlEndClauseSyntax? sqlEnd)
@@ -27,12 +27,10 @@ namespace Microsoft.CodeAnalysis.CSharp
 
         public static SqlStatementSyntax SqlStatement(
             SyntaxToken sqlKeyword,
-            SyntaxToken sqlOpenBraceToken,
-            SyntaxToken sqlContents,
-            SyntaxToken sqlCloseBraceToken,
+            SqlTextBlockSyntax sqlContents,
             SqlDoClauseSyntax sqlDo,
             SqlEmptyClauseSyntax sqlEmpty,
             SqlEndClauseSyntax sqlEnd)
-            => SqlStatement(attributeLists: default, sqlKeyword, sqlOpenBraceToken, sqlContents, sqlCloseBraceToken, sqlDo, sqlEmpty, sqlEnd);
+            => SqlStatement(attributeLists: default, sqlKeyword, sqlContents, sqlDo, sqlEmpty, sqlEnd);
     }
 }

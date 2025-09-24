@@ -3,100 +3,49 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Immutable;
+using System.Text;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 //#pragma warning disable RS0016 // Add public types and members to the declared API
 
 namespace Microsoft.CodeAnalysis.CSharp.iWareSql
 {
+    //TODO-aljaz no longer used for parsing, raname
     internal static class ParseSql
     {
-        public static string getNamesFromSqlText(
-            out ImmutableArray<string> outputNames,
-            out ImmutableArray<string> inputNames,
-            string sqlText)
+        public static void getNamesFromSqlText(
+            out ImmutableArray<SqlTextSegmentSyntax> sqlOutputs,
+            out ImmutableArray<SqlIdentifierSegmentSyntax> sqlInputs,
+            SyntaxList<CSharpSyntaxNode> sqlSegments,
+            out string sqlText)
         {
-            var outputNamesBuilder = ImmutableArray.CreateBuilder<string>();
-            var inputNamesBuilder = ImmutableArray.CreateBuilder<string>();
-            for (int i = 0; i < sqlText.Length; i++)
+            var sqlOutputBuilder = ImmutableArray.CreateBuilder<SqlTextSegmentSyntax>();
+            var sqlInputBuilder = ImmutableArray.CreateBuilder<SqlIdentifierSegmentSyntax>();
+            var stringBuilder = new StringBuilder();
+
+            //TODO how to find if segment is query, input or output?
+            var isEven = false;
+            foreach (var sqlSegment in sqlSegments)
             {
-                var c = look(i);
-                // Single line comment
-                if (c == '-' && (c = look(++i)) == '-')
+                if (isEven)
                 {
-                    // read untill newline or eof
-                    while ((c = look(++i)) != '\n' && c != '\0') ;
-                    continue;
-                }
-                // Multi line comment
-                if (c == '/' && (c = look(++i)) == '*')
-                {
-                    // read untill */ or eof
-                    while (((c = look(++i)) != '*' || (c = look(i + 1)) != '/') && c != '\0') ;
-                    continue;
-                }
-                // if char is @ then input parameter
-                if (c == '@')
-                {
-                    var name = readParameterName(ref i);
-                    if (name != string.Empty)
+                    switch (sqlSegment)
                     {
-                        inputNamesBuilder.Add(name);
+                        case SqlIdentifierSegmentSyntax sqlIdentifierSegment:
+                            sqlInputBuilder.Add(sqlIdentifierSegment);
+                            break;
+                        case SqlTextSegmentSyntax sqlTextSegment:
+                            sqlOutputBuilder.Add(sqlTextSegment);
+                            break;
                     }
-                    continue;
                 }
-                // if char is [ then output parameter
-                if (c == '[')
-                {
-                    var name = readParameterName(ref i);
-                    if (name != string.Empty)
-                    {
-                        outputNamesBuilder.Add(name);
-                    }
-                    continue;
-                }
-            }
-            outputNames = outputNamesBuilder.ToImmutableArray();
-            inputNames = inputNamesBuilder.ToImmutable();
-            return sqlText;
-
-            char look(int index)
-            {
-                if (index > sqlText.Length || index < 0)
-                {
-                    return '\0';
-                }
-                return sqlText[index];
+                stringBuilder.Append(sqlSegment.ToFullString());
+                isEven = !isEven;
             }
 
-            string readParameterName(ref int i)
-            {
-                var readFromPos = i + 1;
-                var readPosLen = 0;
-                var c = look(readFromPos);
-                do
-                {
-                    readPosLen++;
-                    c = look(readFromPos + readPosLen);
-                } while (vaildChar(c));
-                if (c == '\0')
-                {
-                    return string.Empty;
-                }
-                if (readPosLen > 0)
-                {
-                    i += readPosLen + 1;
-                    return sqlText.Substring(readFromPos, readPosLen);
-                }
-                else
-                {
-                    return string.Empty;
-                }
-            }
-        }
-
-        private static bool vaildChar(char c)
-        {
-            return char.IsLetterOrDigit(c) || c == '_';
+            sqlText = stringBuilder.ToString();
+            sqlOutputs = sqlOutputBuilder.ToImmutableArray();
+            sqlInputs = sqlInputBuilder.ToImmutableArray();
         }
     }
 }
