@@ -3262,35 +3262,29 @@ namespace Microsoft.CodeAnalysis.CSharp
                 out var sqlText);
 
             // TODO-aljaz symbols that are object or struct properties don't work eg. sql { select whatever [myObj.Whatever] ... }
+            // TODO-aljaz set correct location, probably best to move error reporting into GetSymbols
             var outputSymbols = GetSymbols(
                 sqlOutputs,
                 out var outputSymbolsIsOk,
-                out var outputSymbolsErrorMessage,
-                diagnostics, true);
+                (message, location) => diagnostics.Add(
+                    ErrorCode.WRN_SQL_SymbolWarn,
+                    location,
+                    message));
 
             var inputSymbols = GetSymbols(
                 sqlInputs,
                 out var inputSymbolsIsOk,
-                out var inputSymbolsErrorMessage,
-                diagnostics);
-
-            if (!(outputSymbolsIsOk && inputSymbolsIsOk))
-            {
-                diagnostics.Add(
+                (message, location) => diagnostics.Add(
                     ErrorCode.ERR_SQL_SymbolError,
-                    sqlTextSegments.GetLocation(),
-                    (outputSymbolsIsOk ? string.Empty : $"SQL output symbols error: {outputSymbolsErrorMessage} "),
-                    (inputSymbolsIsOk ? string.Empty : $"SQL input symbols error: {inputSymbolsErrorMessage}"));
-            }
+                    location,
+                    message));
+
             var outputNames = outputSymbols.Select(s => s.Name).ToImmutableArray();
             var inputNames = inputSymbols.Select(s => s.Name).ToImmutableArray();
             var boundIdentifiersBuilder = ImmutableArray.CreateBuilder<BoundExpression>();
             for (var i = 0; i < sqlInputs.Length; i++)
             {
-                //var exprSyntax = SyntaxFactory.IdentifierName(sqlInputs[i].ToString().Trim());
                 boundIdentifiersBuilder.Add(BindExpression(sqlInputs[i].SqlIdentifierToken, diagnostics));
-                //var localSymbol = (LocalSymbol)inputSymbols[i];
-                //boundIdentifiersBuilder.Add(new BoundLocal(sqlInputs[i], localSymbol, null, localSymbol.Type));
             }
             var boundIdentifiers = boundIdentifiersBuilder.ToImmutableArray();
 
@@ -3326,35 +3320,42 @@ namespace Microsoft.CodeAnalysis.CSharp
             return new BoundSqlStatement(node, sqlText, boundSqlDoClause, sqlEmptyClause, sqlEndClause, outputSymbols, outputNames, inputSymbols, inputNames, boundIdentifiers);
         }
 
-        private ImmutableArray<Symbol> GetSymbols(ImmutableArray<SqlIdentifierSegmentSyntax> names, out bool isOk, out string errorMessage, BindingDiagnosticBag diagnostics, bool skipIfNull = false)
+        private ImmutableArray<Symbol> GetSymbols(
+            ImmutableArray<SqlIdentifierSegmentSyntax> names,
+            out bool isOk,
+            Action<string, Location> addError)
         {
             return GetSymbols(
                 names.Select(it => it.ToString()).ToArray(),
+                names.Select(it => it.Location).ToArray(),
                 out isOk,
-                out errorMessage,
-                diagnostics,
-                skipIfNull);
+                addError);
         }
 
-        private ImmutableArray<Symbol> GetSymbols(ImmutableArray<SqlTextSegmentSyntax> names, out bool isOk, out string errorMessage, BindingDiagnosticBag diagnostics, bool skipIfNull = false)
+        private ImmutableArray<Symbol> GetSymbols(
+            ImmutableArray<SqlTextSegmentSyntax> names,
+            out bool isOk,
+            Action<string, Location> addError)
         {
             return GetSymbols(
                 names.Select(it => it.ToString()).ToArray(),
+                names.Select(it => it.Location).ToArray(),
                 out isOk,
-                out errorMessage,
-                diagnostics,
-                skipIfNull);
+                addError);
         }
 
-        private ImmutableArray<Symbol> GetSymbols(string[] names, out bool isOk, out string errorMessage, BindingDiagnosticBag diagnostics, bool skipIfNull = false)
+        private ImmutableArray<Symbol> GetSymbols(
+            string[] names,
+            Location[] locations,
+            out bool isOk,
+            Action<string, Location> addError)
         {
             var useSiteInfo = CompoundUseSiteInfo<AssemblySymbol>.Discarded;
             var symbolsBuilder = ImmutableArray.CreateBuilder<Symbol>();
-            errorMessage = string.Empty;
             isOk = true;
-            foreach (var name in names)
+            for (var i = 0; i < names.Length; i++)
             {
-                var nameString = name.Trim();
+                var nameString = names[i].Trim();
                 var res = sqlLookupSymbol(nameString);
                 if (res is null && nameString.StartsWith("@"))
                 {
@@ -3362,10 +3363,9 @@ namespace Microsoft.CodeAnalysis.CSharp
                 }
                 if (res is null)
                 {
-                    if (skipIfNull)
-                        continue;
-                    errorMessage += $"Missing symbol for {nameString}; ";
+                    addError($"Missing symbol for {nameString}", locations[i]);
                     isOk = false;
+                    continue;
                 }
                 symbolsBuilder.Add(res);
             }

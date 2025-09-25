@@ -2426,7 +2426,9 @@ namespace Microsoft.CodeAnalysis.CSharp
         ERR_ExtensionBlockCollision = 9329,
         ERR_SQL_SymbolError = 11110,
         ERR_SQL_VerificationError = 11111,
-        ERR_SQL_VerifierMissingError = 11112
+        ERR_SQL_VerifierMissingError = 11112,
+
+        WRN_SQL_SymbolWarn = 12110,
 
         // Note: you will need to do the following after adding errors:
         //  1) Update ErrorFacts.IsBuildOnlyDiagnostic (src/Compilers/CSharp/Portable/Errors/ErrorFacts.cs)

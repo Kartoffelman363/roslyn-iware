@@ -2298,8 +2298,8 @@
         <note />
       </trans-unit>
       <trans-unit id="ERR_SQL_SymbolError">
-        <source>SQL Symbol error '{0}''{1}'</source>
-        <target state="new">SQL Symbol error '{0}''{1}'</target>
+        <source>SQL input symbols error: '{0}'</source>
+        <target state="new">SQL input symbols error: '{0}'</target>
         <note />
       </trans-unit>
       <trans-unit id="ERR_SQL_VerificationError">
@@ -3730,6 +3730,11 @@
       <trans-unit id="WRN_ReturnNotNullIfNotNull_Title">
         <source>Return value must be non-null because parameter is non-null.</source>
         <target state="translated">因為參數不是 null，所以傳回值必須非 null。</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="WRN_SQL_SymbolWarn">
+        <source>SQL output symbols warning: '{0}'</source>
+        <target state="new">SQL output symbols warning: '{0}'</target>
         <note />
       </trans-unit>
       <trans-unit id="WRN_ScopedMismatchInParameterOfOverrideOrImplementation">

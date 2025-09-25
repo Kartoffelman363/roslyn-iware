@@ -475,6 +475,7 @@ class X
                             Assert.Equal(8, ErrorFacts.GetWarningLevel(errorCode));
                             break;
                         case ErrorCode.WRN_InterceptsLocationAttributeUnsupportedSignature:
+                        case ErrorCode.WRN_SQL_SymbolWarn:
                             // These are the warnings introduced with the warning "wave" shipped with dotnet 9 and C# 13.
                             Assert.Equal(9, ErrorFacts.GetWarningLevel(errorCode));
                             break;
