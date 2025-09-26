@@ -3544,21 +3544,6 @@ namespace Microsoft.CodeAnalysis.CSharp
             return base.VisitWhileStatement(node);
         }
 
-        public override BoundNode? VisitSqlDoClause(BoundSqlDoClause node)
-        {
-            return base.VisitSqlDoClause(node);
-        }
-
-        public override BoundNode? VisitSqlEmptyClause(BoundSqlEmptyClause node)
-        {
-            return base.VisitSqlEmptyClause(node);
-        }
-
-        public override BoundNode? VisitSqlEndClause(BoundSqlEndClause node)
-        {
-            return base.VisitSqlEndClause(node);
-        }
-
         public override BoundNode? VisitWithExpression(BoundWithExpression withExpr)
         {
             Debug.Assert(!IsConditionalState);

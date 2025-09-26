@@ -88,7 +88,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
             IsEndOfFunctionPointerCallingConvention = 1 << 25,
             IsEndOfTypeSignature = 1 << 26,
             IsExpressionOrPatternInCaseLabelOfSwitchStatement = 1 << 27,
-            IsPatternInSwitchExpressionArm = 1 << 28
+            IsPatternInSwitchExpressionArm = 1 << 28,
+            IsEndOfSqlBlock = 1 << 29
         }
 
         private const int LastTerminatorState = (int)TerminatorState.IsPatternInSwitchExpressionArm;
@@ -9058,19 +9059,19 @@ done:
 
             // sqldo
             SqlDoClauseSyntax sqlDo = null;
-            if (this.CurrentToken.Kind == SyntaxKind.SqlDoKeyword)
+            if (CurrentToken != null && this.CurrentToken.Kind == SyntaxKind.SqlDoKeyword)
             {
                 sqlDo = ParseSqlDoClause();
             }
             // sqlempty
             SqlEmptyClauseSyntax sqlEmpty = null;
-            if (this.CurrentToken.Kind == SyntaxKind.SqlEmptyKeyword)
+            if (CurrentToken != null && this.CurrentToken.Kind == SyntaxKind.SqlEmptyKeyword)
             {
                 sqlEmpty = ParseSqlEmptyClause();
             }
             // sqlend
             SqlEndClauseSyntax sqlEnd = null;
-            if (this.CurrentToken.Kind == SyntaxKind.SqlEndKeyword)
+            if (CurrentToken != null && this.CurrentToken.Kind == SyntaxKind.SqlEndKeyword)
             {
                 sqlEnd = ParseSqlEndClause();
             }
@@ -9095,19 +9096,47 @@ done:
 
         private SqlTextBlockSyntax ParseSqlBlock()
         {
-            var openBrace = this.EatToken(SyntaxKind.OpenBraceToken);
+            //IMPORTANT
+            //IMPORTANT
+            //IMPORTANT
+            //IMPORTANT
+            //IMPORTANT
+            //IMPORTANT
+            //IMPORTANT
+            //IMPORTANT
+            //IMPORTANT
+            //IMPORTANT
+            //IMPORTANT
+            //TODO-aljaz implement use of TerminatorState.IsEndOfSqlBlock
+            //IMPORTANT
+            //IMPORTANT
+            //IMPORTANT
+            //IMPORTANT
+            //IMPORTANT
+            //IMPORTANT
+            //IMPORTANT
+            //IMPORTANT
+            //IMPORTANT
+            //IMPORTANT
+            //IMPORTANT
+            var openBrace = EatToken();
+            if (openBrace.IsMissing)
+            {
+                openBrace = SyntaxFactory.Token(SyntaxKind.OpenBraceToken);
+            }
             var sqlBlockBuilder = _pool.Allocate<CSharpSyntaxNode>();
             int braceDepth = 1;
             bool isComment = false;
             bool isOutput = false;
             bool appendOutputIdentifierToBlock = false;
             bool appendInputIdentifierToBlock = false;
-            while (CurrentToken is not null && CurrentToken.Kind != SyntaxKind.EndOfFileToken)
+            SyntaxToken token;
+            while (!(token = EatToken()).IsMissing && token.Kind != SyntaxKind.EndOfFileToken)
             {
                 //Ignore curly braces in SQL dash-dash comments --, until end of line
                 if (isComment)
                 {
-                    foreach (var trailing in CurrentToken.TrailingTrivia)
+                    foreach (var trailing in token.TrailingTrivia)
                     {
                         if (trailing.Kind == SyntaxKind.EndOfLineTrivia)
                         {
@@ -9116,7 +9145,7 @@ done:
                         }
                     }
                 }
-                else if (CurrentToken.Text[0] == '@')
+                else if (token.Text.Length > 1 && token.Text[0] == '@')
                 {
                     appendInputIdentifierToBlock = true;
                 }
@@ -9126,7 +9155,7 @@ done:
                     {
                         appendOutputIdentifierToBlock = true;
                     }
-                    switch (CurrentToken.Kind)
+                    switch (token.Kind)
                     {
                         case SyntaxKind.OpenBraceToken:
                             braceDepth++;
@@ -9157,24 +9186,27 @@ done:
                 //TODO-aljaz is there something like SyntaxFactory.IdentifierName, but for declaring variables that would allow me to create variables instead of output symbols being parsed just as text and bound later?
                 if (appendOutputIdentifierToBlock)
                 {
-                    sqlBlockBuilder.Add(_syntaxFactory.SqlOutputIdentifierSegment(CurrentToken));
+                    sqlBlockBuilder.Add(_syntaxFactory.SqlOutputIdentifierSegment(token));
                     appendOutputIdentifierToBlock = false;
                 }
                 else if (appendInputIdentifierToBlock)
                 {
                     sqlBlockBuilder.Add(_syntaxFactory.SqlInputIdentifierSegment(
-                    SyntaxFactory.IdentifierName(CurrentToken)));
+                    SyntaxFactory.IdentifierName(token)));
                     appendInputIdentifierToBlock = false;
                 }
                 else
                 {
-                    sqlBlockBuilder.Add(_syntaxFactory.SqlTextSegment(CurrentToken));
+                    sqlBlockBuilder.Add(_syntaxFactory.SqlTextSegment(token));
                 }
-                EatToken();
             }
-parseSqlEnd:
 
-            var closeBrace = TryEatToken(SyntaxKind.CloseBraceToken);
+parseSqlEnd:
+            var closeBrace = token;
+            if (closeBrace.IsMissing)
+            {
+                closeBrace = SyntaxFactory.Token(SyntaxKind.CloseBraceToken);
+            }
             return _syntaxFactory.SqlTextBlock(
                 openBrace,
                 _pool.ToListAndFree(sqlBlockBuilder),
@@ -9231,7 +9263,7 @@ parseSqlEnd:
             else
             {
                 var saveTerm = _termState;
-                _termState |= TerminatorState.IsEndOfTryBlock;
+                _termState |= TerminatorState.IsEndOfTryBlockTerminatorState.IsEndOfTryBlock;
                 tryBlock = this.ParsePossiblyAttributedBlock();
                 _termState = saveTerm;
             }

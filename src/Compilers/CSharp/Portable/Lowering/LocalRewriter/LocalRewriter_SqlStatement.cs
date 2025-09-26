@@ -63,17 +63,17 @@ namespace Microsoft.CodeAnalysis.CSharp
                 _sqlDoBoundBlock = null;
                 if (node.SqlDoOpt is not null)
                 {
-                    _sqlDoBoundBlock = (BoundBlock)localRewriter.VisitBlock(node.SqlDoOpt.Body);
+                    _sqlDoBoundBlock = (BoundBlock)localRewriter.VisitBlock(node.SqlDoOpt);
                 }
                 _sqlEmptyBoundBlock = null;
                 if (node.SqlEmptyOpt is not null)
                 {
-                    _sqlEmptyBoundBlock = (BoundBlock)localRewriter.VisitBlock(node.SqlEmptyOpt.Body);
+                    _sqlEmptyBoundBlock = (BoundBlock)localRewriter.VisitBlock(node.SqlEmptyOpt);
                 }
                 _sqlEndBoundBlock = null;
                 if (node.SqlEndOpt is not null)
                 {
-                    _sqlEndBoundBlock = (BoundBlock)localRewriter.VisitBlock(node.SqlEndOpt.Body);
+                    _sqlEndBoundBlock = (BoundBlock)localRewriter.VisitBlock(node.SqlEndOpt);
                 }
 
                 _querySymbols = node.querySymbols;

@@ -1906,44 +1906,42 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
             if (node.SqlDoOpt is not null)
             {
-                VisitSqlDoClause(node.SqlDoOpt);
+                VisitSqlDoBlock(node.SqlDoOpt);
             }
             if (node.SqlEmptyOpt is not null)
             {
-                VisitSqlEmptyClause(node.SqlEmptyOpt);
+                VisitSqlEmptyBlock(node.SqlEmptyOpt);
             }
             if (node.SqlEndOpt is not null)
             {
-                VisitSqlEndClause(node.SqlEndOpt);
+                VisitSqlEndBlock(node.SqlEndOpt);
             }
             VisitSqlBoundIdentifiers(node.boundIdentifiers);
             return null;
         }
-        
-        private void VisitSqlBoundIdentifiers(ImmutableArray<BoundExpression> boundIdentifiers)
+
+        //TODO-aljaz try equivalents of these functions are also referenced elsewhere -- ControllFlowPass.cs
+        protected virtual void VisitSqlBoundIdentifiers(ImmutableArray<BoundExpression> boundIdentifiers)
         {
             foreach (var identifier in boundIdentifiers)
             {
                 Visit(identifier);
             }
         }
-        
-        public override BoundNode VisitSqlDoClause(BoundSqlDoClause node)
+
+        protected virtual void VisitSqlDoBlock(BoundStatement sqlDoBlock)
         {
-            Visit(node.Body);
-            return null;
+            VisitStatement(sqlDoBlock);
         }
-        
-        public override BoundNode VisitSqlEmptyClause(BoundSqlEmptyClause node)
+
+        protected virtual void VisitSqlEmptyBlock(BoundStatement sqlEmptyBlock)
         {
-            Visit(node.Body);
-            return null;
+            VisitStatement(sqlEmptyBlock);
         }
-        
-        public override BoundNode VisitSqlEndClause(BoundSqlEndClause node)
+
+        protected virtual void VisitSqlEndBlock(BoundStatement sqlEndBlock)
         {
-            Visit(node.Body);
-            return null;
+            VisitStatement(sqlEndBlock);
         }
 
         protected Optional<TLocalState> NonMonotonicState;

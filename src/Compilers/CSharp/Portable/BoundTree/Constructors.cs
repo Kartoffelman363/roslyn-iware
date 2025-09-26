@@ -626,9 +626,9 @@ namespace Microsoft.CodeAnalysis.CSharp
         public BoundSqlStatement(
             SyntaxNode syntax,
             string sqlContents,
-            BoundSqlDoClause sqlDoOpt,
-            BoundSqlEmptyClause sqlEmptyOpt,
-            BoundSqlEndClause sqlEndOpt,
+            BoundBlock? sqlDoOpt,
+            BoundBlock? sqlEmptyOpt,
+            BoundBlock? sqlEndOpt,
             ImmutableArray<Symbol> querySymbols,
             ImmutableArray<string> querySqlNames,
             ImmutableArray<Symbol> parameterSymbols,

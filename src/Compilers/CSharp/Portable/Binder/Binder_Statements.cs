@@ -3303,21 +3303,9 @@ namespace Microsoft.CodeAnalysis.CSharp
                 diagnostics.Add(ErrorCode.ERR_SQL_VerificationError, node.SqlTextBlock.GetLocation(), reason);
             }
 
-            BoundSqlDoClause boundSqlDoClause = null;
-            if (node.SqlDoClause is not null)
-            {
-                boundSqlDoClause = BindSqlDoClause(node.SqlDoClause, diagnostics);
-            }
-            BoundSqlEmptyClause boundSqlEmptyClause = null;
-            if (node.SqlEmptyClause is not null)
-            {
-                boundSqlEmptyClause = BindSqlEmptyClause(node.SqlEmptyClause, diagnostics);
-            }
-            BoundSqlEndClause boundSqlEndClause = null;
-            if (node.SqlEndClause is not null)
-            {
-                boundSqlEndClause = BindSqlEndClause(node.SqlEndClause, diagnostics);
-            }
+            var boundSqlDoClause = node.SqlDoClause != null ? BindEmbeddedBlock(node.SqlDoClause.Block, diagnostics) : null;
+            var boundSqlEmptyClause = node.SqlEmptyClause != null ? BindEmbeddedBlock(node.SqlEmptyClause.Block, diagnostics) : null;
+            var boundSqlEndClause = node.SqlEndClause != null ? BindEmbeddedBlock(node.SqlEndClause.Block, diagnostics) : null;
             return new BoundSqlStatement(node, sqlText, boundSqlDoClause, boundSqlEmptyClause, boundSqlEndClause, outputSymbols, outputNames, inputSymbols, inputNames, boundInputIdentifiers);
         }
 
@@ -3384,45 +3372,6 @@ namespace Microsoft.CodeAnalysis.CSharp
                 lookupResult.Free();
                 return res;
             }
-        }
-
-        private BoundSqlDoClause BindSqlDoClause(SqlDoClauseSyntax node, BindingDiagnosticBag diagnostics)
-        {
-            Debug.Assert(node != null);
-            var sqlDoBinder = this.GetBinder(node);
-            Debug.Assert(sqlDoBinder != null);
-            return sqlDoBinder.BindSqlDoParts(diagnostics, sqlDoBinder);
-        }
-
-        private BoundSqlEmptyClause BindSqlEmptyClause(SqlEmptyClauseSyntax node, BindingDiagnosticBag diagnostics)
-        {
-            Debug.Assert(node != null);
-            var sqlEmptyBinder = this.GetBinder(node);
-            Debug.Assert(sqlEmptyBinder != null);
-            return sqlEmptyBinder.BindSqlEmptyParts(diagnostics, sqlEmptyBinder);
-        }
-
-        private BoundSqlEndClause BindSqlEndClause(SqlEndClauseSyntax node, BindingDiagnosticBag diagnostics)
-        {
-            Debug.Assert(node != null);
-            var sqlEndBinder = this.GetBinder(node);
-            Debug.Assert(sqlEndBinder != null);
-            return sqlEndBinder.BindSqlEndParts(diagnostics, sqlEndBinder);
-        }
-
-        internal virtual BoundSqlDoClause BindSqlDoParts(BindingDiagnosticBag diagnostics, Binder originalBinder)
-        {
-            return this.Next.BindSqlDoParts(diagnostics, originalBinder);
-        }
-
-        internal virtual BoundSqlEmptyClause BindSqlEmptyParts(BindingDiagnosticBag diagnostics, Binder originalBinder)
-        {
-            return this.Next.BindSqlEmptyParts(diagnostics, originalBinder);
-        }
-
-        internal virtual BoundSqlEndClause BindSqlEndParts(BindingDiagnosticBag diagnostics, Binder originalBinder)
-        {
-            return this.Next.BindSqlEndParts(diagnostics, originalBinder);
         }
 
         private ImmutableArray<BoundCatchBlock> BindCatchBlocks(SyntaxList<CatchClauseSyntax> catchClauses, BindingDiagnosticBag diagnostics)

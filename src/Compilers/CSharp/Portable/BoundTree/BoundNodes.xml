@@ -1359,30 +1359,14 @@
 
   <Node Name="BoundSqlStatement" Base="BoundStatement">
     <Field Name="SqlContents" Type="string"/>
-    <Field Name="SqlDoOpt" Type="BoundSqlDoClause?"/>
-    <Field Name="SqlEmptyOpt" Type="BoundSqlEmptyClause?"/>
-    <Field Name="SqlEndOpt" Type="BoundSqlEndClause?"/>
+    <Field Name="SqlDoOpt" Type="BoundBlock?"/>
+    <Field Name="SqlEmptyOpt" Type="BoundBlock?"/>
+    <Field Name="SqlEndOpt" Type="BoundBlock?"/>
     <Field Name="querySymbols" Type="ImmutableArray&lt;Symbol&gt;"/>
     <Field Name="querySqlNames" Type="ImmutableArray&lt;string&gt;"/>
     <Field Name="parameterSymbols" Type="ImmutableArray&lt;Symbol&gt;"/>
     <Field Name="parameterNames" Type="ImmutableArray&lt;string&gt;"/>
     <Field Name="boundIdentifiers" Type="ImmutableArray&lt;BoundExpression&gt;"/>
-  </Node>
-
-  <!--Node Name="BoundSqlBlock" Type="BoundStatement">
-    <Field Name=""
-  </Node-->
-  
-  <Node Name="BoundSqlDoClause" Base="BoundStatement">
-    <Field Name="Body" Type="BoundBlock"/>
-  </Node>
-
-  <Node Name="BoundSqlEmptyClause" Base="BoundStatement">
-    <Field Name="Body" Type="BoundBlock"/>
-  </Node>
-
-  <Node Name="BoundSqlEndClause" Base="BoundStatement">
-    <Field Name="Body" Type="BoundBlock"/>
   </Node>
 
   <Node Name="BoundCatchBlock" Base="BoundNode">

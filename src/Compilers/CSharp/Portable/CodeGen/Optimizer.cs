@@ -1693,9 +1693,9 @@ namespace Microsoft.CodeAnalysis.CSharp.CodeGen
         {
             EnsureOnlyEvalStack();
             var sqlText = node.SqlContents;
-            var sqlDoClause = (BoundSqlDoClause)this.Visit(node.SqlDoOpt);
-            var sqlEmptyClause = (BoundSqlEmptyClause)this.Visit(node.SqlEmptyOpt);
-            var sqlEndClause = (BoundSqlEndClause)this.Visit(node.SqlEndOpt);
+            var sqlDoClause = node.SqlDoOpt != null ? (BoundBlock)this.Visit(node.SqlDoOpt) : null;
+            var sqlEmptyClause = node.SqlEmptyOpt != null ? (BoundBlock)this.Visit(node.SqlEmptyOpt) : null;
+            var sqlEndClause = node.SqlEndOpt != null ? (BoundBlock)this.Visit(node.SqlEndOpt) : null;
             var boundIdentifiers = (ImmutableArray<BoundExpression>)this.VisitList(node.boundIdentifiers);
 
             return node.Update(
@@ -1709,27 +1709,6 @@ namespace Microsoft.CodeAnalysis.CSharp.CodeGen
                 node.parameterNames,
                 boundIdentifiers
             );
-        }
-        
-        public override BoundNode VisitSqlDoClause(BoundSqlDoClause node)
-        {
-            EnsureOnlyEvalStack();
-            var body = (BoundBlock)this.VisitBlock(node.Body);
-            return node.Update(body);
-        }
-        
-        public override BoundNode VisitSqlEmptyClause(BoundSqlEmptyClause node)
-        {
-            EnsureOnlyEvalStack();
-            var body = (BoundBlock)this.VisitBlock(node.Body);
-            return node.Update(body);
-        }
-        
-        public override BoundNode VisitSqlEndClause(BoundSqlEndClause node)
-        {
-            EnsureOnlyEvalStack();
-            var body = (BoundBlock)this.VisitBlock(node.Body);
-            return node.Update(body);
         }
 
         public override BoundNode VisitCatchBlock(BoundCatchBlock node)
