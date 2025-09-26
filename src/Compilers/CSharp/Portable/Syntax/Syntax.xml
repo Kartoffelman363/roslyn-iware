@@ -3029,9 +3029,13 @@
     <Kind Name="SqlTextSegment"/>
     <Field Name="SqlTextToken" Type="SyntaxToken"/>
   </Node>
-  <Node Name="SqlIdentifierSegmentSyntax" Base="CSharpSyntaxNode">
-    <Kind Name="SqlIdentifierSegment"/>
+  <Node Name="SqlInputIdentifierSegmentSyntax" Base="CSharpSyntaxNode">
+    <Kind Name="SqlInputIdentifierSegment"/>
     <Field Name="SqlIdentifierToken" Type="IdentifierNameSyntax"/>
+  </Node>
+  <Node Name="SqlOutputIdentifierSegmentSyntax" Base="CSharpSyntaxNode">
+    <Kind Name="SqlOutputIdentifierSegment"/>
+    <Field Name="SqlIdentifierToken" Type="SyntaxToken"/>
   </Node>
   <Node Name="SqlDoClauseSyntax" Base="CSharpSyntaxNode">
     <Kind Name="SqlDoClause"/>

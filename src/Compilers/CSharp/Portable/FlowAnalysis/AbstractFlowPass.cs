@@ -1919,7 +1919,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             VisitSqlBoundIdentifiers(node.boundIdentifiers);
             return null;
         }
-
+        
         private void VisitSqlBoundIdentifiers(ImmutableArray<BoundExpression> boundIdentifiers)
         {
             foreach (var identifier in boundIdentifiers)
@@ -1927,19 +1927,19 @@ namespace Microsoft.CodeAnalysis.CSharp
                 Visit(identifier);
             }
         }
-
+        
         public override BoundNode VisitSqlDoClause(BoundSqlDoClause node)
         {
             Visit(node.Body);
             return null;
         }
-
+        
         public override BoundNode VisitSqlEmptyClause(BoundSqlEmptyClause node)
         {
             Visit(node.Body);
             return null;
         }
-
+        
         public override BoundNode VisitSqlEndClause(BoundSqlEndClause node)
         {
             Visit(node.Body);

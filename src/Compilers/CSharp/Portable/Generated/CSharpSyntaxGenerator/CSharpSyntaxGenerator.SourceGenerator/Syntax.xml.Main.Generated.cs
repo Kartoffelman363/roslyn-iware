@@ -459,8 +459,11 @@ public partial class CSharpSyntaxVisitor<TResult>
     /// <summary>Called when the visitor visits a SqlTextSegmentSyntax node.</summary>
     public virtual TResult? VisitSqlTextSegment(SqlTextSegmentSyntax node) => this.DefaultVisit(node);
 
-    /// <summary>Called when the visitor visits a SqlIdentifierSegmentSyntax node.</summary>
-    public virtual TResult? VisitSqlIdentifierSegment(SqlIdentifierSegmentSyntax node) => this.DefaultVisit(node);
+    /// <summary>Called when the visitor visits a SqlInputIdentifierSegmentSyntax node.</summary>
+    public virtual TResult? VisitSqlInputIdentifierSegment(SqlInputIdentifierSegmentSyntax node) => this.DefaultVisit(node);
+
+    /// <summary>Called when the visitor visits a SqlOutputIdentifierSegmentSyntax node.</summary>
+    public virtual TResult? VisitSqlOutputIdentifierSegment(SqlOutputIdentifierSegmentSyntax node) => this.DefaultVisit(node);
 
     /// <summary>Called when the visitor visits a SqlDoClauseSyntax node.</summary>
     public virtual TResult? VisitSqlDoClause(SqlDoClauseSyntax node) => this.DefaultVisit(node);
@@ -1224,8 +1227,11 @@ public partial class CSharpSyntaxVisitor
     /// <summary>Called when the visitor visits a SqlTextSegmentSyntax node.</summary>
     public virtual void VisitSqlTextSegment(SqlTextSegmentSyntax node) => this.DefaultVisit(node);
 
-    /// <summary>Called when the visitor visits a SqlIdentifierSegmentSyntax node.</summary>
-    public virtual void VisitSqlIdentifierSegment(SqlIdentifierSegmentSyntax node) => this.DefaultVisit(node);
+    /// <summary>Called when the visitor visits a SqlInputIdentifierSegmentSyntax node.</summary>
+    public virtual void VisitSqlInputIdentifierSegment(SqlInputIdentifierSegmentSyntax node) => this.DefaultVisit(node);
+
+    /// <summary>Called when the visitor visits a SqlOutputIdentifierSegmentSyntax node.</summary>
+    public virtual void VisitSqlOutputIdentifierSegment(SqlOutputIdentifierSegmentSyntax node) => this.DefaultVisit(node);
 
     /// <summary>Called when the visitor visits a SqlDoClauseSyntax node.</summary>
     public virtual void VisitSqlDoClause(SqlDoClauseSyntax node) => this.DefaultVisit(node);
@@ -1989,8 +1995,11 @@ public partial class CSharpSyntaxRewriter : CSharpSyntaxVisitor<SyntaxNode?>
     public override SyntaxNode? VisitSqlTextSegment(SqlTextSegmentSyntax node)
         => node.Update(VisitToken(node.SqlTextToken));
 
-    public override SyntaxNode? VisitSqlIdentifierSegment(SqlIdentifierSegmentSyntax node)
+    public override SyntaxNode? VisitSqlInputIdentifierSegment(SqlInputIdentifierSegmentSyntax node)
         => node.Update((IdentifierNameSyntax?)Visit(node.SqlIdentifierToken) ?? throw new ArgumentNullException("sqlIdentifierToken"));
+
+    public override SyntaxNode? VisitSqlOutputIdentifierSegment(SqlOutputIdentifierSegmentSyntax node)
+        => node.Update(VisitToken(node.SqlIdentifierToken));
 
     public override SyntaxNode? VisitSqlDoClause(SqlDoClauseSyntax node)
         => node.Update(VisitToken(node.SqlDoKeyword), (BlockSyntax?)Visit(node.Block) ?? throw new ArgumentNullException("block"));
@@ -4759,11 +4768,17 @@ public static partial class SyntaxFactory
         return (SqlTextSegmentSyntax)Syntax.InternalSyntax.SyntaxFactory.SqlTextSegment((Syntax.InternalSyntax.SyntaxToken)sqlTextToken.Node!).CreateRed();
     }
 
-    /// <summary>Creates a new SqlIdentifierSegmentSyntax instance.</summary>
-    public static SqlIdentifierSegmentSyntax SqlIdentifierSegment(IdentifierNameSyntax sqlIdentifierToken)
+    /// <summary>Creates a new SqlInputIdentifierSegmentSyntax instance.</summary>
+    public static SqlInputIdentifierSegmentSyntax SqlInputIdentifierSegment(IdentifierNameSyntax sqlIdentifierToken)
     {
         if (sqlIdentifierToken == null) throw new ArgumentNullException(nameof(sqlIdentifierToken));
-        return (SqlIdentifierSegmentSyntax)Syntax.InternalSyntax.SyntaxFactory.SqlIdentifierSegment((Syntax.InternalSyntax.IdentifierNameSyntax)sqlIdentifierToken.Green).CreateRed();
+        return (SqlInputIdentifierSegmentSyntax)Syntax.InternalSyntax.SyntaxFactory.SqlInputIdentifierSegment((Syntax.InternalSyntax.IdentifierNameSyntax)sqlIdentifierToken.Green).CreateRed();
+    }
+
+    /// <summary>Creates a new SqlOutputIdentifierSegmentSyntax instance.</summary>
+    public static SqlOutputIdentifierSegmentSyntax SqlOutputIdentifierSegment(SyntaxToken sqlIdentifierToken)
+    {
+        return (SqlOutputIdentifierSegmentSyntax)Syntax.InternalSyntax.SyntaxFactory.SqlOutputIdentifierSegment((Syntax.InternalSyntax.SyntaxToken)sqlIdentifierToken.Node!).CreateRed();
     }
 
     /// <summary>Creates a new SqlDoClauseSyntax instance.</summary>

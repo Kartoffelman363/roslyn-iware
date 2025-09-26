@@ -22,6 +22,11 @@ using RoslynLog = Microsoft.CodeAnalysis.Internal.Log;
 
 // Setting the title can fail if the process is run without a window, such
 // as when launched detached from nodejs
+
+#if DEBUG
+Debugger.Launch();
+#endif
+
 try
 {
     Console.Title = "Microsoft.CodeAnalysis.LanguageServer";

@@ -1810,8 +1810,12 @@ single_line_raw_string_literal_token
   : /* see lexical specification */
   ;
 
-sql_identifier_segment
+sql_input_identifier_segment
   : identifier_name
+  ;
+
+sql_output_identifier_segment
+  : syntax_token
   ;
 
 sql_text_segment

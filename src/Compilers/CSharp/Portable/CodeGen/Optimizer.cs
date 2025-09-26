@@ -1710,21 +1710,21 @@ namespace Microsoft.CodeAnalysis.CSharp.CodeGen
                 boundIdentifiers
             );
         }
-
+        
         public override BoundNode VisitSqlDoClause(BoundSqlDoClause node)
         {
             EnsureOnlyEvalStack();
             var body = (BoundBlock)this.VisitBlock(node.Body);
             return node.Update(body);
         }
-
+        
         public override BoundNode VisitSqlEmptyClause(BoundSqlEmptyClause node)
         {
             EnsureOnlyEvalStack();
             var body = (BoundBlock)this.VisitBlock(node.Body);
             return node.Update(body);
         }
-
+        
         public override BoundNode VisitSqlEndClause(BoundSqlEndClause node)
         {
             EnsureOnlyEvalStack();

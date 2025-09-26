@@ -9114,14 +9114,14 @@ public sealed partial class SqlTextSegmentSyntax : CSharpSyntaxNode
 /// <remarks>
 /// <para>This node is associated with the following syntax kinds:</para>
 /// <list type="bullet">
-/// <item><description><see cref="SyntaxKind.SqlIdentifierSegment"/></description></item>
+/// <item><description><see cref="SyntaxKind.SqlInputIdentifierSegment"/></description></item>
 /// </list>
 /// </remarks>
-public sealed partial class SqlIdentifierSegmentSyntax : CSharpSyntaxNode
+public sealed partial class SqlInputIdentifierSegmentSyntax : CSharpSyntaxNode
 {
     private IdentifierNameSyntax? sqlIdentifierToken;
 
-    internal SqlIdentifierSegmentSyntax(InternalSyntax.CSharpSyntaxNode green, SyntaxNode? parent, int position)
+    internal SqlInputIdentifierSegmentSyntax(InternalSyntax.CSharpSyntaxNode green, SyntaxNode? parent, int position)
       : base(green, parent, position)
     {
     }
@@ -9132,14 +9132,14 @@ public sealed partial class SqlIdentifierSegmentSyntax : CSharpSyntaxNode
 
     internal override SyntaxNode? GetCachedSlot(int index) => index == 0 ? this.sqlIdentifierToken : null;
 
-    public override void Accept(CSharpSyntaxVisitor visitor) => visitor.VisitSqlIdentifierSegment(this);
-    public override TResult? Accept<TResult>(CSharpSyntaxVisitor<TResult> visitor) where TResult : default => visitor.VisitSqlIdentifierSegment(this);
+    public override void Accept(CSharpSyntaxVisitor visitor) => visitor.VisitSqlInputIdentifierSegment(this);
+    public override TResult? Accept<TResult>(CSharpSyntaxVisitor<TResult> visitor) where TResult : default => visitor.VisitSqlInputIdentifierSegment(this);
 
-    public SqlIdentifierSegmentSyntax Update(IdentifierNameSyntax sqlIdentifierToken)
+    public SqlInputIdentifierSegmentSyntax Update(IdentifierNameSyntax sqlIdentifierToken)
     {
         if (sqlIdentifierToken != this.SqlIdentifierToken)
         {
-            var newNode = SyntaxFactory.SqlIdentifierSegment(sqlIdentifierToken);
+            var newNode = SyntaxFactory.SqlInputIdentifierSegment(sqlIdentifierToken);
             var annotations = GetAnnotations();
             return annotations?.Length > 0 ? newNode.WithAnnotations(annotations) : newNode;
         }
@@ -9147,7 +9147,45 @@ public sealed partial class SqlIdentifierSegmentSyntax : CSharpSyntaxNode
         return this;
     }
 
-    public SqlIdentifierSegmentSyntax WithSqlIdentifierToken(IdentifierNameSyntax sqlIdentifierToken) => Update(sqlIdentifierToken);
+    public SqlInputIdentifierSegmentSyntax WithSqlIdentifierToken(IdentifierNameSyntax sqlIdentifierToken) => Update(sqlIdentifierToken);
+}
+
+/// <remarks>
+/// <para>This node is associated with the following syntax kinds:</para>
+/// <list type="bullet">
+/// <item><description><see cref="SyntaxKind.SqlOutputIdentifierSegment"/></description></item>
+/// </list>
+/// </remarks>
+public sealed partial class SqlOutputIdentifierSegmentSyntax : CSharpSyntaxNode
+{
+
+    internal SqlOutputIdentifierSegmentSyntax(InternalSyntax.CSharpSyntaxNode green, SyntaxNode? parent, int position)
+      : base(green, parent, position)
+    {
+    }
+
+    public SyntaxToken SqlIdentifierToken => new SyntaxToken(this, ((InternalSyntax.SqlOutputIdentifierSegmentSyntax)this.Green).sqlIdentifierToken, Position, 0);
+
+    internal override SyntaxNode? GetNodeSlot(int index) => null;
+
+    internal override SyntaxNode? GetCachedSlot(int index) => null;
+
+    public override void Accept(CSharpSyntaxVisitor visitor) => visitor.VisitSqlOutputIdentifierSegment(this);
+    public override TResult? Accept<TResult>(CSharpSyntaxVisitor<TResult> visitor) where TResult : default => visitor.VisitSqlOutputIdentifierSegment(this);
+
+    public SqlOutputIdentifierSegmentSyntax Update(SyntaxToken sqlIdentifierToken)
+    {
+        if (sqlIdentifierToken != this.SqlIdentifierToken)
+        {
+            var newNode = SyntaxFactory.SqlOutputIdentifierSegment(sqlIdentifierToken);
+            var annotations = GetAnnotations();
+            return annotations?.Length > 0 ? newNode.WithAnnotations(annotations) : newNode;
+        }
+
+        return this;
+    }
+
+    public SqlOutputIdentifierSegmentSyntax WithSqlIdentifierToken(SyntaxToken sqlIdentifierToken) => Update(sqlIdentifierToken);
 }
 
 /// <remarks>

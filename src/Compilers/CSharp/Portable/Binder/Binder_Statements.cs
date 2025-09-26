@@ -3286,10 +3286,11 @@ namespace Microsoft.CodeAnalysis.CSharp
             {
                 boundIdentifiersBuilder.Add(BindExpression(sqlInputs[i].SqlIdentifierToken, diagnostics));
             }
-            var boundIdentifiers = boundIdentifiersBuilder.ToImmutableArray();
+            var boundInputIdentifiers = boundIdentifiersBuilder.ToImmutableArray();
 
             var fileDir = Path.GetDirectoryName(Compilation.SyntaxTrees.First().FilePath);
 
+            //TODO-aljaz mark exact spot in SQL causing errors
             if (!VerifySql.Verify(
                     fileDir,
                     sqlText,
@@ -3307,21 +3308,21 @@ namespace Microsoft.CodeAnalysis.CSharp
             {
                 boundSqlDoClause = BindSqlDoClause(node.SqlDoClause, diagnostics);
             }
-            BoundSqlEmptyClause sqlEmptyClause = null;
+            BoundSqlEmptyClause boundSqlEmptyClause = null;
             if (node.SqlEmptyClause is not null)
             {
-                sqlEmptyClause = BindSqlEmptyClause(node.SqlEmptyClause, diagnostics);
+                boundSqlEmptyClause = BindSqlEmptyClause(node.SqlEmptyClause, diagnostics);
             }
-            BoundSqlEndClause sqlEndClause = null;
+            BoundSqlEndClause boundSqlEndClause = null;
             if (node.SqlEndClause is not null)
             {
-                sqlEndClause = BindSqlEndClause(node.SqlEndClause, diagnostics);
+                boundSqlEndClause = BindSqlEndClause(node.SqlEndClause, diagnostics);
             }
-            return new BoundSqlStatement(node, sqlText, boundSqlDoClause, sqlEmptyClause, sqlEndClause, outputSymbols, outputNames, inputSymbols, inputNames, boundIdentifiers);
+            return new BoundSqlStatement(node, sqlText, boundSqlDoClause, boundSqlEmptyClause, boundSqlEndClause, outputSymbols, outputNames, inputSymbols, inputNames, boundInputIdentifiers);
         }
 
         private ImmutableArray<Symbol> GetSymbols(
-            ImmutableArray<SqlIdentifierSegmentSyntax> names,
+            ImmutableArray<SqlInputIdentifierSegmentSyntax> names,
             out bool isOk,
             Action<string, Location> addError)
         {
@@ -3333,7 +3334,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         }
 
         private ImmutableArray<Symbol> GetSymbols(
-            ImmutableArray<SqlTextSegmentSyntax> names,
+            ImmutableArray<SqlOutputIdentifierSegmentSyntax> names,
             out bool isOk,
             Action<string, Location> addError)
         {

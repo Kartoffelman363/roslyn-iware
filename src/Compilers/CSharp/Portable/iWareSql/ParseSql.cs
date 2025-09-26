@@ -14,33 +14,28 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
     internal static class ParseSql
     {
         public static void getNamesFromSqlText(
-            out ImmutableArray<SqlTextSegmentSyntax> sqlOutputs,
-            out ImmutableArray<SqlIdentifierSegmentSyntax> sqlInputs,
+            out ImmutableArray<SqlOutputIdentifierSegmentSyntax> sqlOutputs,
+            out ImmutableArray<SqlInputIdentifierSegmentSyntax> sqlInputs,
             SyntaxList<CSharpSyntaxNode> sqlSegments,
             out string sqlText)
         {
-            var sqlOutputBuilder = ImmutableArray.CreateBuilder<SqlTextSegmentSyntax>();
-            var sqlInputBuilder = ImmutableArray.CreateBuilder<SqlIdentifierSegmentSyntax>();
+            var sqlOutputBuilder = ImmutableArray.CreateBuilder<SqlOutputIdentifierSegmentSyntax>();
+            var sqlInputBuilder = ImmutableArray.CreateBuilder<SqlInputIdentifierSegmentSyntax>();
             var stringBuilder = new StringBuilder();
 
             //TODO how to find if segment is query, input or output?
-            var isEven = false;
             foreach (var sqlSegment in sqlSegments)
             {
-                if (isEven)
+                switch (sqlSegment)
                 {
-                    switch (sqlSegment)
-                    {
-                        case SqlIdentifierSegmentSyntax sqlIdentifierSegment:
-                            sqlInputBuilder.Add(sqlIdentifierSegment);
-                            break;
-                        case SqlTextSegmentSyntax sqlTextSegment:
-                            sqlOutputBuilder.Add(sqlTextSegment);
-                            break;
-                    }
+                    case SqlInputIdentifierSegmentSyntax sqlIdentifierSegment:
+                        sqlInputBuilder.Add(sqlIdentifierSegment);
+                        break;
+                    case SqlOutputIdentifierSegmentSyntax sqlTextSegment:
+                        sqlOutputBuilder.Add(sqlTextSegment);
+                        break;
                 }
                 stringBuilder.Append(sqlSegment.ToFullString());
-                isEven = !isEven;
             }
 
             sqlText = stringBuilder.ToString();

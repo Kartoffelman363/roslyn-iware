@@ -9046,14 +9046,14 @@ done:
 
             // sql
             var sqlKeyword = this.EatToken(SyntaxKind.SqlKeyword);
-            SqlTextBlockSyntax sqlContents = null;
-            if (this.CurrentToken.Kind == SyntaxKind.OpenBraceToken)
+            SqlTextBlockSyntax sqlContents;
+            if (sqlKeyword.IsMissing || CurrentToken.Kind != SyntaxKind.OpenBraceToken)
             {
-                sqlContents = this.ParseSqlBlock();
+                sqlContents = missingBlock();
             }
             else
             {
-                Debug.Fail("sql statement cannot be empty");
+                sqlContents = this.ParseSqlBlock();
             }
 
             // sqldo
@@ -9082,23 +9082,27 @@ done:
                 sqlDo,
                 sqlEmpty,
                 sqlEnd);
+
+            SqlTextBlockSyntax missingBlock()
+            {
+                var sqlBlockBuilder = _pool.Allocate<CSharpSyntaxNode>();
+                return _syntaxFactory.SqlTextBlock(
+                    SyntaxFactory.MissingToken(SyntaxKind.OpenBraceToken),
+                    segments: _pool.ToListAndFree(sqlBlockBuilder),
+                    SyntaxFactory.MissingToken(SyntaxKind.CloseBraceToken));
+            }
         }
 
         private SqlTextBlockSyntax ParseSqlBlock()
         {
             var openBrace = this.EatToken(SyntaxKind.OpenBraceToken);
             var sqlBlockBuilder = _pool.Allocate<CSharpSyntaxNode>();
-            var pooled = PooledStringBuilder.GetInstance();
-            var stringBuilder = pooled.Builder;
             int braceDepth = 1;
             bool isComment = false;
             bool isOutput = false;
-            bool isInput = false;
-            bool appendTokenToBlock = false;
-            bool appendIdentifierToBlock = false;
-            bool skipStringAppend = false;
-            string trailingTrivia = "";
-            while (CurrentToken.Kind != SyntaxKind.EndOfFileToken)
+            bool appendOutputIdentifierToBlock = false;
+            bool appendInputIdentifierToBlock = false;
+            while (CurrentToken is not null && CurrentToken.Kind != SyntaxKind.EndOfFileToken)
             {
                 //Ignore curly braces in SQL dash-dash comments --, until end of line
                 if (isComment)
@@ -9114,33 +9118,14 @@ done:
                 }
                 else if (CurrentToken.Text[0] == '@')
                 {
-                    var leading = CurrentToken.GetLeadingTrivia()?.ToFullString() ?? "";
-                    sqlBlockBuilder.Add(sqlTextSegmentBuilder(ref pooled, ref stringBuilder, leading + "@"));
-                    stringBuilder.Append(CurrentToken.ToFullString().Trim().Substring(1));
-                    skipStringAppend = true;
-                    // if token doesn't have trailing trivia keep reading
-                    isInput = !CurrentToken.HasTrailingTrivia;
-                    if (!isInput)
-                    {
-                        appendIdentifierToBlock = true;
-                        trailingTrivia = CurrentToken.GetTrailingTrivia().ToFullString();
-                    }
-                }
-                else if (isInput)
-                {
-                    if (CurrentToken.HasTrailingTrivia || CurrentToken.Kind != SyntaxKind.IdentifierToken)
-                    {
-                        appendIdentifierToBlock = true;
-                        appendTokenToBlock = true;
-                        isInput = false;
-                        if (CurrentToken.Kind == SyntaxKind.MinusMinusToken)
-                        {
-                            isComment = true;
-                        }
-                    }
+                    appendInputIdentifierToBlock = true;
                 }
                 else
                 {
+                    if (isOutput)
+                    {
+                        appendOutputIdentifierToBlock = true;
+                    }
                     switch (CurrentToken.Kind)
                     {
                         case SyntaxKind.OpenBraceToken:
@@ -9156,82 +9141,44 @@ done:
                             break;
                         case SyntaxKind.OpenBracketToken:
                             // Add query text
-                            appendTokenToBlock = true;
                             isOutput = true;
                             break;
                         case SyntaxKind.CloseBracketToken:
                             if (isOutput)
                             {
                                 // Add output symbol
-                                sqlBlockBuilder.Add(sqlTextSegmentBuilder(ref pooled, ref stringBuilder));
                                 isOutput = false;
+                                appendOutputIdentifierToBlock = false;
                             }
                             break;
                     }
                 }
 
-                if (!skipStringAppend)
+                //TODO-aljaz is there something like SyntaxFactory.IdentifierName, but for declaring variables that would allow me to create variables instead of output symbols being parsed just as text and bound later?
+                if (appendOutputIdentifierToBlock)
                 {
-                    stringBuilder.Append(CurrentToken.ToFullString());
+                    sqlBlockBuilder.Add(_syntaxFactory.SqlOutputIdentifierSegment(CurrentToken));
+                    appendOutputIdentifierToBlock = false;
+                }
+                else if (appendInputIdentifierToBlock)
+                {
+                    sqlBlockBuilder.Add(_syntaxFactory.SqlInputIdentifierSegment(
+                    SyntaxFactory.IdentifierName(CurrentToken)));
+                    appendInputIdentifierToBlock = false;
                 }
                 else
                 {
-                    skipStringAppend = false;
-                }
-                if (appendTokenToBlock)
-                {
-                    sqlBlockBuilder.Add(sqlTextSegmentBuilder(ref pooled, ref stringBuilder));
-                    appendTokenToBlock = false;
-                }
-                else if (appendIdentifierToBlock)
-                {
-                    sqlBlockBuilder.Add(sqlIdentifierSegmentBuilder(ref pooled, ref stringBuilder));
-                    appendIdentifierToBlock = false;
-                    stringBuilder.Append(trailingTrivia);
+                    sqlBlockBuilder.Add(_syntaxFactory.SqlTextSegment(CurrentToken));
                 }
                 EatToken();
             }
 parseSqlEnd:
 
-            if (stringBuilder.Length != 0)
-            {
-                sqlBlockBuilder.Add(sqlTextSegmentBuilder(ref pooled, ref stringBuilder));
-            }
-            var closeBrace = this.EatToken(SyntaxKind.CloseBraceToken);
+            var closeBrace = TryEatToken(SyntaxKind.CloseBraceToken);
             return _syntaxFactory.SqlTextBlock(
                 openBrace,
                 _pool.ToListAndFree(sqlBlockBuilder),
                 closeBrace);
-
-            string sqlGetStringFromBuilder(
-                ref PooledStringBuilder pooled,
-                ref StringBuilder stringBuilder)
-            {
-                var text = pooled.ToStringAndFree();
-                pooled = PooledStringBuilder.GetInstance();
-                stringBuilder = pooled.Builder;
-                return text;
-            }
-
-            SqlIdentifierSegmentSyntax sqlIdentifierSegmentBuilder(ref PooledStringBuilder pooled, ref StringBuilder stringBuilder)
-            {
-                return _syntaxFactory.SqlIdentifierSegment(
-                    SyntaxFactory.IdentifierName(
-                        SyntaxFactory.Identifier(
-                            sqlGetStringFromBuilder(ref pooled, ref stringBuilder))));
-            }
-
-            SqlTextSegmentSyntax sqlTextSegmentBuilder(ref PooledStringBuilder pooled, ref StringBuilder stringBuilder, string appendage = "")
-            {
-                string text = sqlGetStringFromBuilder(ref pooled, ref stringBuilder) + appendage;
-                return _syntaxFactory.SqlTextSegment(
-                    SyntaxFactory.Token(
-                    leading: null,
-                    kind: SyntaxKind.SqlTextSegment,
-                    text: text,
-                    valueText: text,
-                    trailing: null));
-            }
         }
 
         private SqlDoClauseSyntax ParseSqlDoClause()

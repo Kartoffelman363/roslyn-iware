@@ -35,6 +35,8 @@ Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "CscCommandLine", "csc\CscCo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Microsoft.CodeAnalysis", "..\Core\Portable\Microsoft.CodeAnalysis.csproj", "{554B0E95-2D64-50B4-351B-734C9B692215}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Microsoft.CodeAnalysis.LanguageServer", "..\..\LanguageServer\Microsoft.CodeAnalysis.LanguageServer\Microsoft.CodeAnalysis.LanguageServer.csproj", "{367EA033-EFBA-DE8D-63B9-B58DCB7146F2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -96,6 +98,10 @@ Global
 		{554B0E95-2D64-50B4-351B-734C9B692215}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{554B0E95-2D64-50B4-351B-734C9B692215}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{554B0E95-2D64-50B4-351B-734C9B692215}.Release|Any CPU.Build.0 = Release|Any CPU
+		{367EA033-EFBA-DE8D-63B9-B58DCB7146F2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{367EA033-EFBA-DE8D-63B9-B58DCB7146F2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{367EA033-EFBA-DE8D-63B9-B58DCB7146F2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{367EA033-EFBA-DE8D-63B9-B58DCB7146F2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
