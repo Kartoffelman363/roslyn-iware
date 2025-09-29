@@ -534,18 +534,20 @@ namespace Microsoft.CodeAnalysis.CSharp
         /// </remarks>
         public override SyntaxTree WithChangedText(SourceText newText)
         {
-            // try to find the changes between the old text and the new text.
-            if (this.TryGetText(out SourceText? oldText))
-            {
-                var changes = newText.GetChangeRanges(oldText);
-
-                if (changes.Count == 0 && newText == oldText)
-                {
-                    return this;
-                }
-
-                return this.WithChanges(newText, changes);
-            }
+            // TODO-aljaz figure out way to not force every change to reparse whole tree
+            // Do uncomment the code below when you're done with that
+            //// try to find the changes between the old text and the new text.
+            //if (this.TryGetText(out SourceText? oldText))
+            //{
+            //    var changes = newText.GetChangeRanges(oldText);
+            //
+            //    if (changes.Count == 0 && newText == oldText)
+            //    {
+            //        return this;
+            //    }
+            //
+            //    return this.WithChanges(newText, changes);
+            //}
 
             // if we do not easily know the old text, then specify entire text as changed so we do a full reparse.
             return this.WithChanges(newText, new[] { new TextChangeRange(new TextSpan(0, this.Length), newText.Length) });

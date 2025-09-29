@@ -9023,7 +9023,15 @@ public sealed partial class SqlStatementSyntax : StatementSyntax
 
     internal override StatementSyntax AddAttributeListsCore(params AttributeListSyntax[] items) => AddAttributeLists(items);
     public new SqlStatementSyntax AddAttributeLists(params AttributeListSyntax[] items) => WithAttributeLists(this.AttributeLists.AddRange(items));
-    public SqlStatementSyntax AddSqlTextBlockSegments(params CSharpSyntaxNode[] items) => WithSqlTextBlock(this.SqlTextBlock.WithSegments(this.SqlTextBlock.Segments.AddRange(items)));
+    public SqlStatementSyntax AddSqlTextBlockSegments(params SqlSegmentSyntax[] items) => WithSqlTextBlock(this.SqlTextBlock.WithSegments(this.SqlTextBlock.Segments.AddRange(items)));
+}
+
+public abstract partial class SqlSegmentSyntax : CSharpSyntaxNode
+{
+    internal SqlSegmentSyntax(InternalSyntax.CSharpSyntaxNode green, SyntaxNode? parent, int position)
+      : base(green, parent, position)
+    {
+    }
 }
 
 /// <remarks>
@@ -9043,7 +9051,7 @@ public sealed partial class SqlTextBlockSyntax : CSharpSyntaxNode
 
     public SyntaxToken SqlOpenBraceToken => new SyntaxToken(this, ((InternalSyntax.SqlTextBlockSyntax)this.Green).sqlOpenBraceToken, Position, 0);
 
-    public SyntaxList<CSharpSyntaxNode> Segments => new SyntaxList<CSharpSyntaxNode>(GetRed(ref this.segments, 1));
+    public SyntaxList<SqlSegmentSyntax> Segments => new SyntaxList<SqlSegmentSyntax>(GetRed(ref this.segments, 1));
 
     public SyntaxToken SqlCloseBraceToken => new SyntaxToken(this, ((InternalSyntax.SqlTextBlockSyntax)this.Green).sqlCloseBraceToken, GetChildPosition(2), GetChildIndex(2));
 
@@ -9054,7 +9062,7 @@ public sealed partial class SqlTextBlockSyntax : CSharpSyntaxNode
     public override void Accept(CSharpSyntaxVisitor visitor) => visitor.VisitSqlTextBlock(this);
     public override TResult? Accept<TResult>(CSharpSyntaxVisitor<TResult> visitor) where TResult : default => visitor.VisitSqlTextBlock(this);
 
-    public SqlTextBlockSyntax Update(SyntaxToken sqlOpenBraceToken, SyntaxList<CSharpSyntaxNode> segments, SyntaxToken sqlCloseBraceToken)
+    public SqlTextBlockSyntax Update(SyntaxToken sqlOpenBraceToken, SyntaxList<SqlSegmentSyntax> segments, SyntaxToken sqlCloseBraceToken)
     {
         if (sqlOpenBraceToken != this.SqlOpenBraceToken || segments != this.Segments || sqlCloseBraceToken != this.SqlCloseBraceToken)
         {
@@ -9067,10 +9075,10 @@ public sealed partial class SqlTextBlockSyntax : CSharpSyntaxNode
     }
 
     public SqlTextBlockSyntax WithSqlOpenBraceToken(SyntaxToken sqlOpenBraceToken) => Update(sqlOpenBraceToken, this.Segments, this.SqlCloseBraceToken);
-    public SqlTextBlockSyntax WithSegments(SyntaxList<CSharpSyntaxNode> segments) => Update(this.SqlOpenBraceToken, segments, this.SqlCloseBraceToken);
+    public SqlTextBlockSyntax WithSegments(SyntaxList<SqlSegmentSyntax> segments) => Update(this.SqlOpenBraceToken, segments, this.SqlCloseBraceToken);
     public SqlTextBlockSyntax WithSqlCloseBraceToken(SyntaxToken sqlCloseBraceToken) => Update(this.SqlOpenBraceToken, this.Segments, sqlCloseBraceToken);
 
-    public SqlTextBlockSyntax AddSegments(params CSharpSyntaxNode[] items) => WithSegments(this.Segments.AddRange(items));
+    public SqlTextBlockSyntax AddSegments(params SqlSegmentSyntax[] items) => WithSegments(this.Segments.AddRange(items));
 }
 
 /// <remarks>
@@ -9079,7 +9087,7 @@ public sealed partial class SqlTextBlockSyntax : CSharpSyntaxNode
 /// <item><description><see cref="SyntaxKind.SqlTextSegment"/></description></item>
 /// </list>
 /// </remarks>
-public sealed partial class SqlTextSegmentSyntax : CSharpSyntaxNode
+public sealed partial class SqlTextSegmentSyntax : SqlSegmentSyntax
 {
 
     internal SqlTextSegmentSyntax(InternalSyntax.CSharpSyntaxNode green, SyntaxNode? parent, int position)
@@ -9117,7 +9125,7 @@ public sealed partial class SqlTextSegmentSyntax : CSharpSyntaxNode
 /// <item><description><see cref="SyntaxKind.SqlInputIdentifierSegment"/></description></item>
 /// </list>
 /// </remarks>
-public sealed partial class SqlInputIdentifierSegmentSyntax : CSharpSyntaxNode
+public sealed partial class SqlInputIdentifierSegmentSyntax : SqlSegmentSyntax
 {
     private IdentifierNameSyntax? sqlIdentifierToken;
 
@@ -9156,7 +9164,7 @@ public sealed partial class SqlInputIdentifierSegmentSyntax : CSharpSyntaxNode
 /// <item><description><see cref="SyntaxKind.SqlOutputIdentifierSegment"/></description></item>
 /// </list>
 /// </remarks>
-public sealed partial class SqlOutputIdentifierSegmentSyntax : CSharpSyntaxNode
+public sealed partial class SqlOutputIdentifierSegmentSyntax : SqlSegmentSyntax
 {
 
     internal SqlOutputIdentifierSegmentSyntax(InternalSyntax.CSharpSyntaxNode green, SyntaxNode? parent, int position)
@@ -9164,7 +9172,11 @@ public sealed partial class SqlOutputIdentifierSegmentSyntax : CSharpSyntaxNode
     {
     }
 
-    public SyntaxToken SqlIdentifierToken => new SyntaxToken(this, ((InternalSyntax.SqlOutputIdentifierSegmentSyntax)this.Green).sqlIdentifierToken, Position, 0);
+    public SyntaxToken OpenBracketToken => new SyntaxToken(this, ((InternalSyntax.SqlOutputIdentifierSegmentSyntax)this.Green).openBracketToken, Position, 0);
+
+    public SyntaxToken SqlIdentifierToken => new SyntaxToken(this, ((InternalSyntax.SqlOutputIdentifierSegmentSyntax)this.Green).sqlIdentifierToken, GetChildPosition(1), GetChildIndex(1));
+
+    public SyntaxToken CloseBracketToken => new SyntaxToken(this, ((InternalSyntax.SqlOutputIdentifierSegmentSyntax)this.Green).closeBracketToken, GetChildPosition(2), GetChildIndex(2));
 
     internal override SyntaxNode? GetNodeSlot(int index) => null;
 
@@ -9173,11 +9185,11 @@ public sealed partial class SqlOutputIdentifierSegmentSyntax : CSharpSyntaxNode
     public override void Accept(CSharpSyntaxVisitor visitor) => visitor.VisitSqlOutputIdentifierSegment(this);
     public override TResult? Accept<TResult>(CSharpSyntaxVisitor<TResult> visitor) where TResult : default => visitor.VisitSqlOutputIdentifierSegment(this);
 
-    public SqlOutputIdentifierSegmentSyntax Update(SyntaxToken sqlIdentifierToken)
+    public SqlOutputIdentifierSegmentSyntax Update(SyntaxToken openBracketToken, SyntaxToken sqlIdentifierToken, SyntaxToken closeBracketToken)
     {
-        if (sqlIdentifierToken != this.SqlIdentifierToken)
+        if (openBracketToken != this.OpenBracketToken || sqlIdentifierToken != this.SqlIdentifierToken || closeBracketToken != this.CloseBracketToken)
         {
-            var newNode = SyntaxFactory.SqlOutputIdentifierSegment(sqlIdentifierToken);
+            var newNode = SyntaxFactory.SqlOutputIdentifierSegment(openBracketToken, sqlIdentifierToken, closeBracketToken);
             var annotations = GetAnnotations();
             return annotations?.Length > 0 ? newNode.WithAnnotations(annotations) : newNode;
         }
@@ -9185,7 +9197,9 @@ public sealed partial class SqlOutputIdentifierSegmentSyntax : CSharpSyntaxNode
         return this;
     }
 
-    public SqlOutputIdentifierSegmentSyntax WithSqlIdentifierToken(SyntaxToken sqlIdentifierToken) => Update(sqlIdentifierToken);
+    public SqlOutputIdentifierSegmentSyntax WithOpenBracketToken(SyntaxToken openBracketToken) => Update(openBracketToken, this.SqlIdentifierToken, this.CloseBracketToken);
+    public SqlOutputIdentifierSegmentSyntax WithSqlIdentifierToken(SyntaxToken sqlIdentifierToken) => Update(this.OpenBracketToken, sqlIdentifierToken, this.CloseBracketToken);
+    public SqlOutputIdentifierSegmentSyntax WithCloseBracketToken(SyntaxToken closeBracketToken) => Update(this.OpenBracketToken, this.SqlIdentifierToken, closeBracketToken);
 }
 
 /// <remarks>

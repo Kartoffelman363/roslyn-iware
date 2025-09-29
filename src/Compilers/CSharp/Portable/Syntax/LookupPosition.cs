@@ -432,7 +432,27 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax
                     }
                     return tryStmt.Block.CloseBraceToken;
                 case SyntaxKind.SqlStatement:
-                    return ((SqlStatementSyntax)statement).SqlTextBlock.SqlCloseBraceToken;
+                    var sqlStatement = (SqlStatementSyntax)statement;
+
+                    var sqlEndClause = sqlStatement.SqlEndClause;
+                    if (sqlEndClause != null)
+                    {
+                        return sqlEndClause.Block.CloseBraceToken;
+                    }
+
+                    var sqlEmptyClause = sqlStatement.SqlEmptyClause;
+                    if (sqlEmptyClause != null)
+                    {
+                        return sqlEmptyClause.Block.CloseBraceToken;
+                    }
+
+                    var sqlDoClause = sqlStatement.SqlDoClause;
+                    if (sqlDoClause != null)
+                    {
+                        return sqlDoClause.Block.CloseBraceToken;
+                    }
+
+                    return sqlStatement.SqlTextBlock.SqlCloseBraceToken;
                 case SyntaxKind.UnsafeStatement:
                     return ((UnsafeStatementSyntax)statement).Block.CloseBraceToken;
                 case SyntaxKind.UsingStatement:

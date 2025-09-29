@@ -449,7 +449,7 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
             => InternalSyntaxFactory.SqlStatement(new Microsoft.CodeAnalysis.Syntax.InternalSyntax.SyntaxList<Syntax.InternalSyntax.AttributeListSyntax>(), InternalSyntaxFactory.Token(SyntaxKind.SqlKeyword), GenerateSqlTextBlock(), null, null, null);
 
         private static Syntax.InternalSyntax.SqlTextBlockSyntax GenerateSqlTextBlock()
-            => InternalSyntaxFactory.SqlTextBlock(InternalSyntaxFactory.Token(SyntaxKind.OpenBraceToken), new Microsoft.CodeAnalysis.Syntax.InternalSyntax.SyntaxList<Syntax.InternalSyntax.CSharpSyntaxNode>(), InternalSyntaxFactory.Token(SyntaxKind.CloseBraceToken));
+            => InternalSyntaxFactory.SqlTextBlock(InternalSyntaxFactory.Token(SyntaxKind.OpenBraceToken), new Microsoft.CodeAnalysis.Syntax.InternalSyntax.SyntaxList<Syntax.InternalSyntax.SqlSegmentSyntax>(), InternalSyntaxFactory.Token(SyntaxKind.CloseBraceToken));
 
         private static Syntax.InternalSyntax.SqlTextSegmentSyntax GenerateSqlTextSegment()
             => InternalSyntaxFactory.SqlTextSegment(InternalSyntaxFactory.Identifier("SqlTextToken"));
@@ -458,7 +458,7 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
             => InternalSyntaxFactory.SqlInputIdentifierSegment(GenerateIdentifierName());
 
         private static Syntax.InternalSyntax.SqlOutputIdentifierSegmentSyntax GenerateSqlOutputIdentifierSegment()
-            => InternalSyntaxFactory.SqlOutputIdentifierSegment(InternalSyntaxFactory.Identifier("SqlIdentifierToken"));
+            => InternalSyntaxFactory.SqlOutputIdentifierSegment(InternalSyntaxFactory.Identifier("OpenBracketToken"), InternalSyntaxFactory.Identifier("SqlIdentifierToken"), InternalSyntaxFactory.Identifier("CloseBracketToken"));
 
         private static Syntax.InternalSyntax.SqlDoClauseSyntax GenerateSqlDoClause()
             => InternalSyntaxFactory.SqlDoClause(InternalSyntaxFactory.Token(SyntaxKind.SqlDoKeyword), GenerateBlock());
@@ -2605,7 +2605,9 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
         {
             var node = GenerateSqlOutputIdentifierSegment();
 
+            Assert.Equal(SyntaxKind.IdentifierToken, node.OpenBracketToken.Kind);
             Assert.Equal(SyntaxKind.IdentifierToken, node.SqlIdentifierToken.Kind);
+            Assert.Equal(SyntaxKind.IdentifierToken, node.CloseBracketToken.Kind);
 
             AttachAndCheckDiagnostics(node);
         }
@@ -11121,7 +11123,7 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
             => SyntaxFactory.SqlStatement(new SyntaxList<AttributeListSyntax>(), SyntaxFactory.Token(SyntaxKind.SqlKeyword), GenerateSqlTextBlock(), default(SqlDoClauseSyntax), default(SqlEmptyClauseSyntax), default(SqlEndClauseSyntax));
 
         private static SqlTextBlockSyntax GenerateSqlTextBlock()
-            => SyntaxFactory.SqlTextBlock(SyntaxFactory.Token(SyntaxKind.OpenBraceToken), new SyntaxList<CSharpSyntaxNode>(), SyntaxFactory.Token(SyntaxKind.CloseBraceToken));
+            => SyntaxFactory.SqlTextBlock(SyntaxFactory.Token(SyntaxKind.OpenBraceToken), new SyntaxList<SqlSegmentSyntax>(), SyntaxFactory.Token(SyntaxKind.CloseBraceToken));
 
         private static SqlTextSegmentSyntax GenerateSqlTextSegment()
             => SyntaxFactory.SqlTextSegment(SyntaxFactory.Identifier("SqlTextToken"));
@@ -11130,7 +11132,7 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
             => SyntaxFactory.SqlInputIdentifierSegment(GenerateIdentifierName());
 
         private static SqlOutputIdentifierSegmentSyntax GenerateSqlOutputIdentifierSegment()
-            => SyntaxFactory.SqlOutputIdentifierSegment(SyntaxFactory.Identifier("SqlIdentifierToken"));
+            => SyntaxFactory.SqlOutputIdentifierSegment(SyntaxFactory.Identifier("OpenBracketToken"), SyntaxFactory.Identifier("SqlIdentifierToken"), SyntaxFactory.Identifier("CloseBracketToken"));
 
         private static SqlDoClauseSyntax GenerateSqlDoClause()
             => SyntaxFactory.SqlDoClause(SyntaxFactory.Token(SyntaxKind.SqlDoKeyword), GenerateBlock());
@@ -13277,8 +13279,10 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
         {
             var node = GenerateSqlOutputIdentifierSegment();
 
+            Assert.Equal(SyntaxKind.IdentifierToken, node.OpenBracketToken.Kind());
             Assert.Equal(SyntaxKind.IdentifierToken, node.SqlIdentifierToken.Kind());
-            var newNode = node.WithSqlIdentifierToken(node.SqlIdentifierToken);
+            Assert.Equal(SyntaxKind.IdentifierToken, node.CloseBracketToken.Kind());
+            var newNode = node.WithOpenBracketToken(node.OpenBracketToken).WithSqlIdentifierToken(node.SqlIdentifierToken).WithCloseBracketToken(node.CloseBracketToken);
             Assert.Equal(node, newNode);
         }
 

@@ -16,7 +16,7 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
         public static void getNamesFromSqlText(
             out ImmutableArray<SqlOutputIdentifierSegmentSyntax> sqlOutputs,
             out ImmutableArray<SqlInputIdentifierSegmentSyntax> sqlInputs,
-            SyntaxList<CSharpSyntaxNode> sqlSegments,
+            SyntaxList<SqlSegmentSyntax> sqlSegments,
             out string sqlText)
         {
             var sqlOutputBuilder = ImmutableArray.CreateBuilder<SqlOutputIdentifierSegmentSyntax>();

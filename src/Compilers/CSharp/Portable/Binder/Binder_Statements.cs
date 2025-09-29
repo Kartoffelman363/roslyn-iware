@@ -3290,8 +3290,11 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             var fileDir = Path.GetDirectoryName(Compilation.SyntaxTrees.First().FilePath);
 
+            //TODO-aljaz only mark output missing in SQL as warning
             //TODO-aljaz mark exact spot in SQL causing errors
-            if (!VerifySql.Verify(
+            if (inputSymbolsIsOk &&
+                outputSymbolsIsOk &&
+                !VerifySql.Verify(
                     fileDir,
                     sqlText,
                     inputNames,
@@ -3327,7 +3330,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             Action<string, Location> addError)
         {
             return GetSymbols(
-                names.Select(it => it.ToString()).ToArray(),
+                names.Select(it => it.SqlIdentifierToken.ToString()).ToArray(),
                 names.Select(it => it.Location).ToArray(),
                 out isOk,
                 addError);

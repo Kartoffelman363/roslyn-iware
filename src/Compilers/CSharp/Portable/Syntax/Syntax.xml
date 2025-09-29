@@ -3015,27 +3015,30 @@
     <Field Name="SqlEmptyClause" Type="SqlEmptyClauseSyntax" Optional="true"/>
     <Field Name="SqlEndClause" Type="SqlEndClauseSyntax" Optional="true"/>
   </Node>
+  <AbstractNode Name="SqlSegmentSyntax" Base="CSharpSyntaxNode" />
   <Node Name="SqlTextBlockSyntax" Base="CSharpSyntaxNode">
     <Kind Name="SqlTextBlock"/>
     <Field Name="SqlOpenBraceToken" Type="SyntaxToken">
       <Kind Name="OpenBraceToken"/>
     </Field>
-    <Field Name="Segments" Type="SyntaxList&lt;CSharpSyntaxNode&gt;"/>
+    <Field Name="Segments" Type="SyntaxList&lt;SqlSegmentSyntax&gt;"/>
     <Field Name="SqlCloseBraceToken" Type="SyntaxToken">
       <Kind Name="CloseBraceToken"/>
     </Field>
   </Node>
-  <Node Name="SqlTextSegmentSyntax" Base="CSharpSyntaxNode">
+  <Node Name="SqlTextSegmentSyntax" Base="SqlSegmentSyntax">
     <Kind Name="SqlTextSegment"/>
     <Field Name="SqlTextToken" Type="SyntaxToken"/>
   </Node>
-  <Node Name="SqlInputIdentifierSegmentSyntax" Base="CSharpSyntaxNode">
+  <Node Name="SqlInputIdentifierSegmentSyntax" Base="SqlSegmentSyntax">
     <Kind Name="SqlInputIdentifierSegment"/>
     <Field Name="SqlIdentifierToken" Type="IdentifierNameSyntax"/>
   </Node>
-  <Node Name="SqlOutputIdentifierSegmentSyntax" Base="CSharpSyntaxNode">
+  <Node Name="SqlOutputIdentifierSegmentSyntax" Base="SqlSegmentSyntax">
     <Kind Name="SqlOutputIdentifierSegment"/>
+    <Field Name="OpenBracketToken" Type="SyntaxToken" />
     <Field Name="SqlIdentifierToken" Type="SyntaxToken"/>
+    <Field Name="CloseBracketToken" Type="SyntaxToken" />
   </Node>
   <Node Name="SqlDoClauseSyntax" Base="CSharpSyntaxNode">
     <Kind Name="SqlDoClause"/>

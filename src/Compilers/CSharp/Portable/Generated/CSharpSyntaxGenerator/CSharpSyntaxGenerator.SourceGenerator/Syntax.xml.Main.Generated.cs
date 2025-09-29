@@ -1999,7 +1999,7 @@ public partial class CSharpSyntaxRewriter : CSharpSyntaxVisitor<SyntaxNode?>
         => node.Update((IdentifierNameSyntax?)Visit(node.SqlIdentifierToken) ?? throw new ArgumentNullException("sqlIdentifierToken"));
 
     public override SyntaxNode? VisitSqlOutputIdentifierSegment(SqlOutputIdentifierSegmentSyntax node)
-        => node.Update(VisitToken(node.SqlIdentifierToken));
+        => node.Update(VisitToken(node.OpenBracketToken), VisitToken(node.SqlIdentifierToken), VisitToken(node.CloseBracketToken));
 
     public override SyntaxNode? VisitSqlDoClause(SqlDoClauseSyntax node)
         => node.Update(VisitToken(node.SqlDoKeyword), (BlockSyntax?)Visit(node.Block) ?? throw new ArgumentNullException("block"));
@@ -4751,15 +4751,15 @@ public static partial class SyntaxFactory
         => SyntaxFactory.SqlStatement(default, SyntaxFactory.Token(SyntaxKind.SqlKeyword), SyntaxFactory.SqlTextBlock(), default, default, default);
 
     /// <summary>Creates a new SqlTextBlockSyntax instance.</summary>
-    public static SqlTextBlockSyntax SqlTextBlock(SyntaxToken sqlOpenBraceToken, SyntaxList<CSharpSyntaxNode> segments, SyntaxToken sqlCloseBraceToken)
+    public static SqlTextBlockSyntax SqlTextBlock(SyntaxToken sqlOpenBraceToken, SyntaxList<SqlSegmentSyntax> segments, SyntaxToken sqlCloseBraceToken)
     {
         if (sqlOpenBraceToken.Kind() != SyntaxKind.OpenBraceToken) throw new ArgumentException(nameof(sqlOpenBraceToken));
         if (sqlCloseBraceToken.Kind() != SyntaxKind.CloseBraceToken) throw new ArgumentException(nameof(sqlCloseBraceToken));
-        return (SqlTextBlockSyntax)Syntax.InternalSyntax.SyntaxFactory.SqlTextBlock((Syntax.InternalSyntax.SyntaxToken)sqlOpenBraceToken.Node!, segments.Node.ToGreenList<Syntax.InternalSyntax.CSharpSyntaxNode>(), (Syntax.InternalSyntax.SyntaxToken)sqlCloseBraceToken.Node!).CreateRed();
+        return (SqlTextBlockSyntax)Syntax.InternalSyntax.SyntaxFactory.SqlTextBlock((Syntax.InternalSyntax.SyntaxToken)sqlOpenBraceToken.Node!, segments.Node.ToGreenList<Syntax.InternalSyntax.SqlSegmentSyntax>(), (Syntax.InternalSyntax.SyntaxToken)sqlCloseBraceToken.Node!).CreateRed();
     }
 
     /// <summary>Creates a new SqlTextBlockSyntax instance.</summary>
-    public static SqlTextBlockSyntax SqlTextBlock(SyntaxList<CSharpSyntaxNode> segments = default)
+    public static SqlTextBlockSyntax SqlTextBlock(SyntaxList<SqlSegmentSyntax> segments = default)
         => SyntaxFactory.SqlTextBlock(SyntaxFactory.Token(SyntaxKind.OpenBraceToken), segments, SyntaxFactory.Token(SyntaxKind.CloseBraceToken));
 
     /// <summary>Creates a new SqlTextSegmentSyntax instance.</summary>
@@ -4776,9 +4776,9 @@ public static partial class SyntaxFactory
     }
 
     /// <summary>Creates a new SqlOutputIdentifierSegmentSyntax instance.</summary>
-    public static SqlOutputIdentifierSegmentSyntax SqlOutputIdentifierSegment(SyntaxToken sqlIdentifierToken)
+    public static SqlOutputIdentifierSegmentSyntax SqlOutputIdentifierSegment(SyntaxToken openBracketToken, SyntaxToken sqlIdentifierToken, SyntaxToken closeBracketToken)
     {
-        return (SqlOutputIdentifierSegmentSyntax)Syntax.InternalSyntax.SyntaxFactory.SqlOutputIdentifierSegment((Syntax.InternalSyntax.SyntaxToken)sqlIdentifierToken.Node!).CreateRed();
+        return (SqlOutputIdentifierSegmentSyntax)Syntax.InternalSyntax.SyntaxFactory.SqlOutputIdentifierSegment((Syntax.InternalSyntax.SyntaxToken)openBracketToken.Node!, (Syntax.InternalSyntax.SyntaxToken)sqlIdentifierToken.Node!, (Syntax.InternalSyntax.SyntaxToken)closeBracketToken.Node!).CreateRed();
     }
 
     /// <summary>Creates a new SqlDoClauseSyntax instance.</summary>

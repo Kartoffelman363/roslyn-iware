@@ -564,7 +564,25 @@ sql_statement
   ;
 
 sql_text_block
-  : '{' c_sharp_syntax_node* '}'
+  : '{' sql_segment* '}'
+  ;
+
+sql_segment
+  : sql_input_identifier_segment
+  | sql_output_identifier_segment
+  | sql_text_segment
+  ;
+
+sql_input_identifier_segment
+  : identifier_name
+  ;
+
+sql_output_identifier_segment
+  : '[' syntax_token ']'
+  ;
+
+sql_text_segment
+  : syntax_token
   ;
 
 sql_do_clause
@@ -1808,18 +1826,6 @@ multi_line_raw_string_literal_token
 
 single_line_raw_string_literal_token
   : /* see lexical specification */
-  ;
-
-sql_input_identifier_segment
-  : identifier_name
-  ;
-
-sql_output_identifier_segment
-  : syntax_token
-  ;
-
-sql_text_segment
-  : syntax_token
   ;
 
 xml_text_literal_token
