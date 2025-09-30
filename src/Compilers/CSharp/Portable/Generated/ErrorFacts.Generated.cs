@@ -347,6 +347,7 @@
                 case ErrorCode.WRN_UnscopedRefAttributeOldRules:
                 case ErrorCode.WRN_InterceptsLocationAttributeUnsupportedSignature:
                 case ErrorCode.WRN_SQL_SymbolWarn:
+                case ErrorCode.WRN_SQL_VerificationWarn:
                     return true;
                 default:
                     return false;

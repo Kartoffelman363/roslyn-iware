@@ -60,6 +60,36 @@ override Microsoft.CodeAnalysis.CSharp.Syntax.ExtensionBlockDeclarationSyntax.Ty
 override Microsoft.CodeAnalysis.CSharp.Syntax.ExtensionMemberCrefSyntax.Accept(Microsoft.CodeAnalysis.CSharp.CSharpSyntaxVisitor! visitor) -> void
 override Microsoft.CodeAnalysis.CSharp.Syntax.ExtensionMemberCrefSyntax.Accept<TResult>(Microsoft.CodeAnalysis.CSharp.CSharpSyntaxVisitor<TResult>! visitor) -> TResult?
 *REMOVED*static Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatPrimitive(object! obj, bool quoteStrings, bool useHexadecimalNumbers) -> string!
+SqlVerifier.IVerifierInput
+SqlVerifier.IVerifierInput.ConfigPath.get -> string!
+SqlVerifier.IVerifierInput.ConfigPath.set -> void
+SqlVerifier.IVerifierInput.SqlString.get -> string!
+SqlVerifier.IVerifierInput.SqlString.set -> void
+SqlVerifier.IVerifierInput.Tokens.get -> SqlVerifier.IVerifierToken![]!
+SqlVerifier.IVerifierInput.Tokens.set -> void
+SqlVerifier.IVerifierOutput
+SqlVerifier.IVerifierOutput.Diagnostics.get -> System.Collections.Generic.IEnumerable<SqlVerifier.IVerifierTokenDiagnostic!>!
+SqlVerifier.IVerifierOutput.Diagnostics.set -> void
+SqlVerifier.IVerifierToken
+SqlVerifier.IVerifierToken.Index.get -> int
+SqlVerifier.IVerifierToken.Index.set -> void
+SqlVerifier.IVerifierToken.TokenText.get -> string!
+SqlVerifier.IVerifierToken.TokenText.set -> void
+SqlVerifier.IVerifierToken.TokenType.get -> SqlVerifier.TokenType
+SqlVerifier.IVerifierToken.TokenType.set -> void
+SqlVerifier.IVerifierTokenDiagnostic
+SqlVerifier.IVerifierTokenDiagnostic.Index.get -> int
+SqlVerifier.IVerifierTokenDiagnostic.Index.set -> void
+SqlVerifier.IVerifierTokenDiagnostic.IsError.get -> bool
+SqlVerifier.IVerifierTokenDiagnostic.IsError.set -> void
+SqlVerifier.IVerifierTokenDiagnostic.IsWarning.get -> bool
+SqlVerifier.IVerifierTokenDiagnostic.IsWarning.set -> void
+SqlVerifier.IVerifierTokenDiagnostic.Text.get -> string!
+SqlVerifier.IVerifierTokenDiagnostic.Text.set -> void
+SqlVerifier.TokenType
+SqlVerifier.TokenType.Input = 0 -> SqlVerifier.TokenType
+SqlVerifier.TokenType.Output = 1 -> SqlVerifier.TokenType
+SqlVerifier.TokenType.Text = 2 -> SqlVerifier.TokenType
 static Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatPrimitive(object? obj, bool quoteStrings, bool useHexadecimalNumbers) -> string?
 static Microsoft.CodeAnalysis.CSharp.SyntaxFactory.ExtensionBlockDeclaration() -> Microsoft.CodeAnalysis.CSharp.Syntax.ExtensionBlockDeclarationSyntax!
 static Microsoft.CodeAnalysis.CSharp.SyntaxFactory.ExtensionBlockDeclaration(Microsoft.CodeAnalysis.SyntaxList<Microsoft.CodeAnalysis.CSharp.Syntax.AttributeListSyntax!> attributeLists, Microsoft.CodeAnalysis.SyntaxTokenList modifiers, Microsoft.CodeAnalysis.CSharp.Syntax.TypeParameterListSyntax? typeParameterList, Microsoft.CodeAnalysis.CSharp.Syntax.ParameterListSyntax? parameterList, Microsoft.CodeAnalysis.SyntaxList<Microsoft.CodeAnalysis.CSharp.Syntax.TypeParameterConstraintClauseSyntax!> constraintClauses, Microsoft.CodeAnalysis.SyntaxList<Microsoft.CodeAnalysis.CSharp.Syntax.MemberDeclarationSyntax!> members) -> Microsoft.CodeAnalysis.CSharp.Syntax.ExtensionBlockDeclarationSyntax!

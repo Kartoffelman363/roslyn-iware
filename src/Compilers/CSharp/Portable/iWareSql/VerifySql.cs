@@ -2,70 +2,69 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using SqlVerifier;
 
 namespace Microsoft.CodeAnalysis.CSharp.iWareSql
 {
     internal class VerifySql
     {
-        private class Input
+        private static VerifierInput VerifierInput(
+            string configPath,
+            string sqlString,
+            ImmutableArray<SqlSegmentSyntax> segments)
         {
-            public string? ConfigPath { get; set; }
-            public string? SqlString { get; set; }
-            public string[]? InputParameterNames { get; set; }
-            public string[]? OutputParameterNames { get; set; }
-
-            public Input(string configPath, string sqlString, string[] inputParameterNames, string[] outputParameterNames)
-            {
-                ConfigPath = configPath;
-                SqlString = sqlString;
-                InputParameterNames = inputParameterNames;
-                OutputParameterNames = outputParameterNames;
-            }
+            int index = 0;
+            var tokens = segments.Select(seg =>
+                seg switch
+                {
+                    SqlInputIdentifierSegmentSyntax inSeg => new VerifierToken(
+                        inSeg.SqlIdentifierToken.ToFullString().Trim(),
+                        TokenType.Output,
+                        index++),
+                    SqlOutputIdentifierSegmentSyntax outSeg => new VerifierToken(
+                        outSeg.SqlIdentifierToken.ToFullString().Trim(),
+                        TokenType.Input,
+                        index++),
+                    SqlTextSegmentSyntax textSeg => new VerifierToken(
+                        textSeg.SqlTextToken.ToFullString().Trim(),
+                        TokenType.Text,
+                        index++),
+                    _ => VerifierToken.UnreachableVerifierToken()
+                }).ToArray();
+            return new VerifierInput() { ConfigPath = configPath, SqlString = sqlString, Tokens = tokens };
         }
 
         public static bool Verify(
             string projectRootDir,
             string sqlText,
-            ImmutableArray<string> inputNames,
-            ImmutableArray<string> outputNames,
-            out string reason,
-            BindingDiagnosticBag diagnostics,
-            Location location)
+            SqlStatementSyntax node,
+            BindingDiagnosticBag diagnostics)
         {
-            return Verify(projectRootDir, sqlText, inputNames.ToArray(), outputNames.ToArray(), out reason, diagnostics, location);
-        }
-
-        public static bool Verify(
-            string projectRootDir,
-            string sqlText,
-            string[] inputNames,
-            string[] outputNames,
-            out string reason,
-            BindingDiagnosticBag diagnostics,
-            Location location)
-        {
-            reason = string.Empty;
-
             var configPath = Path.Combine(projectRootDir, "iWareDatabase.json");
 
             if (!File.Exists(configPath))
             {
-                reason = $"Missing iWareDatabase.json file. Tried looking at {configPath}";
+                diagnostics.Add(
+                    ErrorCode.WRN_SQL_VerificationWarn,
+                    node.SqlKeyword,
+                    $"Missing iWareDatabase.json file at {configPath}");
                 return false;
             }
 
+            var segments = node.SqlTextBlock.Segments.ToImmutableArray();
             var args = JsonSerializer.Serialize(
-                new Input(
+                VerifierInput(
                     configPath,
                     sqlText,
-                    inputNames,
-                    outputNames));
+                    segments));
             Debug.Assert(args is not null, "Could not serialize verification data");
 
             var executableDirectoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
@@ -84,16 +83,54 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             //Trace.Assert(proc.Start(), $"Could not start SqlVerifier.exe at path {sqlVerifierPath}");
             if (!proc.Start())
             {
-                diagnostics.Add(ErrorCode.ERR_SQL_VerifierMissingError, location);
+                diagnostics.Add(ErrorCode.ERR_SQL_VerifierMissingError, node.Location);
                 return false;
             }
+            var reasonString = "";
             while (!proc.StandardOutput.EndOfStream)
             {
-                reason += proc.StandardOutput.ReadLine();
+                reasonString += proc.StandardOutput.ReadLine();
             }
-            if (reason != string.Empty && reason.Substring(0, 2) == "OK")
+            if (reasonString != string.Empty && reasonString.Substring(0, 2) == "OK")
             {
                 return true;
+            }
+
+            VerifierOutput? reason;
+            try
+            {
+                reason = JsonSerializer.Deserialize<VerifierOutput>(reasonString);
+            }
+            catch
+            {
+                reason = null;
+            }
+            if (reason is null)
+            {
+                diagnostics.Add(ErrorCode.ERR_SQL_VerificationError, node.SqlTextBlock.Location, reasonString);
+                return false;
+            }
+
+            foreach (var e in reason.Diagnostics)
+            {
+                if (e.Index < 0 || e.Index >= segments.Length)
+                {
+                    diagnostics.Add(ErrorCode.WRN_SQL_VerificationWarn, node.SqlTextBlock.Location, e.Text);
+                    continue;
+                }
+                var segment = segments[e.Index];
+                if (e.IsWarning)
+                {
+                    diagnostics.Add(ErrorCode.WRN_SQL_VerificationWarn, segment.Location, e.Text);
+                }
+                else if (e.IsError)
+                {
+                    diagnostics.Add(ErrorCode.ERR_SQL_VerificationError, segment.Location, e.Text);
+                }
+                else
+                {
+                    diagnostics.Add(ErrorCode.ERR_SQL_VerificationError, node.SqlTextBlock.Location, e.Text);
+                }
             }
 
             return false;

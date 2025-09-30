@@ -8232,12 +8232,15 @@ To remove the warning, you can use /reference instead (set the Embed Interop Typ
     <value>SQL verifier component is missing</value>
   </data>
   <data name="ERR_SQL_VerificationError" xml:space="preserve">
-    <value>SQL Verification error '{0}'</value>
+    <value>SQL Verification error: '{0}'</value>
   </data>
   <data name="ERR_SQL_SymbolError" xml:space="preserve">
     <value>SQL input symbols error: '{0}'</value>
   </data>
   <data name="WRN_SQL_SymbolWarn" xml:space="preserve">
     <value>SQL output symbols warning: '{0}'</value>
+  </data>
+  <data name="WRN_SQL_VerificationWarn" xml:space="preserve">
+    <value>SQL Verification warning: '{0}'</value>
   </data>
 </root>

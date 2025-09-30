@@ -3292,19 +3292,11 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             //TODO-aljaz only mark output missing in SQL as warning
             //TODO-aljaz mark exact spot in SQL causing errors
-            if (inputSymbolsIsOk &&
-                outputSymbolsIsOk &&
-                !VerifySql.Verify(
-                    fileDir,
-                    sqlText,
-                    inputNames,
-                    outputNames,
-                    out var reason,
-                    diagnostics,
-                    node.SqlTextBlock.GetLocation()))
-            {
-                diagnostics.Add(ErrorCode.ERR_SQL_VerificationError, node.SqlTextBlock.GetLocation(), reason);
-            }
+            VerifySql.Verify(
+                fileDir,
+                sqlText,
+                node,
+                diagnostics);
 
             var boundSqlDoClause = node.SqlDoClause != null ? BindEmbeddedBlock(node.SqlDoClause.Block, diagnostics) : null;
             var boundSqlEmptyClause = node.SqlEmptyClause != null ? BindEmbeddedBlock(node.SqlEmptyClause.Block, diagnostics) : null;

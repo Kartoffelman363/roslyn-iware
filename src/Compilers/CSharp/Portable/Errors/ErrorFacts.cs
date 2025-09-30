@@ -216,6 +216,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                     return 10;
                 case ErrorCode.WRN_InterceptsLocationAttributeUnsupportedSignature:
                 case ErrorCode.WRN_SQL_SymbolWarn:
+                case ErrorCode.WRN_SQL_VerificationWarn:
                     // Warning level 9 is exclusively for warnings introduced in the compiler
                     // shipped with dotnet 9 (C# 13) and that can be reported for pre-existing code.
                     return 9;
@@ -650,6 +651,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 or ErrorCode.ERR_SQL_VerificationError
                 or ErrorCode.ERR_SQL_VerifierMissingError
                 or ErrorCode.WRN_SQL_SymbolWarn
+                or ErrorCode.WRN_SQL_VerificationWarn
                 or ErrorCode.Unknown
                 or ErrorCode.ERR_NoMetadataFile
                 or ErrorCode.FTL_MetadataCantOpenFile

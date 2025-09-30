@@ -2303,8 +2303,8 @@
         <note />
       </trans-unit>
       <trans-unit id="ERR_SQL_VerificationError">
-        <source>SQL Verification error '{0}'</source>
-        <target state="new">SQL Verification error '{0}'</target>
+        <source>SQL Verification error: '{0}'</source>
+        <target state="new">SQL Verification error: '{0}'</target>
         <note />
       </trans-unit>
       <trans-unit id="ERR_SQL_VerifierMissingError">
@@ -3735,6 +3735,11 @@
       <trans-unit id="WRN_SQL_SymbolWarn">
         <source>SQL output symbols warning: '{0}'</source>
         <target state="new">SQL output symbols warning: '{0}'</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="WRN_SQL_VerificationWarn">
+        <source>SQL Verification warning: '{0}'</source>
+        <target state="new">SQL Verification warning: '{0}'</target>
         <note />
       </trans-unit>
       <trans-unit id="WRN_ScopedMismatchInParameterOfOverrideOrImplementation">
