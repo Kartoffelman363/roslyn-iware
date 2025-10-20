@@ -127,6 +127,11 @@
         <target state="translated">'{0}': öznitelik tür bağımsız değişkeni tür parametreleri kullanamaz</target>
         <note />
       </trans-unit>
+      <trans-unit id="ERR_AttributeCannotBeAppliedManually">
+        <source>'{0}' cannot be applied manually.</source>
+        <target state="new">'{0}' cannot be applied manually.</target>
+        <note />
+      </trans-unit>
       <trans-unit id="ERR_AttributeNotOnEventAccessor">
         <source>Attribute '{0}' is not valid on event accessors. It is only valid on '{1}' declarations.</source>
         <target state="translated">'{0}' özniteliği olay erişimcilerinde geçerli değil. Bu öznitelik yalnızca '{1}' bildirimlerinde geçerlidir.</target>
@@ -325,6 +330,11 @@
       <trans-unit id="ERR_BadRefInUsingAlias">
         <source>Using alias cannot be a 'ref' type.</source>
         <target state="translated">Diğer ad kullanımı bir 'ref' türü olamaz.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="ERR_BadSpreadInCatchFilter">
+        <source>Cannot use '..' spread operator in the filter expression of a catch clause</source>
+        <target state="new">Cannot use '..' spread operator in the filter expression of a catch clause</target>
         <note />
       </trans-unit>
       <trans-unit id="ERR_BadStaticAfterUnsafe">
@@ -1252,11 +1262,6 @@
         <target state="translated">Engellenemiyor: Derleme, '{0}' yoluna sahip bir dosya içermiyor. '{1}' yolunu mu kullanmak istediniz?</target>
         <note />
       </trans-unit>
-      <trans-unit id="ERR_InterceptorPathNotInCompilationWithUnmappedCandidate">
-        <source>Cannot intercept: Path '{0}' is unmapped. Expected mapped path '{1}'.</source>
-        <target state="translated">Engellenemiyor: '{0}' yolu eşlenmemiş. '{1}' eşlenen yolu bekleniyordu.</target>
-        <note />
-      </trans-unit>
       <trans-unit id="ERR_InterceptorPositionBadToken">
         <source>The provided line and character number does not refer to an interceptable method name, but rather to token '{0}'.</source>
         <target state="translated">Sağlanan satır ve karakter numarası, engellenebilir bir yönteme değil, '{0}' belirtecine başvuruyor.</target>
@@ -1526,6 +1531,11 @@
         <source>No overload for '{0}' matches function pointer '{1}'</source>
         <target state="translated">'{0}' için aşırı yüklemelerin hiçbiri '{1}' işlev işaretçisiyle eşleşmiyor</target>
         <note />
+      </trans-unit>
+      <trans-unit id="ERR_MethodImplAttributeAsyncCannotBeUsed">
+        <source>'MethodImplAttribute.Async' cannot be manually applied to methods. Mark the method 'async'.</source>
+        <target state="new">'MethodImplAttribute.Async' cannot be manually applied to methods. Mark the method 'async'.</target>
+        <note>'MethodImplAttribute.Async' and 'async' are not localizable.</note>
       </trans-unit>
       <trans-unit id="ERR_MisplacedExtension">
         <source>An extension member syntax is disallowed in nested position within an extension member syntax</source>
@@ -3065,16 +3075,6 @@
       <trans-unit id="WRN_ArgExpectedRefOrIn_Title">
         <source>Argument should be passed with 'ref' or 'in' keyword</source>
         <target state="translated">Bağımsız değişken 'ref' veya 'in' anahtar sözcüğüyle geçirilmelidir</target>
-        <note />
-      </trans-unit>
-      <trans-unit id="WRN_AttrDependentTypeNotAllowed">
-        <source>Type '{0}' cannot be used in this context because it cannot be represented in metadata.</source>
-        <target state="translated">Tür '{0}', meta verilerde temsili olmadığından bu bağlamda kullanılamaz.</target>
-        <note />
-      </trans-unit>
-      <trans-unit id="WRN_AttrDependentTypeNotAllowed_Title">
-        <source>Type cannot be used in this context because it cannot be represented in metadata.</source>
-        <target state="translated">Tür meta verilerde temsili olmadığından bu bağlamda kullanılamaz.</target>
         <note />
       </trans-unit>
       <trans-unit id="WRN_BadArgRef">
@@ -6489,11 +6489,6 @@
         <target state="translated">Bir switch ifadesi veya case etiketi C# 6 veya daha önceki bir sürümde bool, char, string, integral, enum veya karşılık gelen null atanabilir tür olmalıdır.</target>
         <note />
       </trans-unit>
-      <trans-unit id="ERR_IntegralTypeValueExpected">
-        <source>A value of an integral type expected</source>
-        <target state="translated">Tam sayı türünde bir değer bekleniyor</target>
-        <note />
-      </trans-unit>
       <trans-unit id="ERR_DuplicateCaseLabel">
         <source>The switch statement contains multiple cases with the label value '{0}'</source>
         <target state="translated">Switch deyimi '{0}' etiket değeri ile birden çok durum içeriyor</target>
@@ -9362,11 +9357,6 @@ RuntimeCompatibilityAttribute AssemblyInfo.cs dosyasında false olarak ayarlanm�
         <target state="translated">'{0}' uygun bir statik Main yöntemine sahip değil</target>
         <note />
       </trans-unit>
-      <trans-unit id="ERR_MainClassIsImport">
-        <source>Cannot use '{0}' for Main method because it is imported</source>
-        <target state="translated">İçeri aktarıldığından Main yöntemi için '{0}' kullanılamıyor</target>
-        <note />
-      </trans-unit>
       <trans-unit id="ERR_OutputNeedsName">
         <source>Outputs without source must have the /out option specified</source>
         <target state="translated">Kaynağı olmayan çıkışlar için /out seçeneği belirtilmelidir</target>
@@ -10097,21 +10087,6 @@ RuntimeCompatibilityAttribute AssemblyInfo.cs dosyasında false olarak ayarlanm�
         <target state="translated">Bu uyarı, MarshalByRefObject öğesinden türeyen bir sınıfın üyesindeki bir yöntemi, özelliği veya dizin oluşturucuyu çağırmaya çalıştığınızda ve üye bir değer türü olduğunda oluşur. MarshalByRefObject öğesinden alınan nesneler genellikle uygulama etki alanı genelinde başvuruya göre sıralanır. Bir uygulama etki alanı genelinde bir nesne gibi değer türü üyesine herhangi bir kod doğrudan erişmeye çalışırsa, çalışma zamanı özel durumu oluşur. Uyarıyı çözümlemek için, öncelikle üyeyi yerel bir değişkene kopyalayın ve değişkende yöntemi çağır.</target>
         <note />
       </trans-unit>
-      <trans-unit id="WRN_BadWarningNumber">
-        <source>'{0}' is not a valid warning number</source>
-        <target state="translated">'{0}' geçerli bir uyarı numarası değil</target>
-        <note />
-      </trans-unit>
-      <trans-unit id="WRN_BadWarningNumber_Title">
-        <source>Not a valid warning number</source>
-        <target state="translated">Geçerli bir uyarı numarası değil</target>
-        <note />
-      </trans-unit>
-      <trans-unit id="WRN_BadWarningNumber_Description">
-        <source>A number that was passed to the #pragma warning preprocessor directive was not a valid warning number. Verify that the number represents a warning, not an error.</source>
-        <target state="translated">#pragma uyarı önişlemcisi yönergesine geçirilen bir sayı geçerli bir uyarı sayısı değildi. Sayının bir hatayı değil, bir uyarıyı temsil ettiğini doğrulayın.</target>
-        <note />
-      </trans-unit>
       <trans-unit id="WRN_InvalidNumber">
         <source>Invalid number</source>
         <target state="translated">Geçersiz sayı</target>
@@ -10120,16 +10095,6 @@ RuntimeCompatibilityAttribute AssemblyInfo.cs dosyasında false olarak ayarlanm�
       <trans-unit id="WRN_InvalidNumber_Title">
         <source>Invalid number</source>
         <target state="translated">Geçersiz sayı</target>
-        <note />
-      </trans-unit>
-      <trans-unit id="WRN_FileNameTooLong">
-        <source>Invalid filename specified for preprocessor directive. Filename is too long or not a valid filename.</source>
-        <target state="translated">Önişlemci yönergesi için geçersiz dosya adı belirtildi. Dosya adı çok uzun veya geçerli bir dosya adı değil.</target>
-        <note />
-      </trans-unit>
-      <trans-unit id="WRN_FileNameTooLong_Title">
-        <source>Invalid filename specified for preprocessor directive</source>
-        <target state="translated">Önişlemci yönergesi için belirtilen geçersiz dosya adı</target>
         <note />
       </trans-unit>
       <trans-unit id="WRN_IllegalPPChecksum">
@@ -10570,11 +10535,6 @@ RuntimeCompatibilityAttribute AssemblyInfo.cs dosyasında false olarak ayarlanm�
       <trans-unit id="ERR_VarArgsInExpressionTree">
         <source>An expression tree lambda may not contain a method with variable arguments</source>
         <target state="translated">Bir ifade ağacı lambdası, değişken sayıda bağımsız değişkeni olan bir yöntem içeremez</target>
-        <note />
-      </trans-unit>
-      <trans-unit id="ERR_MemGroupInExpressionTree">
-        <source>An expression tree lambda may not contain a method group</source>
-        <target state="translated">Bir ifade ağacı lambdası bir yöntem grubu içeremez</target>
         <note />
       </trans-unit>
       <trans-unit id="ERR_InitializerAddHasParamModifiers">
@@ -11195,17 +11155,7 @@ Derleyiciye yöntemleri ayrıştırma yolu verin. Örneğin, bunlara farklı adl
         <target state="translated">await' işleci yalnızca başlangıçtaki 'from' yan tümcesinin ilk koleksiyon ifadesinin içindeki ya da bir 'join' yan tümcesinin toplama ifadesinin içindeki bir sorgu ifadesinde kullanılabilir</target>
         <note />
       </trans-unit>
-      <trans-unit id="WRN_AsyncLacksAwaits">
-        <source>This async method lacks 'await' operators and will run synchronously. Consider using the 'await' operator to await non-blocking API calls, or 'await Task.Run(...)' to do CPU-bound work on a background thread.</source>
-        <target state="translated">Bu zaman uyumsuz yöntemde 'await' işleçleri yok ve zaman uyumlu çalışacak. 'await' işlecini kullanarak engelleyici olmayan API çağrılarını beklemeyi veya 'await Task.Run(...)' kullanarak bir arka plan iş parçacığında CPU bağlantılı iş yapmayı düşünün.</target>
-        <note />
-      </trans-unit>
-      <trans-unit id="WRN_AsyncLacksAwaits_Title">
-        <source>Async method lacks 'await' operators and will run synchronously</source>
-        <target state="translated">Zaman uyumsuz yöntemde 'await' işleçleri yok ve zaman uyumlu çalışacak</target>
-        <note />
-      </trans-unit>
-      <trans-unit id="WRN_UnobservedAwaitableExpression">
+                  <trans-unit id="WRN_UnobservedAwaitableExpression">
         <source>Because this call is not awaited, execution of the current method continues before the call is completed. Consider applying the 'await' operator to the result of the call.</source>
         <target state="translated">Bu çağrı beklenmediğinden, çağrı tamamlanmadan geçerli yöntemin yürütülmesi devam eder. Çağrının sonucuna 'await' işlecini eklemeyi düşünün.</target>
         <note />
@@ -12643,11 +12593,6 @@ Uyarıyı kaldırmak için, /reference kullanabilirsiniz (Birlikte Çalışma T�
       <trans-unit id="ERR_UnclosedExpressionHole">
         <source>Missing close delimiter '}' for interpolated expression started with '{'.</source>
         <target state="translated">{' ile başlatılan ara değerli bir ifadede eksik '}' kapatma sınırlayıcısı.</target>
-        <note />
-      </trans-unit>
-      <trans-unit id="ERR_SingleLineCommentInExpressionHole">
-        <source>A single-line comment may not be used in an interpolated string.</source>
-        <target state="translated">Tek satırlık bir yorum, araya alınmış bir dizede kullanılamaz.</target>
         <note />
       </trans-unit>
       <trans-unit id="ERR_InsufficientStack">
