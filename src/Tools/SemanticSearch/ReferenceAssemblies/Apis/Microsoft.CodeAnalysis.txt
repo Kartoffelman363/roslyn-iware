@@ -1852,6 +1852,7 @@ Microsoft.CodeAnalysis.OperationKind.SimpleAssignment
 Microsoft.CodeAnalysis.OperationKind.SizeOf
 Microsoft.CodeAnalysis.OperationKind.SlicePattern
 Microsoft.CodeAnalysis.OperationKind.Spread
+Microsoft.CodeAnalysis.OperationKind.Sql
 Microsoft.CodeAnalysis.OperationKind.StaticLocalInitializationSemaphore
 Microsoft.CodeAnalysis.OperationKind.Stop
 Microsoft.CodeAnalysis.OperationKind.Switch
@@ -2267,6 +2268,8 @@ Microsoft.CodeAnalysis.Operations.ISpreadOperation
 Microsoft.CodeAnalysis.Operations.ISpreadOperation.get_ElementConversion
 Microsoft.CodeAnalysis.Operations.ISpreadOperation.get_ElementType
 Microsoft.CodeAnalysis.Operations.ISpreadOperation.get_Operand
+Microsoft.CodeAnalysis.Operations.ISqlOperation
+Microsoft.CodeAnalysis.Operations.ISqlOperation.get_Body
 Microsoft.CodeAnalysis.Operations.IStopOperation
 Microsoft.CodeAnalysis.Operations.ISwitchCaseOperation
 Microsoft.CodeAnalysis.Operations.ISwitchCaseOperation.get_Body
@@ -2487,6 +2490,7 @@ Microsoft.CodeAnalysis.Operations.OperationVisitor.VisitSingleValueCaseClause(Mi
 Microsoft.CodeAnalysis.Operations.OperationVisitor.VisitSizeOf(Microsoft.CodeAnalysis.Operations.ISizeOfOperation)
 Microsoft.CodeAnalysis.Operations.OperationVisitor.VisitSlicePattern(Microsoft.CodeAnalysis.Operations.ISlicePatternOperation)
 Microsoft.CodeAnalysis.Operations.OperationVisitor.VisitSpread(Microsoft.CodeAnalysis.Operations.ISpreadOperation)
+Microsoft.CodeAnalysis.Operations.OperationVisitor.VisitSql(Microsoft.CodeAnalysis.Operations.ISqlOperation)
 Microsoft.CodeAnalysis.Operations.OperationVisitor.VisitStaticLocalInitializationSemaphore(Microsoft.CodeAnalysis.FlowAnalysis.IStaticLocalInitializationSemaphoreOperation)
 Microsoft.CodeAnalysis.Operations.OperationVisitor.VisitStop(Microsoft.CodeAnalysis.Operations.IStopOperation)
 Microsoft.CodeAnalysis.Operations.OperationVisitor.VisitSwitch(Microsoft.CodeAnalysis.Operations.ISwitchOperation)
@@ -2618,6 +2622,7 @@ Microsoft.CodeAnalysis.Operations.OperationVisitor`2.VisitSingleValueCaseClause(
 Microsoft.CodeAnalysis.Operations.OperationVisitor`2.VisitSizeOf(Microsoft.CodeAnalysis.Operations.ISizeOfOperation,`0)
 Microsoft.CodeAnalysis.Operations.OperationVisitor`2.VisitSlicePattern(Microsoft.CodeAnalysis.Operations.ISlicePatternOperation,`0)
 Microsoft.CodeAnalysis.Operations.OperationVisitor`2.VisitSpread(Microsoft.CodeAnalysis.Operations.ISpreadOperation,`0)
+Microsoft.CodeAnalysis.Operations.OperationVisitor`2.VisitSql(Microsoft.CodeAnalysis.Operations.ISqlOperation,`0)
 Microsoft.CodeAnalysis.Operations.OperationVisitor`2.VisitStaticLocalInitializationSemaphore(Microsoft.CodeAnalysis.FlowAnalysis.IStaticLocalInitializationSemaphoreOperation,`0)
 Microsoft.CodeAnalysis.Operations.OperationVisitor`2.VisitStop(Microsoft.CodeAnalysis.Operations.IStopOperation,`0)
 Microsoft.CodeAnalysis.Operations.OperationVisitor`2.VisitSwitch(Microsoft.CodeAnalysis.Operations.ISwitchOperation,`0)

@@ -2,13 +2,13 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Collections.Generic;
+using System;
 using System.Collections.Immutable;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Reflection;
+using System.Net.Http;
+using System.Text;
 using System.Text.Json;
+using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SqlVerifier;
 
@@ -16,11 +16,14 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
 {
     internal class VerifySql
     {
+        private static HttpClient? _client = null;
+
         private static VerifierInput VerifierInput(
             string configPath,
             string sqlString,
             ImmutableArray<SqlSegmentSyntax> segments)
         {
+            /*
             int index = 0;
             var tokens = segments.Select(seg =>
                 seg switch
@@ -39,7 +42,8 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                         index++),
                     _ => VerifierToken.UnreachableVerifierToken()
                 }).ToArray();
-            return new VerifierInput() { ConfigPath = configPath, SqlString = sqlString, Tokens = tokens };
+            */
+            return new VerifierInput() { ConfigPath = configPath, SqlString = sqlString, Tokens = [] };
         }
 
         public static bool Verify(
@@ -48,6 +52,13 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             SqlStatementSyntax node,
             BindingDiagnosticBag diagnostics)
         {
+            if (_client == null)
+            {
+                _client = new HttpClient();
+                _client.BaseAddress = new System.Uri("https://localhost:7002");
+                _client.DefaultRequestHeaders.Accept.Clear();
+                _client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+            }
             var configPath = Path.Combine(projectRootDir, "iWareDatabase.json");
 
             if (!File.Exists(configPath))
@@ -60,80 +71,73 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             }
 
             var segments = node.SqlTextBlock.Segments.ToImmutableArray();
-            var args = JsonSerializer.Serialize(
+            var reason = VerifySqlAsync(
                 VerifierInput(
                     configPath,
                     sqlText,
-                    segments));
-            Debug.Assert(args is not null, "Could not serialize verification data");
+                    segments)).Result;
 
-            var executableDirectoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            Debug.Assert(executableDirectoryPath is not null);
-            var sqlVerifierPath = Path.GetFullPath(Path.Combine(executableDirectoryPath, "iWareSql/Verifier/SqlVerifier.exe"));
-            Debug.Assert(sqlVerifierPath is not null);
-            var procInfo = new ProcessStartInfo
+            if (reason is null)
             {
-                FileName = sqlVerifierPath,
-                Arguments = $"\"{args.Replace("\"", "\\\"")}\"",
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                CreateNoWindow = true,
-            };
-            var proc = new Process { StartInfo = procInfo };
-            //Trace.Assert(proc.Start(), $"Could not start SqlVerifier.exe at path {sqlVerifierPath}");
-            if (!proc.Start())
-            {
-                diagnostics.Add(ErrorCode.ERR_SQL_VerifierMissingError, node.Location);
-                return false;
+                reason = VerifierOutput.Unknown();
             }
-            var reasonString = "";
-            while (!proc.StandardOutput.EndOfStream)
-            {
-                reasonString += proc.StandardOutput.ReadLine();
-            }
-            if (reasonString != string.Empty && reasonString.Substring(0, 2) == "OK")
+            if (reason.Success)
             {
                 return true;
             }
 
-            VerifierOutput? reason;
-            try
+            if (!string.IsNullOrEmpty(reason.Message))
             {
-                reason = JsonSerializer.Deserialize<VerifierOutput>(reasonString);
-            }
-            catch
-            {
-                reason = null;
-            }
-            if (reason is null)
-            {
-                diagnostics.Add(ErrorCode.ERR_SQL_VerificationError, node.SqlTextBlock.Location, reasonString);
-                return false;
+                diagnostics.Add(ErrorCode.WRN_SQL_VerificationWarn, node.SqlKeyword, reason.Message);
             }
 
             foreach (var e in reason.Diagnostics)
             {
                 if (e.Index < 0 || e.Index >= segments.Length)
                 {
-                    diagnostics.Add(ErrorCode.WRN_SQL_VerificationWarn, node.SqlTextBlock.Location, e.Text);
+                    diagnostics.Add(ErrorCode.WRN_SQL_VerificationWarn, node.SqlTextBlock.Location, e.Text ?? "");
                     continue;
                 }
                 var segment = segments[e.Index];
                 if (e.IsWarning)
                 {
-                    diagnostics.Add(ErrorCode.WRN_SQL_VerificationWarn, segment.Location, e.Text);
+                    diagnostics.Add(ErrorCode.WRN_SQL_VerificationWarn, segment.Location, e.Text ?? "");
                 }
                 else if (e.IsError)
                 {
-                    diagnostics.Add(ErrorCode.ERR_SQL_VerificationError, segment.Location, e.Text);
+                    diagnostics.Add(ErrorCode.ERR_SQL_VerificationError, segment.Location, e.Text ?? "");
                 }
                 else
                 {
-                    diagnostics.Add(ErrorCode.ERR_SQL_VerificationError, node.SqlTextBlock.Location, e.Text);
+                    diagnostics.Add(ErrorCode.ERR_SQL_VerificationError, node.SqlTextBlock.Location, e.Text ?? "");
                 }
             }
 
             return false;
+        }
+
+        private static async Task<VerifierOutput> VerifySqlAsync(VerifierInput input)
+        {
+            try
+            {
+                var jsonString = JsonSerializer.Serialize(input);
+                var content = new StringContent(jsonString, Encoding.UTF8, "application/json");
+                var response = await _client!.PostAsync("/SqlVerifier/Verify", content).ConfigureAwait(true);
+                response.EnsureSuccessStatusCode();
+                ObjectToHttpContent.HttpContentToObject(response.Content, out var result);
+                if (result is not null)
+                {
+                    return result;
+                }
+            }
+            catch (HttpRequestException e)
+            {
+            }
+            catch (Exception e)
+            {
+                return VerifierOutput.Error(e.Message);
+            }
+            return VerifierOutput.Error("SQL verifier unavailable");
         }
     }
 }

@@ -7,7 +7,6 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using Microsoft.CodeAnalysis.CSharp.Symbols;
-using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.CSharp
 {
@@ -127,6 +126,10 @@ namespace Microsoft.CodeAnalysis.CSharp
                 _beginMethodSymbol = TryLookupFunction(
                     "iWare.Database.SqlCommands",
                     "Begin")!;
+                if (_beginMethodSymbol is null || _beginMethodSymbol.Parameters.Length != 3 || _beginMethodSymbol.ReturnsVoid)
+                {
+                    throw new Exception("Missing or invalid method iWare.Database.SqlCommands.Begin");
+                }
                 Debug.Assert(_beginMethodSymbol is not null, "method iWare.Database.SqlCommands.Begin not found");
                 Debug.Assert(_beginMethodSymbol.Parameters.Length == 3 && !_beginMethodSymbol.ReturnsVoid, "method iWare.Database.SqlCommands.Begin does not match expected signature");
 
