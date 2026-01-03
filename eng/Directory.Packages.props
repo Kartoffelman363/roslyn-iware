@@ -48,7 +48,6 @@
   </ItemGroup>
   <ItemGroup>
     <PackageVersion Include="Microsoft.Build.Locator" Version="1.8.1" />
-
     <!--
       Visual Studio
     -->
@@ -110,7 +109,6 @@
     <PackageVersion Include="Nerdbank.Streams" Version="2.12.87" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageVersion Include="StreamJsonRpc" Version="2.23.39-alpha" />
-
     <!--
       VS Debugger
     -->
@@ -134,12 +132,10 @@
     <PackageVersion Include="NuGet.ProjectModel" Version="6.8.0-rc.112" />
     <PackageVersion Include="Microsoft.TestPlatform.TranslationLayer" Version="$(MicrosoftNETTestSdkVersion)" />
     <PackageVersion Include="Microsoft.TestPlatform.ObjectModel" Version="$(MicrosoftNETTestSdkVersion)" />
-
     <!--
       MSBuildWorkspace
     -->
     <PackageVersion Include="Microsoft.VisualStudio.SolutionPersistence" Version="1.0.52" />
-
     <!--
       Analyzers
     -->
@@ -196,7 +192,6 @@
     <PackageVersion Include="System.Threading.Tasks.Extensions" Version="$(SystemThreadingTasksExtensionsVersion)" />
     <PackageVersion Include="System.ValueTuple" Version="$(SystemValueTupleVersion)" />
     <PackageVersion Include="System.Windows.Extensions" Version="$(SystemWindowsExtensionsVersion)" />
-
     <!--
       When updating the S.C.I or S.R.M version please let the MSBuild team know in advance so they
       can update to the same version. Version changes require a VS test insertion for validation.
@@ -207,7 +202,6 @@
     <!-- Note: When updating SystemTextJsonVersion ensure that the version is no higher than what is used by MSBuild. -->
     <PackageVersion Include="System.Text.Json" Version="$(SystemTextJsonVersion)" />
     <PackageVersion Include="System.Threading.Channels" Version="8.0.0" />
-
     <PackageVersion Include="Microsoft.IO.Redist" Version="$(MicrosoftIORedistVersion)" />
     <PackageVersion Include="SQLitePCLRaw.core" Version="$(SqliteVersion)" />
     <PackageVersion Include="SQLitePCLRaw.bundle_green" Version="$(SqliteVersion)" />
@@ -261,7 +255,7 @@
     <PackageVersion Include="xunit.core" Version="$(_xunitVersion)" />
     <PackageVersion Include="Xunit.Combinatorial" Version="1.6.24" />
     <PackageVersion Include="xunit.extensibility.core" Version="$(_xunitVersion)" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
     <PackageVersion Include="xunit.runner.utility" Version="$(_xunitVersion)" />
     <PackageVersion Include="xunit.abstractions" Version="2.0.3" />
     <PackageVersion Include="xunit.extensibility.execution" Version="$(_xunitVersion)" />
@@ -319,5 +313,5 @@
     <PackageVersion Include="Microsoft.CodeAnalysis.VisualBasic" Version="4.12.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.VisualBasic.Workspaces" Version="4.12.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.Common" Version="4.12.0" />
- </ItemGroup>
+  </ItemGroup>
 </Project>

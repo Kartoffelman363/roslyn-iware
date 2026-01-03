@@ -49,6 +49,20 @@
     <ExpectedDependency Include="ICSharpCode.Decompiler"/>
     <ExpectedDependency Include="Microsoft.DiaSymReader"/>
     <ExpectedDependency Include="Microsoft.CodeAnalysis.Elfie"/>
+	
+	<ExpectedDependency Include="Azure.Identity"/>
+	<ExpectedDependency Include="Microsoft.Data.SqlClient"/>
+	<ExpectedDependency Include="Microsoft.Identity.Client"/>
+	<ExpectedDependency Include="Microsoft.Identity.Client.Extensions.Msal"/>
+	<ExpectedDependency Include="Microsoft.IdentityModel.Abstractions"/>
+	<ExpectedDependency Include="Microsoft.IdentityModel.JsonWebTokens"/>
+	<ExpectedDependency Include="Microsoft.IdentityModel.Logging"/>
+	<ExpectedDependency Include="Microsoft.IdentityModel.Protocols"/>
+	<ExpectedDependency Include="Microsoft.IdentityModel.Protocols.OpenIdConnect"/>
+	<ExpectedDependency Include="Microsoft.IdentityModel.Tokens"/>
+	<ExpectedDependency Include="System.IdentityModel.Tokens.Jwt"/>
+	<ExpectedDependency Include="System.IO.FileSystem.AccessControl"/>
+	<ExpectedDependency Include="System.Security.Cryptography.ProtectedData"/>
   </ItemGroup>
 
   <Target Name="_CalculateDependenciesToInsert" DependsOnTargets="ResolveAssemblyReferences;GetAssemblyVersion">

@@ -564,7 +564,7 @@ namespace Microsoft.CodeAnalysis.CSharp.CodeGen
 
         public BoundNode VisitStatement(BoundNode node)
         {
-            Debug.Assert(node == null || EvalStackIsEmpty(), $"node kind ::{node.Kind.ToString()}::\nnode ::{node.Syntax.ToFullString()}::");
+            Debug.Assert(node == null || EvalStackIsEmpty());
             return VisitSideEffect(node);
         }
 

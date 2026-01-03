@@ -3292,7 +3292,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             //TODO-aljaz only mark output missing in SQL as warning
             //TODO-aljaz mark exact spot in SQL causing errors
-            VerifySql.Verify(
+            VerifySql.Verify2(
                 fileDir,
                 sqlText,
                 node,

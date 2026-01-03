@@ -6,12 +6,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Net;
-using System.Net.Http;
-using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 
 namespace SqlVerifier
 {
@@ -44,27 +39,33 @@ namespace SqlVerifier
 
     public class VerifierInput
     {
-        public string ConfigPath { get; set; }
-        public string SqlString { get; set; }
-        public VerifierToken[] Tokens { get; set; }
+        public string? ConfigPath { get; set; }
+        public string? SqlString { get; set; }
+        public VerifierToken[]? Tokens { get; set; }
     }
 
     public class VerifierTokenDiagnostic
     {
         public int Index { get; set; }
-        public bool IsError { get; set; }
-        public bool IsWarning { get; set; }
+        public StatusCode Status { get; set; }
         public string? Text { get; set; }
+    }
+
+    public enum StatusCode
+    {
+        Success = 0,
+        Warning = 1,
+        Error = 2
     }
 
     public class VerifierOutput
     {
-        [JsonPropertyName("success")]
-        public bool Success { get; set; }
+        [JsonPropertyName("status")]
+        public StatusCode? Status { get; set; }
         [JsonPropertyName("message")]
-        public string Message { get; set; }
+        public string? Message { get; set; }
         [JsonPropertyName("diagnostics")]
-        public List<VerifierTokenDiagnostic> Diagnostics { get; set; }
+        public List<VerifierTokenDiagnostic>? Diagnostics { get; set; }
 
         public VerifierOutput()
         {
@@ -74,17 +75,22 @@ namespace SqlVerifier
 
         public static VerifierOutput Ok()
         {
-            return new VerifierOutput() { Success = true };
+            return new VerifierOutput() { Status = StatusCode.Success };
         }
 
         public static VerifierOutput Unknown()
         {
-            return new VerifierOutput() { Success = false, Message = "Unknown" };
+            return new VerifierOutput() { Status = StatusCode.Warning, Message = "Unknown" };
         }
 
         public static VerifierOutput Error(string message)
         {
-            return new VerifierOutput() { Success = false, Message = message };
+            return new VerifierOutput() { Status = StatusCode.Error, Message = message };
+        }
+
+        public static VerifierOutput Unavailable()
+        {
+            return new VerifierOutput() { Status = StatusCode.Warning, Message = "SQL verifier unavailable" };
         }
     }
 }

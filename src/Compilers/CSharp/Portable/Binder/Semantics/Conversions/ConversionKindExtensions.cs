@@ -23,7 +23,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 case UnsetConversionKind:
                     return false;
 
-                case Identity:
+                case ConversionKind.Identity:
                 case ImplicitNumeric:
                 case ImplicitTupleLiteral:
                 case ImplicitTuple:
