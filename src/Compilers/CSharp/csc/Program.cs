@@ -13,6 +13,10 @@ namespace Microsoft.CodeAnalysis.CSharp.CommandLine
     {
         public static int Main(string[] args)
         {
+#if DEBUG
+            //if (file.Path.Contains("DemoTry.cs") || file.Path.Contains("Example.cs"))
+            //Debugger.Launch();
+#endif
             try
             {
                 return MainCore(args);

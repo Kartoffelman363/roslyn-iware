@@ -24,7 +24,7 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             {
                 if (settingsFile == null)
                 {
-                    settingsFile = Path.Combine(Directory.GetCurrentDirectory(), "iWareDatabase.json");
+                    settingsFile = VerifySql.FindDbConfigFile(Directory.GetCurrentDirectory());
                     if (!File.Exists(settingsFile))
                     {
                         settingsFile = null;
