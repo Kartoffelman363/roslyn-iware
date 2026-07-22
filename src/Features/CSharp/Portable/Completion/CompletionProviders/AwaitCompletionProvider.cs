@@ -21,7 +21,7 @@ using Roslyn.Utilities;
 namespace Microsoft.CodeAnalysis.CSharp.Completion.Providers;
 
 [ExportCompletionProvider(nameof(AwaitCompletionProvider), LanguageNames.CSharp), Shared]
-[ExtensionOrder(After = nameof(KeywordCompletionProvider))]
+[ExtensionOrder(After = nameof(SqlCompletionProvider))]
 [method: ImportingConstructor]
 [method: Obsolete(MefConstruction.ImportingConstructorMessage, error: true)]
 internal sealed class AwaitCompletionProvider() : AbstractAwaitCompletionProvider(CSharpSyntaxFacts.Instance)

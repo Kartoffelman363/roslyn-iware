@@ -39,6 +39,7 @@ public sealed class CompletionProviderOrderTests
             typeof(AttributeNamedParameterCompletionProvider),
             typeof(NamedParameterCompletionProvider),
             typeof(KeywordCompletionProvider),
+            typeof(SqlCompletionProvider),
             typeof(AwaitCompletionProvider),
             typeof(SpeculativeTCompletionProvider),
             typeof(SymbolCompletionProvider),
