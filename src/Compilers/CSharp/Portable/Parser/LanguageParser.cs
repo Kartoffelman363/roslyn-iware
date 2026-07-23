@@ -9125,9 +9125,26 @@ done:
                 }
                 else if (CurrentToken.Text.Length > 0 && CurrentToken.Text[0] == '@')
                 {
+                    var positionBeforeParse = CurrentToken;
+                    var identifierName = ParseIdentifierName();
+                    if (identifierName.IsMissing && CurrentToken == positionBeforeParse)
+                    {
+                        // ParseIdentifierName failed to consume anything (e.g. lone '@' with
+                        // no valid identifier following) — eat the raw token ourselves so we
+                        // always make forward progress.
+                        sqlBlockBuilder.Add(_syntaxFactory.SqlTextSegment(EatToken()));
+                    }
+                    else
+                    {
+                        sqlBlockBuilder.Add(
+                            _syntaxFactory.SqlInputIdentifierSegment(identifierName));
+                    }
+
+                    /*
                     sqlBlockBuilder.Add(
                         _syntaxFactory.SqlInputIdentifierSegment(
                             ParseIdentifierName()));
+                    */
                     continue;
                 }
                 else
