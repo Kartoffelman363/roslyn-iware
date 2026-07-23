@@ -3,17 +3,19 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Collections.Concurrent;
 using System.IO;
-using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Data.SqlClient;
-using SqlVerifier;
 using static Microsoft.CodeAnalysis.CSharp.iWareSql.DbConnection;
 
 namespace Microsoft.CodeAnalysis.CSharp.iWareSql
 {
     internal class VerifySql
     {
+        private static readonly ConcurrentDictionary<string, bool> s_sqlVerificationCache = new();
         private const string DbConfigFileName = "iWareDatabase.json";
         private static string? s_dbConfiFile = null;
 
@@ -47,6 +49,18 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             SqlStatementSyntax node,
             BindingDiagnosticBag diagnostics)
         {
+            string cacheKey;
+            bool retVal;
+            using (SHA256 sha256Hash = SHA256.Create())
+            {
+                var ck = sha256Hash.ComputeHash(Encoding.UTF8.GetBytes(sqlText));
+                cacheKey = Convert.ToBase64String(ck);
+                if (s_sqlVerificationCache.TryGetValue(cacheKey, out retVal))
+                {
+                    return retVal;
+                }
+            }
+
             var sqlCodeLocation = node.SqlTextBlock;
             /*
             var configPath = Path.Combine(fileDir, dbConfigFileName);
@@ -67,7 +81,8 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                     ErrorCode.ERR_SQL_VerificationError,
                     sqlCodeLocation,
                     $"Missing {DbConfigFileName} file at {configPath}");
-                return false;
+                retVal = false;
+                goto end;
             }
 
             SetSettings(configPath);
@@ -82,7 +97,8 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                     ErrorCode.ERR_SQL_VerificationError,
                     sqlCodeLocation,
                     $"Could not connect to database with ConnectionString listed in {configPath}");
-                return false;
+                retVal = false;
+                goto end;
             }
 
             try
@@ -101,7 +117,8 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                     ErrorCode.ERR_SQL_VerificationError,
                     sqlCodeLocation,
                     e.Message);
-                return false;
+                retVal = false;
+                goto end;
             }
             catch (Exception e)
             {
@@ -109,10 +126,12 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                     ErrorCode.ERR_SQL_VerificationError,
                     sqlCodeLocation,
                     e.Message);
-                return false;
+                retVal = false;
+                goto end;
             }
-
-            return true;
+end:
+            s_sqlVerificationCache.TryAdd(cacheKey, retVal);
+            return retVal;
         }
     }
 }
