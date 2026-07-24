@@ -82,6 +82,7 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                     sqlCodeLocation,
                     $"Missing {DbConfigFileName} file at {configPath}");
                 retVal = false;
+                cacheKey = "no_config"; // TODO aljaz config cache
                 goto end;
             }
 
@@ -98,6 +99,7 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                     sqlCodeLocation,
                     $"Could not connect to database with ConnectionString listed in {configPath}");
                 retVal = false;
+                cacheKey = "no_conn_" + cacheKey; // TODO aljaz config cache
                 goto end;
             }
 
