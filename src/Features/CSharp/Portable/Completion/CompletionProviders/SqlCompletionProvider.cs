@@ -4,7 +4,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Composition;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.Completion;
@@ -112,32 +114,114 @@ internal sealed class SqlCompletionProvider : CompletionProvider
     {
     }
 
-    private class TableReference(string tableName)
+    private class TableReference
     {
-        public string _tableName = tableName;
+        public string _tableName;
         public List<string>? _tableAliases = null;
         public List<string>? _columnNames = null;
-        public DateTime? _lastUpdated = null;
+        public DateTime _lastUpdatedColumns = DateTime.MinValue;
+
+        public TableReference(string tableName)
+        {
+            _tableName = tableName;
+        }
+
+        public void MergeColumns(List<string> columnNames)
+        {
+            _columnNames ??= new();
+
+            var columnNamesSet = new HashSet<string>(columnNames);
+
+            _columnNames.RemoveAll(tr => !columnNamesSet.Contains(tr));
+
+            foreach (var columnName in columnNames)
+            {
+                if (!_columnNames.Contains(columnName))
+                {
+                    _columnNames.Add(columnName);
+                }
+            }
+
+            _lastUpdatedColumns = DateTime.Now;
+        }
+
+        public void MergeAliases(List<string> tableAliases)
+        {
+            _tableAliases ??= new();
+
+            var aliasNamesSet = new HashSet<string>(tableAliases);
+
+            _tableAliases.RemoveAll(tr => !aliasNamesSet.Contains(tr));
+
+            foreach (var tableAlias in tableAliases)
+            {
+                if (!_tableAliases.Contains(tableAlias))
+                {
+                    _tableAliases.Add(tableAlias);
+                }
+            }
+        }
+
+        public void UpdateColumnNames(CompletionContext context)
+        {
+            // Prevent function from firing too frequently
+            if ((DateTime.Now - _lastUpdatedColumns).TotalSeconds < 5)
+            {
+                return;
+            }
+
+            var filePath = context.Document.FilePath;
+            if (filePath == null)
+            {
+                return;
+            }
+
+            var lastUpdated = SqlCompletionQueries.TableChangedTime(filePath, _tableName);
+            if (lastUpdated == null || lastUpdated < _lastUpdatedColumns)
+            {
+                return;
+            }
+
+            var columnNames = SqlCompletionQueries.GetColumnNames(filePath, _tableName);
+            if (columnNames != null)
+            {
+                MergeColumns(columnNames);
+            }
+        }
+
+        public List<string> GetColumnNames()
+        {
+            return _columnNames ?? [];
+        }
     }
 
     private class TableReferences
     {
         public readonly List<TableReference> _tableReferences = new();
-        public DateTime? _lastUpdated = null;
+        private readonly HashSet<string> _tableReferencesNamesSet = new();
+        public DateTime _lastUpdated = DateTime.MinValue;
 
         public void Merge(List<string> tableNames)
         {
-            var existingNames = new HashSet<string>(_tableReferences.Select(tr => tr._tableName));
+            var tableNamesSet = new HashSet<string>(tableNames);
 
             //Remove all tableReferences not in tableNames
-            _tableReferences.RemoveAll(tr => !existingNames.Contains(tr._tableName));
+            _tableReferences.RemoveAll(tr => {
+                var shouldRemove = !tableNamesSet.Contains(tr._tableName);
+                if (shouldRemove)
+                {
+                    _tableReferencesNamesSet.Remove(tr._tableName);
+                }
+                return shouldRemove;
+            });
 
             // Add tableNames which don't exist in tableReferences
             foreach (var tableName in tableNames)
             {
-                if (!existingNames.Contains(tableName))
+                if (!_tableReferencesNamesSet.Contains(tableName))
                 {
                     _tableReferences.Add(new TableReference(tableName));
+                    _tableReferencesNamesSet.Add(tableName);
                 }
             }
 
@@ -151,6 +235,12 @@ internal sealed class SqlCompletionProvider : CompletionProvider
 
         public void UpdateTableNames(CompletionContext context)
         {
+            // Prevent function from firing too frequently
+            if ((DateTime.Now - _lastUpdated).TotalSeconds < 5)
+            {
+                return;
+            }
+
             var filePath = context.Document.FilePath;
             if (filePath == null)
             {
@@ -158,7 +248,7 @@ internal sealed class SqlCompletionProvider : CompletionProvider
             }
 
             var lastUpdated = SqlCompletionQueries.LastTableChangedTime(filePath);
-            if (_lastUpdated != null && lastUpdated < _lastUpdated)
+            if (lastUpdated == null && lastUpdated < _lastUpdated)
             {
                 return;
             }
@@ -166,9 +256,13 @@ internal sealed class SqlCompletionProvider : CompletionProvider
             var tableNames = SqlCompletionQueries.GetTableNames(filePath);
             if (tableNames != null)
             {
-                _lastUpdated = DateTime.Now;
                 Merge(tableNames);
             }
+        }
+
+        public TableReference? GetTableReference(string tableName)
+        {
+            return _tableReferences.Find(tr => tr._tableName == tableName);
         }
     }
 
@@ -212,6 +306,8 @@ internal sealed class SqlCompletionProvider : CompletionProvider
 
     public override async Task ProvideCompletionsAsync(CompletionContext context)
     {
+        //Debugger.Launch();
+
         var tree = await context.Document.GetSyntaxTreeAsync(context.CancellationToken).ConfigureAwait(false);
         var root = tree?.GetRoot(context.CancellationToken);
         var token = root?.FindToken(context.Position);
@@ -225,9 +321,39 @@ internal sealed class SqlCompletionProvider : CompletionProvider
             return;
         }
 
-        //var tableReferences = FindTableAliases(sqlBlock);
         _tableReferences.UpdateTableNames(context); // TODO aljaz do we always want to be updating tableNames?
-        foreach (var tableName in _tableReferences.GetTableNames())
+
+        if (token.HasValue)
+        {
+            var dotToken = token;
+
+            // previous token is dot and token before that is table name
+            if (dotToken.ToString() == "." || (dotToken = dotToken.Value.GetPreviousToken()).ToString() == ".")
+            {
+                // Get table reference for name of token before dot
+                var tableReference = _tableReferences.GetTableReference(dotToken.Value.GetPreviousToken().ToString());
+                if (tableReference != null)
+                {
+                    tableReference.UpdateColumnNames(context);
+                    var columnNames = tableReference.GetColumnNames();
+                    foreach (var columnName in columnNames)
+                    {
+                        context.AddItem(CompletionItem.Create(
+                            displayText: columnName,
+                            filterText: columnName,
+                            sortText: columnName,
+                            rules: CompletionItemRules.Default,
+                            tags: [WellKnownTags.Keyword]));
+                    }
+
+                    return;
+                }
+            }
+        }
+
+        //var tableReferences = FindTableAliases(sqlBlock);
+        var tableNames = _tableReferences.GetTableNames();
+        foreach (var tableName in tableNames)
         {
             context.AddItem(CompletionItem.Create(
                 displayText: tableName,
@@ -276,9 +402,11 @@ internal sealed class SqlCompletionProvider : CompletionProvider
         }
     }
 
+    private ImmutableHashSet<char> TriggerCharacters { get; } = ['.'];
+
     public override bool ShouldTriggerCompletion(SourceText text, int caretPosition, CompletionTrigger trigger, OptionSet options)
     {
-        return trigger.Kind == CompletionTriggerKind.Insertion && char.IsLetter(trigger.Character);
+        return trigger.Kind == CompletionTriggerKind.Insertion && (char.IsLetter(trigger.Character) || TriggerCharacters.Contains(trigger.Character));
         //return base.ShouldTriggerCompletion(text, caretPosition, trigger, options);
     }
 }

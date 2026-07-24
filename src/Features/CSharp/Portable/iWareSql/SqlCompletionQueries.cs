@@ -130,5 +130,94 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
                 return null;
             }
         }
+
+        public static DateTime? TableChangedTime(string fileDir, string tableName)
+        {
+            var configPath = FindDbConfigFile(fileDir);
+            if (configPath == null)
+            {
+                return null;
+            }
+
+            SetSettings(configPath);
+            SqlConnection conn;
+            try
+            {
+                conn = Conn();
+            }
+            catch
+            {
+                return null;
+            }
+
+            try
+            {
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT modify_date FROM sys.tables WHERE name = @tableName";
+                    cmd.CommandType = System.Data.CommandType.Text;
+                    cmd.Parameters.AddWithValue("@tableName", tableName);
+                    var reader = cmd.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        if (reader.IsDBNull(0))
+                        {
+                            return null;
+                        }
+                        return reader.GetDateTime(0);
+                    }
+                    return null;
+                }
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public static List<string>? GetColumnNames(string fileDir, string tableName)
+        {
+            var columnNames = new List<string>();
+            var configPath = FindDbConfigFile(fileDir);
+            if (configPath == null)
+            {
+                return null;
+            }
+
+            SetSettings(configPath);
+            SqlConnection conn;
+            try
+            {
+                conn = Conn();
+            }
+            catch
+            {
+                return null;
+            }
+
+            try
+            {
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @tableName";
+                    cmd.CommandType = System.Data.CommandType.Text;
+                    cmd.Parameters.AddWithValue("@tableName", tableName);
+                    var reader = cmd.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        if (!reader.IsDBNull(0))
+                        {
+                            columnNames.Add(reader.GetString(0));
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                return null;
+            }
+
+            return columnNames;
+        }
     }
 }
