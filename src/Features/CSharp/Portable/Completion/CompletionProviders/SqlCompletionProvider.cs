@@ -114,11 +114,42 @@ internal sealed class SqlCompletionProvider : CompletionProvider
     {
     }
 
+    private static class Helpers
+    {
+        public static void Merge<T>(List<T> list, List<T> incomingList, HashSet<T> listHashSet)
+        {
+            var incomingHashSet = new HashSet<T>(incomingList);
+
+            //Remove all elements from list not present in incomingList
+            list.RemoveAll(tr =>
+            {
+                var shouldRemove = !incomingList.Contains(tr);
+                if (shouldRemove)
+                {
+                    listHashSet.Remove(tr);
+                }
+                return shouldRemove;
+            });
+
+            // Add all elements from incomingList that don't exist in list
+            foreach (var incoming in incomingList)
+            {
+                if (!listHashSet.Contains(incoming))
+                {
+                    list.Add(incoming);
+                    listHashSet.Add(incoming);
+                }
+            }
+        }
+    }
+
     private class TableReference
     {
         public string _tableName;
-        public List<string>? _tableAliases = null;
-        public List<string>? _columnNames = null;
+        public List<string> _tableAliases = new();
+        private readonly HashSet<string> _tableAliasesSet = new();
+        public List<string> _columnNames = new();
+        private readonly HashSet<string> _columnNamesSet = new();
         public DateTime _lastUpdatedColumns = DateTime.MinValue;
 
         public TableReference(string tableName)
@@ -128,38 +159,14 @@ internal sealed class SqlCompletionProvider : CompletionProvider
 
         public void MergeColumns(List<string> columnNames)
         {
-            _columnNames ??= new();
-
-            var columnNamesSet = new HashSet<string>(columnNames);
-
-            _columnNames.RemoveAll(tr => !columnNamesSet.Contains(tr));
-
-            foreach (var columnName in columnNames)
-            {
-                if (!_columnNames.Contains(columnName))
-                {
-                    _columnNames.Add(columnName);
-                }
-            }
+            Helpers.Merge(_columnNames, columnNames, _columnNamesSet);
 
             _lastUpdatedColumns = DateTime.Now;
         }
 
         public void MergeAliases(List<string> tableAliases)
         {
-            _tableAliases ??= new();
-
-            var aliasNamesSet = new HashSet<string>(tableAliases);
-
-            _tableAliases.RemoveAll(tr => !aliasNamesSet.Contains(tr));
-
-            foreach (var tableAlias in tableAliases)
-            {
-                if (!_tableAliases.Contains(tableAlias))
-                {
-                    _tableAliases.Add(tableAlias);
-                }
-            }
+            Helpers.Merge(_tableAliases, tableAliases, _tableAliasesSet);
         }
 
         public void UpdateColumnNames(CompletionContext context)
@@ -342,7 +349,7 @@ internal sealed class SqlCompletionProvider : CompletionProvider
                             displayText: columnName,
                             filterText: columnName,
                             sortText: columnName,
-                            rules: CompletionItemRules.Default,
+                            rules: s_sqlCompletionRules,
                             tags: [WellKnownTags.Keyword]));
                     }
 
@@ -359,7 +366,7 @@ internal sealed class SqlCompletionProvider : CompletionProvider
                 displayText: tableName,
                 filterText: tableName,
                 sortText: tableName,
-                rules: CompletionItemRules.Default,
+                rules: s_sqlCompletionRules,
                 tags: [WellKnownTags.Keyword]));
         }
 
@@ -369,7 +376,7 @@ internal sealed class SqlCompletionProvider : CompletionProvider
                 displayText: kw,
                 filterText: kw,
                 sortText: kw,
-                rules: CompletionItemRules.Default,
+                rules: s_sqlCompletionRules,
                 tags: [WellKnownTags.Keyword]));
         }
 
@@ -389,7 +396,7 @@ internal sealed class SqlCompletionProvider : CompletionProvider
                 displayText: symbol.Name,
                 filterText: symbol.Name,
                 sortText: symbol.Name,
-                rules: CompletionItemRules.Default,
+                rules: s_sqlCompletionRules,
                 tags: [WellKnownTags.Local]));
 
             var withAt = "@" + symbol.Name;
@@ -397,13 +404,18 @@ internal sealed class SqlCompletionProvider : CompletionProvider
                 displayText: withAt,
                 filterText: withAt,
                 sortText: withAt,
-                rules: CompletionItemRules.Default,
+                rules: s_sqlCompletionRules,
                 tags: [WellKnownTags.Local]));
         }
     }
 
-    private ImmutableHashSet<char> TriggerCharacters { get; } = ['.'];
+    private static readonly CompletionItemRules s_sqlCompletionRules = CompletionItemRules.Default
+    .WithCommitCharacterRule(
+        CharacterSetModificationRule.Create(
+            CharacterSetModificationKind.Remove,
+            ' '));
 
+    private ImmutableHashSet<char> TriggerCharacters { get; } = ['.'];
     public override bool ShouldTriggerCompletion(SourceText text, int caretPosition, CompletionTrigger trigger, OptionSet options)
     {
         return trigger.Kind == CompletionTriggerKind.Insertion && (char.IsLetter(trigger.Character) || TriggerCharacters.Contains(trigger.Character));

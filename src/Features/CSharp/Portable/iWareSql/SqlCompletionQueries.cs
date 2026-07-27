@@ -3,12 +3,8 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.Security.Cryptography;
-using System.Text;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Data.SqlClient;
 using static Microsoft.CodeAnalysis.CSharp.Completion.iWareSql.DbConnection;
 
@@ -67,8 +63,9 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
             {
                 using (var cmd = conn.CreateCommand())
                 {
-                    cmd.CommandText = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES";
+                    cmd.CommandText = "SELECT name FROM iw_tables_schema WHERE tid = @tennantId OR tid IS NULL";
                     cmd.CommandType = System.Data.CommandType.Text;
+                    cmd.Parameters.AddWithValue("@tennantId", TenantId);
                     var reader = cmd.ExecuteReader();
                     while (reader.Read())
                     {

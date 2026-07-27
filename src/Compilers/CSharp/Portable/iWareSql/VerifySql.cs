@@ -15,7 +15,7 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
 {
     internal class VerifySql
     {
-        private static readonly ConcurrentDictionary<string, bool> s_sqlVerificationCache = new();
+        private static readonly ConcurrentDictionary<string, Diagnosis> s_sqlVerificationCache = new();
         private const string DbConfigFileName = "iWareDatabase.json";
         private static string? s_dbConfiFile = null;
 
@@ -43,6 +43,25 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             return null;
         }
 
+        private class Diagnosis
+        {
+            public bool _retVal = true;
+            public bool _hasHighlight = false;
+            public ErrorCode? _errCode = null;
+            public string? _errMsg = null;
+
+            public void Highlight(BindingDiagnosticBag diagnostics, SqlTextBlockSyntax? location)
+            {
+                if (_hasHighlight)
+                {
+                    diagnostics.Add(
+                    _errCode ?? ErrorCode.Void,
+                    location,
+                    _errMsg ?? "");
+                }
+            }
+        }
+
         public static bool Verify(
             string fileDir,
             string sqlText,
@@ -50,18 +69,19 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             BindingDiagnosticBag diagnostics)
         {
             string cacheKey;
-            bool retVal;
+            Diagnosis? diagnosis;
+            var sqlCodeLocation = node.SqlTextBlock;
             using (SHA256 sha256Hash = SHA256.Create())
             {
                 var ck = sha256Hash.ComputeHash(Encoding.UTF8.GetBytes(sqlText));
                 cacheKey = Convert.ToBase64String(ck);
-                if (s_sqlVerificationCache.TryGetValue(cacheKey, out retVal))
+                if (s_sqlVerificationCache.TryGetValue(cacheKey, out diagnosis))
                 {
-                    return retVal;
+                    goto end;
                 }
+                diagnosis = new();
             }
 
-            var sqlCodeLocation = node.SqlTextBlock;
             /*
             var configPath = Path.Combine(fileDir, dbConfigFileName);
 
@@ -77,11 +97,10 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             var configPath = FindDbConfigFile(fileDir);
             if (configPath == null)
             {
-                diagnostics.Add(
-                    ErrorCode.ERR_SQL_VerificationError,
-                    sqlCodeLocation,
-                    $"Missing {DbConfigFileName} file at {configPath}");
-                retVal = false;
+                diagnosis._retVal = false;
+                diagnosis._hasHighlight = true;
+                diagnosis._errCode = ErrorCode.ERR_SQL_VerificationError;
+                diagnosis._errMsg = $"Missing {DbConfigFileName} file at {configPath}";
                 cacheKey = "no_config"; // TODO aljaz config cache
                 goto end;
             }
@@ -94,11 +113,10 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             }
             catch
             {
-                diagnostics.Add(
-                    ErrorCode.ERR_SQL_VerificationError,
-                    sqlCodeLocation,
-                    $"Could not connect to database with ConnectionString listed in {configPath}");
-                retVal = false;
+                diagnosis._retVal = false;
+                diagnosis._hasHighlight = true;
+                diagnosis._errCode = ErrorCode.ERR_SQL_VerificationError;
+                diagnosis._errMsg = $"Could not connect to database with ConnectionString listed in {configPath}";
                 cacheKey = "no_conn_" + cacheKey; // TODO aljaz config cache
                 goto end;
             }
@@ -115,25 +133,24 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             }
             catch (SqlException e) //{Name = "SqlException" FullName = "Microsoft.Data.SqlClient.SqlException"}
             {
-                diagnostics.Add(
-                    ErrorCode.ERR_SQL_VerificationError,
-                    sqlCodeLocation,
-                    e.Message);
-                retVal = false;
+                diagnosis._retVal = false;
+                diagnosis._hasHighlight = true;
+                diagnosis._errCode = ErrorCode.ERR_SQL_VerificationError;
+                diagnosis._errMsg = e.Message;
                 goto end;
             }
             catch (Exception e)
             {
-                diagnostics.Add(
-                    ErrorCode.ERR_SQL_VerificationError,
-                    sqlCodeLocation,
-                    e.Message);
-                retVal = false;
+                diagnosis._retVal = false;
+                diagnosis._hasHighlight = true;
+                diagnosis._errCode = ErrorCode.ERR_SQL_VerificationError;
+                diagnosis._errMsg = e.Message;
                 goto end;
             }
 end:
-            s_sqlVerificationCache.TryAdd(cacheKey, retVal);
-            return retVal;
+            s_sqlVerificationCache.TryAdd(cacheKey, diagnosis);
+            diagnosis.Highlight(diagnostics, sqlCodeLocation);
+            return diagnosis._retVal;
         }
     }
 }

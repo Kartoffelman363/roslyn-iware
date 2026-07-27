@@ -6,13 +6,13 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
 {
     internal static class DbConnection
     {
-        public static string? TenantId { get; set; }
+        public static int? TenantId { get; set; }
         public static string? ConnectionString { private get; set; }
 
         internal class DbSettings
         {
             public string? CompanyName { get; set; }
-            public string? TID { get; set; }
+            public int? TID { get; set; }
             public string? ConnectionString { get; set; }
             public string? ExternalFile { get; set; }
         }
