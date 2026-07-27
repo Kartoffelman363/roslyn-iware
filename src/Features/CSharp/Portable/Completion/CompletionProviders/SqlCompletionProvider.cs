@@ -337,10 +337,55 @@ internal sealed class SqlCompletionProvider : CompletionProvider
             MergeAliases(aliases);
         }
 
-        public TableReference? GetTableReference(string tableName)
+        public TableReference? GetTableReferenceByNameOrAlias(string nameOrAlias)
+        {
+            return GetTableReferenceByName(nameOrAlias) ?? GetTableReferenceByAlias(nameOrAlias);
+        }
+
+        public TableReference? GetTableReferenceByName(string tableName)
         {
             return _tableReferences.Find(tr => tr._tableName == tableName);
         }
+
+        public TableReference? GetTableReferenceByAlias(string alias)
+        {
+            return _tableReferences.Find(tr => tr._tableAliases != null && tr._tableAliases.Contains(alias));
+        }
+    }
+
+    // If found match returns true
+    private bool dotTokenCompletion(SyntaxToken? token, CompletionContext context)
+    {
+        if (token.HasValue)
+        {
+            var dotToken = token;
+
+            // previous token is dot and token before that is table name
+            if (dotToken.ToString() == "." || (dotToken = dotToken.Value.GetPreviousToken()).ToString() == ".")
+            {
+                // Get table reference for name of token before dot
+                var tableName = dotToken.Value.GetPreviousToken().ToString();
+                var tableReference = _tableReferences.GetTableReferenceByNameOrAlias(tableName);
+                if (tableReference != null)
+                {
+                    tableReference.UpdateColumnNames(context);
+                    var columnNames = tableReference.GetColumnNames();
+                    foreach (var columnName in columnNames)
+                    {
+                        context.AddItem(CompletionItem.Create(
+                            displayText: columnName,
+                            filterText: columnName,
+                            sortText: columnName,
+                            rules: s_sqlCompletionRules,
+                            tags: [WellKnownTags.Keyword]));
+                    }
+
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     public override async Task ProvideCompletionsAsync(CompletionContext context)
@@ -361,32 +406,9 @@ internal sealed class SqlCompletionProvider : CompletionProvider
         _tableReferences.UpdateTableNames(context); // TODO aljaz do we always want to be updating tableNames?
         _tableReferences.UpdateTableAliases(sqlBlock);
 
-        if (token.HasValue)
+        if (dotTokenCompletion(token, context))
         {
-            var dotToken = token;
-
-            // previous token is dot and token before that is table name
-            if (dotToken.ToString() == "." || (dotToken = dotToken.Value.GetPreviousToken()).ToString() == ".")
-            {
-                // Get table reference for name of token before dot
-                var tableReference = _tableReferences.GetTableReference(dotToken.Value.GetPreviousToken().ToString());
-                if (tableReference != null)
-                {
-                    tableReference.UpdateColumnNames(context);
-                    var columnNames = tableReference.GetColumnNames();
-                    foreach (var columnName in columnNames)
-                    {
-                        context.AddItem(CompletionItem.Create(
-                            displayText: columnName,
-                            filterText: columnName,
-                            sortText: columnName,
-                            rules: s_sqlCompletionRules,
-                            tags: [WellKnownTags.Keyword]));
-                    }
-
-                    return;
-                }
-            }
+            return;
         }
 
         var tableAliases = _tableReferences.GetTableAliases();
