@@ -8,7 +8,9 @@ using System.Collections.Immutable;
 using System.Composition;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Completion;
 using Microsoft.CodeAnalysis.CSharp.Completion.iWareSql;
 using Microsoft.CodeAnalysis.Host.Mef;
@@ -146,8 +148,7 @@ internal sealed class SqlCompletionProvider : CompletionProvider
     private class TableReference
     {
         public string _tableName;
-        public List<string> _tableAliases = new();
-        private readonly HashSet<string> _tableAliasesSet = new();
+        public List<string>? _tableAliases = null;
         public List<string> _columnNames = new();
         private readonly HashSet<string> _columnNamesSet = new();
         public DateTime _lastUpdatedColumns = DateTime.MinValue;
@@ -162,11 +163,6 @@ internal sealed class SqlCompletionProvider : CompletionProvider
             Helpers.Merge(_columnNames, columnNames, _columnNamesSet);
 
             _lastUpdatedColumns = DateTime.Now;
-        }
-
-        public void MergeAliases(List<string> tableAliases)
-        {
-            Helpers.Merge(_tableAliases, tableAliases, _tableAliasesSet);
         }
 
         public void UpdateColumnNames(CompletionContext context)
@@ -235,9 +231,32 @@ internal sealed class SqlCompletionProvider : CompletionProvider
             _lastUpdated = DateTime.Now;
         }
 
+        public void MergeAliases(Dictionary<string, List<string>> aliases)
+        {
+            foreach (var tableReference in _tableReferences)
+            {
+                if (aliases.TryGetValue(tableReference._tableName, out var newAliases))
+                {
+                    tableReference._tableAliases = newAliases;
+                }
+                else
+                {
+                    tableReference._tableAliases = null;
+                }
+            }
+        }
+
         public List<string> GetTableNames()
         {
             return _tableReferences.ConvertAll(tr => tr._tableName);
+        }
+
+        // tuple alias, tableName
+        public List<(string Alias, string TableName)> GetTableAliases()
+        {
+            return _tableReferences
+                .SelectMany(tr => (tr._tableAliases ?? []).Select(alias => (alias, tr._tableName)))
+                .ToList();
         }
 
         public void UpdateTableNames(CompletionContext context)
@@ -267,54 +286,65 @@ internal sealed class SqlCompletionProvider : CompletionProvider
             }
         }
 
+        public void UpdateTableAliases(SyntaxNode sqlBlock)
+        {
+            // TODO aljaz table alias cache -- najbrz bi bil veliko boljsi ce se ze v syntax, bind fazah nagrunta kateri del je FROM izjava in se samo FROM izjave preverja s cacheom
+            // TODO aljaz sistem ne upošteva column aliasov
+            var sqlNodes = sqlBlock.ChildNodes();
+            var sqlNodeEnumerator = sqlNodes.GetEnumerator();
+            if (!sqlNodeEnumerator.MoveNext())
+            {
+                return;
+            }
+            var aliases = new Dictionary<string, List<string>>();
+            var previousNode = sqlNodeEnumerator.Current;
+            var previousNodeStr = previousNode.ToString() ?? "";
+            SyntaxNode node;
+            while (sqlNodeEnumerator.MoveNext())
+            {
+                node = sqlNodeEnumerator.Current;
+                if (!(node.IsKind(SyntaxKind.SqlTextSegment) ||
+                    node.IsKind(SyntaxKind.SqlInputIdentifierSegment) ||
+                    node.IsKind(SyntaxKind.SqlOutputIdentifierSegment)))
+                {
+                    break;
+                }
+                var nodeStr = node.ToString();
+                if ((previousNode?.IsKind(SyntaxKind.SqlTextSegment) ?? false) && node.IsKind(SyntaxKind.SqlTextSegment) && nodeStr.Equals("AS", StringComparison.CurrentCultureIgnoreCase))
+                {
+                    if (!sqlNodeEnumerator.MoveNext())
+                    {
+                        break;
+                    }
+                    var nextNode = sqlNodeEnumerator.Current;
+                    if (nextNode.IsKind(SyntaxKind.SqlTextSegment))
+                    {
+                        var tableName = previousNodeStr;
+                        var tableAlias = nextNode.ToString();
+                        if (aliases.TryGetValue(tableName, out var value))
+                        {
+                            value.Add(tableAlias);
+                        }
+                        else
+                        {
+                            aliases.Add(tableName, [tableAlias]);
+                        }
+                    }
+                }
+                previousNodeStr = nodeStr;
+                previousNode = node;
+            }
+            MergeAliases(aliases);
+        }
+
         public TableReference? GetTableReference(string tableName)
         {
             return _tableReferences.Find(tr => tr._tableName == tableName);
         }
     }
 
-    /* TODO aljaz table name aliases
-    private List<TableReference> extractTables(IEnumerator<SyntaxNode> sqlNodeEnumerator)
-    {
-        // Here we presume that the enumerator is at the position of an SQL "FROM"
-        var tableReferences = new List<TableReference>();
-
-        while (sqlNodeEnumerator.MoveNext())
-        {
-            var node = sqlNodeEnumerator.Current;
-            if (!node.IsKind(SyntaxKind.SqlTextSegment))
-            {
-                break;
-            }
-
-        }
-
-        return tableReferences;
-    }
-
-    private List<TableReference> FindTableAliases(SyntaxNode sqlBlock)
-    {
-        // TODO aljaz table alias cache -- najbrz bi bil veliko boljsi ce se ze v syntax, bind fazah nagrunta kateri del je FROM izjava in se samo FROM izjave preverja s cacheom
-        var tableReferences = new List<TableReference>(); // TODO aljaz should be List<List<string>> containing the tableName and it's aliases
-        var sqlNodes = sqlBlock.ChildNodes();
-        var sqlNodeEnumerator = sqlNodes.GetEnumerator();
-        while (sqlNodeEnumerator.MoveNext())
-        {
-            var node = sqlNodeEnumerator.Current;
-            if (node.IsKind(SyntaxKind.SqlTextSegment) && node.ToString().Equals("FROM", StringComparison.CurrentCultureIgnoreCase))
-            {
-                // TODO aljaz figure out merges
-                tableReferences.AddRange(extractTables(sqlNodeEnumerator));
-            }
-        }
-        return tableReferences;
-    }
-    */
-
     public override async Task ProvideCompletionsAsync(CompletionContext context)
     {
-        //Debugger.Launch();
-
         var tree = await context.Document.GetSyntaxTreeAsync(context.CancellationToken).ConfigureAwait(false);
         var root = tree?.GetRoot(context.CancellationToken);
         var token = root?.FindToken(context.Position);
@@ -329,6 +359,7 @@ internal sealed class SqlCompletionProvider : CompletionProvider
         }
 
         _tableReferences.UpdateTableNames(context); // TODO aljaz do we always want to be updating tableNames?
+        _tableReferences.UpdateTableAliases(sqlBlock);
 
         if (token.HasValue)
         {
@@ -358,7 +389,20 @@ internal sealed class SqlCompletionProvider : CompletionProvider
             }
         }
 
-        //var tableReferences = FindTableAliases(sqlBlock);
+        var tableAliases = _tableReferences.GetTableAliases();
+        foreach (var alias in tableAliases)
+        {
+            var displayText = $"{alias.Alias} [{alias.TableName}]";
+            context.AddItem(CompletionItem.Create(
+                //displayText: $"{alias.Alias} [{alias.TableName}]",
+                displayText: displayText,
+                filterText: displayText,
+                sortText: displayText,
+                properties: ImmutableDictionary<string, string>.Empty.Add("InsertionText", alias.Alias),
+                rules: s_sqlCompletionRules,
+                tags: [WellKnownTags.Keyword]));
+        }
+
         var tableNames = _tableReferences.GetTableNames();
         foreach (var tableName in tableNames)
         {
@@ -407,6 +451,18 @@ internal sealed class SqlCompletionProvider : CompletionProvider
                 rules: s_sqlCompletionRules,
                 tags: [WellKnownTags.Local]));
         }
+    }
+
+    public override Task<CompletionChange> GetChangeAsync(
+    Document document, CompletionItem item, char? commitKey, CancellationToken cancellationToken)
+    {
+        if (item.TryGetProperty("InsertionText", out var insertionText))
+        {
+            return Task.FromResult(CompletionChange.Create(
+                new TextChange(item.Span, insertionText)));
+        }
+
+        return base.GetChangeAsync(document, item, commitKey, cancellationToken);
     }
 
     private static readonly CompletionItemRules s_sqlCompletionRules = CompletionItemRules.Default

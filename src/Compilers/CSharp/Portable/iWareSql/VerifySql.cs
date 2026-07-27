@@ -4,7 +4,6 @@
 
 using System;
 using System.Collections.Concurrent;
-using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -16,32 +15,6 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
     internal class VerifySql
     {
         private static readonly ConcurrentDictionary<string, Diagnosis> s_sqlVerificationCache = new();
-        private const string DbConfigFileName = "iWareDatabase.json";
-        private static string? s_dbConfiFile = null;
-
-        public static string? FindDbConfigFile(string startDir)
-        {
-            if (s_dbConfiFile != null)
-            {
-                return s_dbConfiFile;
-            }
-
-            var dir = new DirectoryInfo(startDir);
-
-            while (dir != null)
-            {
-                var dbConfFile = Path.Combine(dir.FullName, DbConfigFileName);
-                if (File.Exists(dbConfFile))
-                {
-                    s_dbConfiFile = dbConfFile;
-                    return dbConfFile;
-                }
-
-                dir = dir.Parent;
-            }
-
-            return null;
-        }
 
         private class Diagnosis
         {
@@ -52,7 +25,7 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
 
             public void Highlight(BindingDiagnosticBag diagnostics, SqlTextBlockSyntax? location)
             {
-                if (_hasHighlight)
+                if (_hasHighlight && location != null)
                 {
                     diagnostics.Add(
                     _errCode ?? ErrorCode.Void,
@@ -148,7 +121,14 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                 goto end;
             }
 end:
-            s_sqlVerificationCache.TryAdd(cacheKey, diagnosis);
+            try
+            {
+                s_sqlVerificationCache.TryAdd(cacheKey, diagnosis);
+            }
+            catch (OverflowException)
+            {
+                s_sqlVerificationCache.Clear();
+            }
             diagnosis.Highlight(diagnostics, sqlCodeLocation);
             return diagnosis._retVal;
         }

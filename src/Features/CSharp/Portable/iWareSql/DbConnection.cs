@@ -4,10 +4,13 @@ using System.IO;
 
 namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
 {
-    internal static class DbConnection
+#pragma warning disable RS0016 // Add public types and members to the declared API
+    public static class DbConnection
     {
         public static int? TenantId { get; set; }
         public static string? ConnectionString { private get; set; }
+        public const string DbConfigFileName = "iWareDatabase.json";
+        private static string? s_dbConfiFile = null;
 
         internal class DbSettings
         {
@@ -17,6 +20,30 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
             public string? ExternalFile { get; set; }
         }
 
+        public static string? FindDbConfigFile(string startDir)
+        {
+            if (s_dbConfiFile != null)
+            {
+                return s_dbConfiFile;
+            }
+
+            var dir = new DirectoryInfo(startDir);
+
+            while (dir != null)
+            {
+                var dbConfFile = Path.Combine(dir.FullName, DbConfigFileName);
+                if (File.Exists(dbConfFile))
+                {
+                    s_dbConfiFile = dbConfFile;
+                    return dbConfFile;
+                }
+
+                dir = dir.Parent;
+            }
+
+            return null;
+        }
+
         static DbConnection()
         {
             string? settingsFile = null;
@@ -24,7 +51,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
             {
                 if (settingsFile == null)
                 {
-                    settingsFile = SqlCompletionQueries.FindDbConfigFile(Directory.GetCurrentDirectory());
+                    settingsFile = FindDbConfigFile(Directory.GetCurrentDirectory());
                     if (!File.Exists(settingsFile))
                     {
                         settingsFile = null;
@@ -82,3 +109,4 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
         }
     }
 }
+#pragma warning restore RS0016 // Add public types and members to the declared API

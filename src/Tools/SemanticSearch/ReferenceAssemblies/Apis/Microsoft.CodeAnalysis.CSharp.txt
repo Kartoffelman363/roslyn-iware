@@ -6444,6 +6444,16 @@ Microsoft.CodeAnalysis.CSharp.SyntaxTokenParser.Result.get_Token
 Microsoft.CodeAnalysis.CSharp.SyntaxTokenParser.SkipForwardTo(System.Int32)
 Microsoft.CodeAnalysis.CSharp.TypedConstantExtensions
 Microsoft.CodeAnalysis.CSharp.TypedConstantExtensions.ToCSharpString(Microsoft.CodeAnalysis.TypedConstant)
+Microsoft.CodeAnalysis.CSharp.iWareSql.DbConnection
+Microsoft.CodeAnalysis.CSharp.iWareSql.DbConnection.Conn
+Microsoft.CodeAnalysis.CSharp.iWareSql.DbConnection.Conn(System.String)
+Microsoft.CodeAnalysis.CSharp.iWareSql.DbConnection.DbConfigFileName
+Microsoft.CodeAnalysis.CSharp.iWareSql.DbConnection.FindDbConfigFile(System.String)
+Microsoft.CodeAnalysis.CSharp.iWareSql.DbConnection.ResolveSQL(System.String,System.String)
+Microsoft.CodeAnalysis.CSharp.iWareSql.DbConnection.SetSettings(System.String)
+Microsoft.CodeAnalysis.CSharp.iWareSql.DbConnection.get_TenantId
+Microsoft.CodeAnalysis.CSharp.iWareSql.DbConnection.set_ConnectionString(System.String)
+Microsoft.CodeAnalysis.CSharp.iWareSql.DbConnection.set_TenantId(System.Nullable{System.Int32})
 Microsoft.CodeAnalysis.CSharpExtensions
 Microsoft.CodeAnalysis.CSharpExtensions.Any(Microsoft.CodeAnalysis.SyntaxTokenList,Microsoft.CodeAnalysis.CSharp.SyntaxKind)
 Microsoft.CodeAnalysis.CSharpExtensions.Any(Microsoft.CodeAnalysis.SyntaxTriviaList,Microsoft.CodeAnalysis.CSharp.SyntaxKind)
