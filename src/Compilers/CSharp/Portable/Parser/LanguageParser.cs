@@ -9103,6 +9103,36 @@ done:
             return this.CurrentToken.Kind is SyntaxKind.CloseBraceToken or SyntaxKind.SqlDoKeyword or SyntaxKind.SqlEmptyKeyword or SyntaxKind.SqlEndKeyword || CurrentToken.IsMissing;
         }
 
+        private static readonly int[] s_sqlIgnoredCharLiteralErrorCodes =
+        {
+            (int)ErrorCode.ERR_TooManyCharsInConst,
+            (int)ErrorCode.ERR_EmptyCharConst
+        };
+
+        private SyntaxToken EatSqlTextToken()
+        {
+            // TODO aljaz hacky way to remove error Too many characters in character literal
+            // Happens when trying to use SQL string
+            var token = EatToken();
+
+            if (token.ContainsDiagnostics)
+            {
+                var diagnostics = token.GetDiagnostics();
+                var filtered = diagnostics
+                    .Where(d => !s_sqlIgnoredCharLiteralErrorCodes.Contains(d.Code))
+                    .ToArray();
+
+                if (filtered.Length != diagnostics.Length)
+                {
+                    token = filtered.Length == 0
+                        ? token.WithDiagnosticsGreen(null)
+                        : token.WithDiagnosticsGreen(filtered);
+                }
+            }
+
+            return token;
+        }
+
         private SqlTextBlockSyntax ParseSqlBlock()
         {
             var openBrace = EatToken(SyntaxKind.OpenBraceToken);
@@ -9132,7 +9162,7 @@ done:
                         // ParseIdentifierName failed to consume anything (e.g. lone '@' with
                         // no valid identifier following) — eat the raw token ourselves so we
                         // always make forward progress.
-                        sqlBlockBuilder.Add(_syntaxFactory.SqlTextSegment(EatToken()));
+                        sqlBlockBuilder.Add(_syntaxFactory.SqlTextSegment(EatSqlTextToken()));
                     }
                     else
                     {
@@ -9179,7 +9209,7 @@ done:
                     }
                 }
 
-                sqlBlockBuilder.Add(_syntaxFactory.SqlTextSegment(EatToken()));
+                sqlBlockBuilder.Add(_syntaxFactory.SqlTextSegment(EatSqlTextToken()));
             }
 
 parseSqlEnd:
