@@ -9090,10 +9090,17 @@ done:
 
             SqlTextBlockSyntax missingBlock()
             {
-                var sqlBlockBuilder = _pool.Allocate<SqlSegmentSyntax>();
+                var sqlColumnListBuilder = _pool.Allocate<SqlSelectColumnSyntax>();
+                var emptyColumnList = _pool.ToListAndFree(sqlColumnListBuilder);
+                var sqlSegmentListBuilder = _pool.Allocate<SqlSegmentSyntax>();
+                var emptySqlSegmentList = _pool.ToListAndFree(sqlSegmentListBuilder);
+
                 return _syntaxFactory.SqlTextBlock(
                     SyntaxFactory.MissingToken(SyntaxKind.OpenBraceToken),
-                    segments: _pool.ToListAndFree(sqlBlockBuilder),
+                    selectSegment: _syntaxFactory.SqlSelectStatement(
+                        SyntaxFactory.MissingToken(SyntaxKind.SqlSelectKeyword),
+                        emptyColumnList,
+                        emptySqlSegmentList),
                     SyntaxFactory.MissingToken(SyntaxKind.CloseBraceToken));
             }
         }
@@ -9136,7 +9143,9 @@ done:
         private SqlTextBlockSyntax ParseSqlBlock()
         {
             var openBrace = EatToken(SyntaxKind.OpenBraceToken);
-            var sqlBlockBuilder = _pool.Allocate<SqlSegmentSyntax>();
+            //var sqlBlockBuilder = _pool.Allocate<SqlSegmentSyntax>();
+            var sqlStatement = ParseSqlStatement();
+            /*
             int braceDepth = 1;
             bool isComment = false;
             while (!IsTerminator())
@@ -9170,11 +9179,9 @@ done:
                             _syntaxFactory.SqlInputIdentifierSegment(identifierName));
                     }
 
-                    /*
-                    sqlBlockBuilder.Add(
-                        _syntaxFactory.SqlInputIdentifierSegment(
-                            ParseIdentifierName()));
-                    */
+                    //sqlBlockBuilder.Add(
+                    //    _syntaxFactory.SqlInputIdentifierSegment(
+                    //        ParseIdentifierName()));
                     continue;
                 }
                 else
@@ -9213,10 +9220,48 @@ done:
             }
 
 parseSqlEnd:
+            */
+
+            var closeBrace = EatToken(SyntaxKind.CloseBraceToken);
             return _syntaxFactory.SqlTextBlock(
                 openBrace,
-                _pool.ToListAndFree(sqlBlockBuilder),
-                EatToken(SyntaxKind.CloseBraceToken));
+                sqlStatement,
+                closeBrace);
+        }
+
+        private SqlSelectStatementSyntax ParseSqlStatement()
+        {
+            SyntaxToken sqlSelectKeyword = EatToken(SyntaxKind.SqlSelectKeyword);
+            SyntaxList<SqlSegmentSyntax> segments = ParseSqlSelectSegments();
+
+            return _syntaxFactory.SqlSelectStatement(sqlSelectKeyword, segments);
+        }
+
+        private SyntaxList<SqlSelectColumnSyntax> ParseSqlSelectColumns()
+        {
+            SyntaxList<SqlSelectColumnSyntax> columns;
+            var columnsBuilder = _pool.Allocate<SqlSelectColumnSyntax>();
+
+            //while not "FROM" or end of SQL -- there are more cases
+            //TODO aljaz other cases
+            // SELECT col1, col2 INTO #tempTable FROM tab1
+            // SELECT 1 UNION SELECT 2
+            // SELECT col1, col2 FROM JSON PATH
+            // SELECT col1, (SELECT MAX(x) FROM tab2) AS col2 FROM tab1
+
+            while (!IsTerminator())
+            {
+                var token = EatToken();
+            }
+
+            return columns;
+        }
+
+        private SyntaxList<SqlSegmentSyntax> ParseSqlSelectSegments()
+        {
+            SyntaxList<SqlSegmentSyntax> segments;
+
+            return segments;
         }
 
         private SqlDoClauseSyntax ParseSqlDoClause()

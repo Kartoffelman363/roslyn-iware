@@ -950,6 +950,16 @@ namespace Microsoft.CodeAnalysis.CSharp
                     return SyntaxKind.SqlEmptyKeyword;
                 case "sqlend":
                     return SyntaxKind.SqlEndKeyword;
+                case "select" or "SELECT":
+                    return SyntaxKind.SqlSelectKeyword;
+                case "from" or "FROM":
+                    return SyntaxKind.SqlFromKeyword;
+                case "as" or "AS":
+                    return SyntaxKind.SqlAsKeyword;
+                case "on" or "ON":
+                    return SyntaxKind.SqlOnKeyword;
+                case "join" or "JOIN":
+                    return SyntaxKind.SqlJoinKeyword;
                 case "throw":
                     return SyntaxKind.ThrowKeyword;
                 case "catch":
@@ -1006,8 +1016,10 @@ namespace Microsoft.CodeAnalysis.CSharp
                     return SyntaxKind.InKeyword;
                 case "is":
                     return SyntaxKind.IsKeyword;
+                /*
                 case "as":
                     return SyntaxKind.AsKeyword;
+                */
                 case "params":
                     return SyntaxKind.ParamsKeyword;
                 case "__arglist":

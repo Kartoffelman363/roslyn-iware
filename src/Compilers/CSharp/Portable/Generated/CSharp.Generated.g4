@@ -564,25 +564,68 @@ sql_statement
   ;
 
 sql_text_block
-  : '{' sql_segment* '}'
+  : '{' sql_select_statement '}'
   ;
 
-sql_segment
-  : sql_input_identifier_segment
-  | sql_output_identifier_segment
-  | sql_text_segment
+sql_select_statement
+  : sql_select_keyword sql_select_column* sql_segment*
   ;
 
-sql_input_identifier_segment
-  : identifier_name
+sql_select_column
+  : sql_text_segment* sql_output_identifier_segment?
+  ;
+
+sql_text_segment
+  : syntax_token
   ;
 
 sql_output_identifier_segment
   : '[' syntax_token ']'
   ;
 
-sql_text_segment
-  : syntax_token
+sql_segment
+  : sql_from_keyword
+  | sql_input_identifier_segment
+  | sql_join_keyword
+  | sql_on_keyword
+  | sql_output_identifier_segment
+  | sql_select_statement
+  | sql_source
+  | sql_table_alias
+  | sql_text_segment
+  ;
+
+sql_from_keyword
+  : sql_from_keyword
+  ;
+
+sql_input_identifier_segment
+  : identifier_name
+  ;
+
+sql_join_keyword
+  : sql_join_keyword
+  ;
+
+sql_on_keyword
+  : sql_on_keyword
+  ;
+
+sql_source
+  : sql_select_source
+  | sql_table_source
+  ;
+
+sql_select_source
+  : '(' sql_select_statement ')' sql_table_alias
+  ;
+
+sql_table_alias
+  : sql_as_keyword? sql_table_alias
+  ;
+
+sql_table_source
+  : sql_table_name sql_table_alias?
   ;
 
 sql_do_clause
@@ -1825,6 +1868,34 @@ multi_line_raw_string_literal_token
   ;
 
 single_line_raw_string_literal_token
+  : /* see lexical specification */
+  ;
+
+sql_as_keyword
+  : /* see lexical specification */
+  ;
+
+sql_from_keyword
+  : /* see lexical specification */
+  ;
+
+sql_join_keyword
+  : /* see lexical specification */
+  ;
+
+sql_on_keyword
+  : /* see lexical specification */
+  ;
+
+sql_select_keyword
+  : /* see lexical specification */
+  ;
+
+sql_table_alias
+  : /* see lexical specification */
+  ;
+
+sql_table_name
   : /* see lexical specification */
   ;
 

@@ -448,18 +448,6 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
         private static Syntax.InternalSyntax.SqlStatementSyntax GenerateSqlStatement()
             => InternalSyntaxFactory.SqlStatement(new Microsoft.CodeAnalysis.Syntax.InternalSyntax.SyntaxList<Syntax.InternalSyntax.AttributeListSyntax>(), InternalSyntaxFactory.Token(SyntaxKind.SqlKeyword), GenerateSqlTextBlock(), null, null, null);
 
-        private static Syntax.InternalSyntax.SqlTextBlockSyntax GenerateSqlTextBlock()
-            => InternalSyntaxFactory.SqlTextBlock(InternalSyntaxFactory.Token(SyntaxKind.OpenBraceToken), new Microsoft.CodeAnalysis.Syntax.InternalSyntax.SyntaxList<Syntax.InternalSyntax.SqlSegmentSyntax>(), InternalSyntaxFactory.Token(SyntaxKind.CloseBraceToken));
-
-        private static Syntax.InternalSyntax.SqlTextSegmentSyntax GenerateSqlTextSegment()
-            => InternalSyntaxFactory.SqlTextSegment(InternalSyntaxFactory.Identifier("SqlTextToken"));
-
-        private static Syntax.InternalSyntax.SqlInputIdentifierSegmentSyntax GenerateSqlInputIdentifierSegment()
-            => InternalSyntaxFactory.SqlInputIdentifierSegment(GenerateIdentifierName());
-
-        private static Syntax.InternalSyntax.SqlOutputIdentifierSegmentSyntax GenerateSqlOutputIdentifierSegment()
-            => InternalSyntaxFactory.SqlOutputIdentifierSegment(InternalSyntaxFactory.Identifier("OpenBracketToken"), InternalSyntaxFactory.Identifier("SqlIdentifierToken"), InternalSyntaxFactory.Identifier("CloseBracketToken"));
-
         private static Syntax.InternalSyntax.SqlDoClauseSyntax GenerateSqlDoClause()
             => InternalSyntaxFactory.SqlDoClause(InternalSyntaxFactory.Token(SyntaxKind.SqlDoKeyword), GenerateBlock());
 
@@ -468,6 +456,42 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
 
         private static Syntax.InternalSyntax.SqlEndClauseSyntax GenerateSqlEndClause()
             => InternalSyntaxFactory.SqlEndClause(InternalSyntaxFactory.Token(SyntaxKind.SqlEndKeyword), GenerateBlock());
+
+        private static Syntax.InternalSyntax.SqlTextBlockSyntax GenerateSqlTextBlock()
+            => InternalSyntaxFactory.SqlTextBlock(InternalSyntaxFactory.Token(SyntaxKind.OpenBraceToken), GenerateSqlSelectStatement(), InternalSyntaxFactory.Token(SyntaxKind.CloseBraceToken));
+
+        private static Syntax.InternalSyntax.SqlSelectStatementSyntax GenerateSqlSelectStatement()
+            => InternalSyntaxFactory.SqlSelectStatement(InternalSyntaxFactory.Token(SyntaxKind.SqlSelectKeyword), new Microsoft.CodeAnalysis.Syntax.InternalSyntax.SyntaxList<Syntax.InternalSyntax.SqlSelectColumnSyntax>(), new Microsoft.CodeAnalysis.Syntax.InternalSyntax.SyntaxList<Syntax.InternalSyntax.SqlSegmentSyntax>());
+
+        private static Syntax.InternalSyntax.SqlTextSegmentSyntax GenerateSqlTextSegment()
+            => InternalSyntaxFactory.SqlTextSegment(InternalSyntaxFactory.Identifier("SqlTextToken"));
+
+        private static Syntax.InternalSyntax.SqlOnKeywordSyntax GenerateSqlOnKeyword()
+            => InternalSyntaxFactory.SqlOnKeyword(InternalSyntaxFactory.Identifier("SqlOnKeyword"));
+
+        private static Syntax.InternalSyntax.SqlFromKeywordSyntax GenerateSqlFromKeyword()
+            => InternalSyntaxFactory.SqlFromKeyword(InternalSyntaxFactory.Identifier("SqlFromKeyword"));
+
+        private static Syntax.InternalSyntax.SqlJoinKeywordSyntax GenerateSqlJoinKeyword()
+            => InternalSyntaxFactory.SqlJoinKeyword(InternalSyntaxFactory.Identifier("SqlJoinKeyword"));
+
+        private static Syntax.InternalSyntax.SqlSelectSourceSyntax GenerateSqlSelectSource()
+            => InternalSyntaxFactory.SqlSelectSource(InternalSyntaxFactory.Token(SyntaxKind.OpenParenToken), GenerateSqlSelectStatement(), InternalSyntaxFactory.Token(SyntaxKind.CloseParenToken), GenerateSqlTableAlias());
+
+        private static Syntax.InternalSyntax.SqlTableSourceSyntax GenerateSqlTableSource()
+            => InternalSyntaxFactory.SqlTableSource(InternalSyntaxFactory.Token(SyntaxKind.SqlTableName), null);
+
+        private static Syntax.InternalSyntax.SqlTableAliasSyntax GenerateSqlTableAlias()
+            => InternalSyntaxFactory.SqlTableAlias(null, InternalSyntaxFactory.Token(SyntaxKind.SqlTableAlias));
+
+        private static Syntax.InternalSyntax.SqlSelectColumnSyntax GenerateSqlSelectColumn()
+            => InternalSyntaxFactory.SqlSelectColumn(new Microsoft.CodeAnalysis.Syntax.InternalSyntax.SyntaxList<Syntax.InternalSyntax.SqlTextSegmentSyntax>(), null);
+
+        private static Syntax.InternalSyntax.SqlInputIdentifierSegmentSyntax GenerateSqlInputIdentifierSegment()
+            => InternalSyntaxFactory.SqlInputIdentifierSegment(GenerateIdentifierName());
+
+        private static Syntax.InternalSyntax.SqlOutputIdentifierSegmentSyntax GenerateSqlOutputIdentifierSegment()
+            => InternalSyntaxFactory.SqlOutputIdentifierSegment(InternalSyntaxFactory.Identifier("OpenBracketToken"), InternalSyntaxFactory.Identifier("SqlIdentifierToken"), InternalSyntaxFactory.Identifier("CloseBracketToken"));
 
         private static Syntax.InternalSyntax.TryStatementSyntax GenerateTryStatement()
             => InternalSyntaxFactory.TryStatement(new Microsoft.CodeAnalysis.Syntax.InternalSyntax.SyntaxList<Syntax.InternalSyntax.AttributeListSyntax>(), InternalSyntaxFactory.Token(SyntaxKind.TryKeyword), GenerateBlock(), new Microsoft.CodeAnalysis.Syntax.InternalSyntax.SyntaxList<Syntax.InternalSyntax.CatchClauseSyntax>(), null);
@@ -2569,50 +2593,6 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
         }
 
         [Fact]
-        public void TestSqlTextBlockFactoryAndProperties()
-        {
-            var node = GenerateSqlTextBlock();
-
-            Assert.Equal(SyntaxKind.OpenBraceToken, node.SqlOpenBraceToken.Kind);
-            Assert.Equal(default, node.Segments);
-            Assert.Equal(SyntaxKind.CloseBraceToken, node.SqlCloseBraceToken.Kind);
-
-            AttachAndCheckDiagnostics(node);
-        }
-
-        [Fact]
-        public void TestSqlTextSegmentFactoryAndProperties()
-        {
-            var node = GenerateSqlTextSegment();
-
-            Assert.Equal(SyntaxKind.IdentifierToken, node.SqlTextToken.Kind);
-
-            AttachAndCheckDiagnostics(node);
-        }
-
-        [Fact]
-        public void TestSqlInputIdentifierSegmentFactoryAndProperties()
-        {
-            var node = GenerateSqlInputIdentifierSegment();
-
-            Assert.NotNull(node.SqlIdentifierToken);
-
-            AttachAndCheckDiagnostics(node);
-        }
-
-        [Fact]
-        public void TestSqlOutputIdentifierSegmentFactoryAndProperties()
-        {
-            var node = GenerateSqlOutputIdentifierSegment();
-
-            Assert.Equal(SyntaxKind.IdentifierToken, node.OpenBracketToken.Kind);
-            Assert.Equal(SyntaxKind.IdentifierToken, node.SqlIdentifierToken.Kind);
-            Assert.Equal(SyntaxKind.IdentifierToken, node.CloseBracketToken.Kind);
-
-            AttachAndCheckDiagnostics(node);
-        }
-
-        [Fact]
         public void TestSqlDoClauseFactoryAndProperties()
         {
             var node = GenerateSqlDoClause();
@@ -2641,6 +2621,138 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
 
             Assert.Equal(SyntaxKind.SqlEndKeyword, node.SqlEndKeyword.Kind);
             Assert.NotNull(node.Block);
+
+            AttachAndCheckDiagnostics(node);
+        }
+
+        [Fact]
+        public void TestSqlTextBlockFactoryAndProperties()
+        {
+            var node = GenerateSqlTextBlock();
+
+            Assert.Equal(SyntaxKind.OpenBraceToken, node.SqlOpenBraceToken.Kind);
+            Assert.NotNull(node.SqlSelectSegment);
+            Assert.Equal(SyntaxKind.CloseBraceToken, node.SqlCloseBraceToken.Kind);
+
+            AttachAndCheckDiagnostics(node);
+        }
+
+        [Fact]
+        public void TestSqlSelectStatementFactoryAndProperties()
+        {
+            var node = GenerateSqlSelectStatement();
+
+            Assert.Equal(SyntaxKind.SqlSelectKeyword, node.SqlSelectKeyword.Kind);
+            Assert.Equal(default, node.ColumnList);
+            Assert.Equal(default, node.Segments);
+
+            AttachAndCheckDiagnostics(node);
+        }
+
+        [Fact]
+        public void TestSqlTextSegmentFactoryAndProperties()
+        {
+            var node = GenerateSqlTextSegment();
+
+            Assert.Equal(SyntaxKind.IdentifierToken, node.SqlTextToken.Kind);
+
+            AttachAndCheckDiagnostics(node);
+        }
+
+        [Fact]
+        public void TestSqlOnKeywordFactoryAndProperties()
+        {
+            var node = GenerateSqlOnKeyword();
+
+            Assert.Equal(SyntaxKind.IdentifierToken, node.SqlOnKeyword.Kind);
+
+            AttachAndCheckDiagnostics(node);
+        }
+
+        [Fact]
+        public void TestSqlFromKeywordFactoryAndProperties()
+        {
+            var node = GenerateSqlFromKeyword();
+
+            Assert.Equal(SyntaxKind.IdentifierToken, node.SqlFromKeyword.Kind);
+
+            AttachAndCheckDiagnostics(node);
+        }
+
+        [Fact]
+        public void TestSqlJoinKeywordFactoryAndProperties()
+        {
+            var node = GenerateSqlJoinKeyword();
+
+            Assert.Equal(SyntaxKind.IdentifierToken, node.SqlJoinKeyword.Kind);
+
+            AttachAndCheckDiagnostics(node);
+        }
+
+        [Fact]
+        public void TestSqlSelectSourceFactoryAndProperties()
+        {
+            var node = GenerateSqlSelectSource();
+
+            Assert.Equal(SyntaxKind.OpenParenToken, node.OpenParenToken.Kind);
+            Assert.NotNull(node.SqlSelectStatement);
+            Assert.Equal(SyntaxKind.CloseParenToken, node.CloseParenToken.Kind);
+            Assert.NotNull(node.SqlTableAlias);
+
+            AttachAndCheckDiagnostics(node);
+        }
+
+        [Fact]
+        public void TestSqlTableSourceFactoryAndProperties()
+        {
+            var node = GenerateSqlTableSource();
+
+            Assert.Equal(SyntaxKind.SqlTableName, node.TableName.Kind);
+            Assert.Null(node.SqlTableAlias);
+
+            AttachAndCheckDiagnostics(node);
+        }
+
+        [Fact]
+        public void TestSqlTableAliasFactoryAndProperties()
+        {
+            var node = GenerateSqlTableAlias();
+
+            Assert.Null(node.SqlAsKeyword);
+            Assert.Equal(SyntaxKind.SqlTableAlias, node.TableAlias.Kind);
+
+            AttachAndCheckDiagnostics(node);
+        }
+
+        [Fact]
+        public void TestSqlSelectColumnFactoryAndProperties()
+        {
+            var node = GenerateSqlSelectColumn();
+
+            Assert.Equal(default, node.ColumnName);
+            Assert.Null(node.OutputIdentifier);
+
+            AttachAndCheckDiagnostics(node);
+        }
+
+        [Fact]
+        public void TestSqlInputIdentifierSegmentFactoryAndProperties()
+        {
+            var node = GenerateSqlInputIdentifierSegment();
+
+            Assert.NotNull(node.SqlIdentifierToken);
+
+            AttachAndCheckDiagnostics(node);
+        }
+
+        [Fact]
+        public void TestSqlOutputIdentifierSegmentFactoryAndProperties()
+        {
+            var node = GenerateSqlOutputIdentifierSegment();
+
+            Assert.Equal(SyntaxKind.IdentifierToken, node.OpenBracketToken.Kind);
+            Assert.Equal(SyntaxKind.IdentifierToken, node.SqlIdentifierToken.Kind);
+            Assert.Equal(SyntaxKind.IdentifierToken, node.CloseBracketToken.Kind);
 
             AttachAndCheckDiagnostics(node);
         }
@@ -7846,110 +7958,6 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
         }
 
         [Fact]
-        public void TestSqlTextBlockTokenDeleteRewriter()
-        {
-            var oldNode = GenerateSqlTextBlock();
-            var rewriter = new TokenDeleteRewriter();
-            var newNode = rewriter.Visit(oldNode);
-
-            if(!oldNode.IsMissing)
-            {
-                Assert.NotEqual(oldNode, newNode);
-            }
-
-            Assert.NotNull(newNode);
-            Assert.True(newNode.IsMissing, "No tokens => missing");
-        }
-
-        [Fact]
-        public void TestSqlTextBlockIdentityRewriter()
-        {
-            var oldNode = GenerateSqlTextBlock();
-            var rewriter = new IdentityRewriter();
-            var newNode = rewriter.Visit(oldNode);
-
-            Assert.Same(oldNode, newNode);
-        }
-
-        [Fact]
-        public void TestSqlTextSegmentTokenDeleteRewriter()
-        {
-            var oldNode = GenerateSqlTextSegment();
-            var rewriter = new TokenDeleteRewriter();
-            var newNode = rewriter.Visit(oldNode);
-
-            if(!oldNode.IsMissing)
-            {
-                Assert.NotEqual(oldNode, newNode);
-            }
-
-            Assert.NotNull(newNode);
-            Assert.True(newNode.IsMissing, "No tokens => missing");
-        }
-
-        [Fact]
-        public void TestSqlTextSegmentIdentityRewriter()
-        {
-            var oldNode = GenerateSqlTextSegment();
-            var rewriter = new IdentityRewriter();
-            var newNode = rewriter.Visit(oldNode);
-
-            Assert.Same(oldNode, newNode);
-        }
-
-        [Fact]
-        public void TestSqlInputIdentifierSegmentTokenDeleteRewriter()
-        {
-            var oldNode = GenerateSqlInputIdentifierSegment();
-            var rewriter = new TokenDeleteRewriter();
-            var newNode = rewriter.Visit(oldNode);
-
-            if(!oldNode.IsMissing)
-            {
-                Assert.NotEqual(oldNode, newNode);
-            }
-
-            Assert.NotNull(newNode);
-            Assert.True(newNode.IsMissing, "No tokens => missing");
-        }
-
-        [Fact]
-        public void TestSqlInputIdentifierSegmentIdentityRewriter()
-        {
-            var oldNode = GenerateSqlInputIdentifierSegment();
-            var rewriter = new IdentityRewriter();
-            var newNode = rewriter.Visit(oldNode);
-
-            Assert.Same(oldNode, newNode);
-        }
-
-        [Fact]
-        public void TestSqlOutputIdentifierSegmentTokenDeleteRewriter()
-        {
-            var oldNode = GenerateSqlOutputIdentifierSegment();
-            var rewriter = new TokenDeleteRewriter();
-            var newNode = rewriter.Visit(oldNode);
-
-            if(!oldNode.IsMissing)
-            {
-                Assert.NotEqual(oldNode, newNode);
-            }
-
-            Assert.NotNull(newNode);
-            Assert.True(newNode.IsMissing, "No tokens => missing");
-        }
-
-        [Fact]
-        public void TestSqlOutputIdentifierSegmentIdentityRewriter()
-        {
-            var oldNode = GenerateSqlOutputIdentifierSegment();
-            var rewriter = new IdentityRewriter();
-            var newNode = rewriter.Visit(oldNode);
-
-            Assert.Same(oldNode, newNode);
-        }
-
-        [Fact]
         public void TestSqlDoClauseTokenDeleteRewriter()
         {
             var oldNode = GenerateSqlDoClause();
@@ -8021,6 +8029,318 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
         public void TestSqlEndClauseIdentityRewriter()
         {
             var oldNode = GenerateSqlEndClause();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlTextBlockTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlTextBlock();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlTextBlockIdentityRewriter()
+        {
+            var oldNode = GenerateSqlTextBlock();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlSelectStatementTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlSelectStatement();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlSelectStatementIdentityRewriter()
+        {
+            var oldNode = GenerateSqlSelectStatement();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlTextSegmentTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlTextSegment();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlTextSegmentIdentityRewriter()
+        {
+            var oldNode = GenerateSqlTextSegment();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlOnKeywordTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlOnKeyword();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlOnKeywordIdentityRewriter()
+        {
+            var oldNode = GenerateSqlOnKeyword();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlFromKeywordTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlFromKeyword();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlFromKeywordIdentityRewriter()
+        {
+            var oldNode = GenerateSqlFromKeyword();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlJoinKeywordTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlJoinKeyword();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlJoinKeywordIdentityRewriter()
+        {
+            var oldNode = GenerateSqlJoinKeyword();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlSelectSourceTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlSelectSource();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlSelectSourceIdentityRewriter()
+        {
+            var oldNode = GenerateSqlSelectSource();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlTableSourceTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlTableSource();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlTableSourceIdentityRewriter()
+        {
+            var oldNode = GenerateSqlTableSource();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlTableAliasTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlTableAlias();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlTableAliasIdentityRewriter()
+        {
+            var oldNode = GenerateSqlTableAlias();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlSelectColumnTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlSelectColumn();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlSelectColumnIdentityRewriter()
+        {
+            var oldNode = GenerateSqlSelectColumn();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlInputIdentifierSegmentTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlInputIdentifierSegment();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlInputIdentifierSegmentIdentityRewriter()
+        {
+            var oldNode = GenerateSqlInputIdentifierSegment();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlOutputIdentifierSegmentTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlOutputIdentifierSegment();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlOutputIdentifierSegmentIdentityRewriter()
+        {
+            var oldNode = GenerateSqlOutputIdentifierSegment();
             var rewriter = new IdentityRewriter();
             var newNode = rewriter.Visit(oldNode);
 
@@ -11122,18 +11442,6 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
         private static SqlStatementSyntax GenerateSqlStatement()
             => SyntaxFactory.SqlStatement(new SyntaxList<AttributeListSyntax>(), SyntaxFactory.Token(SyntaxKind.SqlKeyword), GenerateSqlTextBlock(), default(SqlDoClauseSyntax), default(SqlEmptyClauseSyntax), default(SqlEndClauseSyntax));
 
-        private static SqlTextBlockSyntax GenerateSqlTextBlock()
-            => SyntaxFactory.SqlTextBlock(SyntaxFactory.Token(SyntaxKind.OpenBraceToken), new SyntaxList<SqlSegmentSyntax>(), SyntaxFactory.Token(SyntaxKind.CloseBraceToken));
-
-        private static SqlTextSegmentSyntax GenerateSqlTextSegment()
-            => SyntaxFactory.SqlTextSegment(SyntaxFactory.Identifier("SqlTextToken"));
-
-        private static SqlInputIdentifierSegmentSyntax GenerateSqlInputIdentifierSegment()
-            => SyntaxFactory.SqlInputIdentifierSegment(GenerateIdentifierName());
-
-        private static SqlOutputIdentifierSegmentSyntax GenerateSqlOutputIdentifierSegment()
-            => SyntaxFactory.SqlOutputIdentifierSegment(SyntaxFactory.Identifier("OpenBracketToken"), SyntaxFactory.Identifier("SqlIdentifierToken"), SyntaxFactory.Identifier("CloseBracketToken"));
-
         private static SqlDoClauseSyntax GenerateSqlDoClause()
             => SyntaxFactory.SqlDoClause(SyntaxFactory.Token(SyntaxKind.SqlDoKeyword), GenerateBlock());
 
@@ -11142,6 +11450,42 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
 
         private static SqlEndClauseSyntax GenerateSqlEndClause()
             => SyntaxFactory.SqlEndClause(SyntaxFactory.Token(SyntaxKind.SqlEndKeyword), GenerateBlock());
+
+        private static SqlTextBlockSyntax GenerateSqlTextBlock()
+            => SyntaxFactory.SqlTextBlock(SyntaxFactory.Token(SyntaxKind.OpenBraceToken), GenerateSqlSelectStatement(), SyntaxFactory.Token(SyntaxKind.CloseBraceToken));
+
+        private static SqlSelectStatementSyntax GenerateSqlSelectStatement()
+            => SyntaxFactory.SqlSelectStatement(SyntaxFactory.Token(SyntaxKind.SqlSelectKeyword), new SyntaxList<SqlSelectColumnSyntax>(), new SyntaxList<SqlSegmentSyntax>());
+
+        private static SqlTextSegmentSyntax GenerateSqlTextSegment()
+            => SyntaxFactory.SqlTextSegment(SyntaxFactory.Identifier("SqlTextToken"));
+
+        private static SqlOnKeywordSyntax GenerateSqlOnKeyword()
+            => SyntaxFactory.SqlOnKeyword(SyntaxFactory.Identifier("SqlOnKeyword"));
+
+        private static SqlFromKeywordSyntax GenerateSqlFromKeyword()
+            => SyntaxFactory.SqlFromKeyword(SyntaxFactory.Identifier("SqlFromKeyword"));
+
+        private static SqlJoinKeywordSyntax GenerateSqlJoinKeyword()
+            => SyntaxFactory.SqlJoinKeyword(SyntaxFactory.Identifier("SqlJoinKeyword"));
+
+        private static SqlSelectSourceSyntax GenerateSqlSelectSource()
+            => SyntaxFactory.SqlSelectSource(SyntaxFactory.Token(SyntaxKind.OpenParenToken), GenerateSqlSelectStatement(), SyntaxFactory.Token(SyntaxKind.CloseParenToken), GenerateSqlTableAlias());
+
+        private static SqlTableSourceSyntax GenerateSqlTableSource()
+            => SyntaxFactory.SqlTableSource(SyntaxFactory.Token(SyntaxKind.SqlTableName), default(SqlTableAliasSyntax));
+
+        private static SqlTableAliasSyntax GenerateSqlTableAlias()
+            => SyntaxFactory.SqlTableAlias(default(SyntaxToken), SyntaxFactory.Token(SyntaxKind.SqlTableAlias));
+
+        private static SqlSelectColumnSyntax GenerateSqlSelectColumn()
+            => SyntaxFactory.SqlSelectColumn(new SyntaxList<SqlTextSegmentSyntax>(), default(SqlOutputIdentifierSegmentSyntax));
+
+        private static SqlInputIdentifierSegmentSyntax GenerateSqlInputIdentifierSegment()
+            => SyntaxFactory.SqlInputIdentifierSegment(GenerateIdentifierName());
+
+        private static SqlOutputIdentifierSegmentSyntax GenerateSqlOutputIdentifierSegment()
+            => SyntaxFactory.SqlOutputIdentifierSegment(SyntaxFactory.Identifier("OpenBracketToken"), SyntaxFactory.Identifier("SqlIdentifierToken"), SyntaxFactory.Identifier("CloseBracketToken"));
 
         private static TryStatementSyntax GenerateTryStatement()
             => SyntaxFactory.TryStatement(new SyntaxList<AttributeListSyntax>(), SyntaxFactory.Token(SyntaxKind.TryKeyword), GenerateBlock(), new SyntaxList<CatchClauseSyntax>(), default(FinallyClauseSyntax));
@@ -13243,50 +13587,6 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
         }
 
         [Fact]
-        public void TestSqlTextBlockFactoryAndProperties()
-        {
-            var node = GenerateSqlTextBlock();
-
-            Assert.Equal(SyntaxKind.OpenBraceToken, node.SqlOpenBraceToken.Kind());
-            Assert.Equal(default, node.Segments);
-            Assert.Equal(SyntaxKind.CloseBraceToken, node.SqlCloseBraceToken.Kind());
-            var newNode = node.WithSqlOpenBraceToken(node.SqlOpenBraceToken).WithSegments(node.Segments).WithSqlCloseBraceToken(node.SqlCloseBraceToken);
-            Assert.Equal(node, newNode);
-        }
-
-        [Fact]
-        public void TestSqlTextSegmentFactoryAndProperties()
-        {
-            var node = GenerateSqlTextSegment();
-
-            Assert.Equal(SyntaxKind.IdentifierToken, node.SqlTextToken.Kind());
-            var newNode = node.WithSqlTextToken(node.SqlTextToken);
-            Assert.Equal(node, newNode);
-        }
-
-        [Fact]
-        public void TestSqlInputIdentifierSegmentFactoryAndProperties()
-        {
-            var node = GenerateSqlInputIdentifierSegment();
-
-            Assert.NotNull(node.SqlIdentifierToken);
-            var newNode = node.WithSqlIdentifierToken(node.SqlIdentifierToken);
-            Assert.Equal(node, newNode);
-        }
-
-        [Fact]
-        public void TestSqlOutputIdentifierSegmentFactoryAndProperties()
-        {
-            var node = GenerateSqlOutputIdentifierSegment();
-
-            Assert.Equal(SyntaxKind.IdentifierToken, node.OpenBracketToken.Kind());
-            Assert.Equal(SyntaxKind.IdentifierToken, node.SqlIdentifierToken.Kind());
-            Assert.Equal(SyntaxKind.IdentifierToken, node.CloseBracketToken.Kind());
-            var newNode = node.WithOpenBracketToken(node.OpenBracketToken).WithSqlIdentifierToken(node.SqlIdentifierToken).WithCloseBracketToken(node.CloseBracketToken);
-            Assert.Equal(node, newNode);
-        }
-
-        [Fact]
         public void TestSqlDoClauseFactoryAndProperties()
         {
             var node = GenerateSqlDoClause();
@@ -13316,6 +13616,138 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
             Assert.Equal(SyntaxKind.SqlEndKeyword, node.SqlEndKeyword.Kind());
             Assert.NotNull(node.Block);
             var newNode = node.WithSqlEndKeyword(node.SqlEndKeyword).WithBlock(node.Block);
+            Assert.Equal(node, newNode);
+        }
+
+        [Fact]
+        public void TestSqlTextBlockFactoryAndProperties()
+        {
+            var node = GenerateSqlTextBlock();
+
+            Assert.Equal(SyntaxKind.OpenBraceToken, node.SqlOpenBraceToken.Kind());
+            Assert.NotNull(node.SqlSelectSegment);
+            Assert.Equal(SyntaxKind.CloseBraceToken, node.SqlCloseBraceToken.Kind());
+            var newNode = node.WithSqlOpenBraceToken(node.SqlOpenBraceToken).WithSqlSelectSegment(node.SqlSelectSegment).WithSqlCloseBraceToken(node.SqlCloseBraceToken);
+            Assert.Equal(node, newNode);
+        }
+
+        [Fact]
+        public void TestSqlSelectStatementFactoryAndProperties()
+        {
+            var node = GenerateSqlSelectStatement();
+
+            Assert.Equal(SyntaxKind.SqlSelectKeyword, node.SqlSelectKeyword.Kind());
+            Assert.Equal(default, node.ColumnList);
+            Assert.Equal(default, node.Segments);
+            var newNode = node.WithSqlSelectKeyword(node.SqlSelectKeyword).WithColumnList(node.ColumnList).WithSegments(node.Segments);
+            Assert.Equal(node, newNode);
+        }
+
+        [Fact]
+        public void TestSqlTextSegmentFactoryAndProperties()
+        {
+            var node = GenerateSqlTextSegment();
+
+            Assert.Equal(SyntaxKind.IdentifierToken, node.SqlTextToken.Kind());
+            var newNode = node.WithSqlTextToken(node.SqlTextToken);
+            Assert.Equal(node, newNode);
+        }
+
+        [Fact]
+        public void TestSqlOnKeywordFactoryAndProperties()
+        {
+            var node = GenerateSqlOnKeyword();
+
+            Assert.Equal(SyntaxKind.IdentifierToken, node.SqlOnKeyword.Kind());
+            var newNode = node.WithSqlOnKeyword(node.SqlOnKeyword);
+            Assert.Equal(node, newNode);
+        }
+
+        [Fact]
+        public void TestSqlFromKeywordFactoryAndProperties()
+        {
+            var node = GenerateSqlFromKeyword();
+
+            Assert.Equal(SyntaxKind.IdentifierToken, node.SqlFromKeyword.Kind());
+            var newNode = node.WithSqlFromKeyword(node.SqlFromKeyword);
+            Assert.Equal(node, newNode);
+        }
+
+        [Fact]
+        public void TestSqlJoinKeywordFactoryAndProperties()
+        {
+            var node = GenerateSqlJoinKeyword();
+
+            Assert.Equal(SyntaxKind.IdentifierToken, node.SqlJoinKeyword.Kind());
+            var newNode = node.WithSqlJoinKeyword(node.SqlJoinKeyword);
+            Assert.Equal(node, newNode);
+        }
+
+        [Fact]
+        public void TestSqlSelectSourceFactoryAndProperties()
+        {
+            var node = GenerateSqlSelectSource();
+
+            Assert.Equal(SyntaxKind.OpenParenToken, node.OpenParenToken.Kind());
+            Assert.NotNull(node.SqlSelectStatement);
+            Assert.Equal(SyntaxKind.CloseParenToken, node.CloseParenToken.Kind());
+            Assert.NotNull(node.SqlTableAlias);
+            var newNode = node.WithOpenParenToken(node.OpenParenToken).WithSqlSelectStatement(node.SqlSelectStatement).WithCloseParenToken(node.CloseParenToken).WithSqlTableAlias(node.SqlTableAlias);
+            Assert.Equal(node, newNode);
+        }
+
+        [Fact]
+        public void TestSqlTableSourceFactoryAndProperties()
+        {
+            var node = GenerateSqlTableSource();
+
+            Assert.Equal(SyntaxKind.SqlTableName, node.TableName.Kind());
+            Assert.Null(node.SqlTableAlias);
+            var newNode = node.WithTableName(node.TableName).WithSqlTableAlias(node.SqlTableAlias);
+            Assert.Equal(node, newNode);
+        }
+
+        [Fact]
+        public void TestSqlTableAliasFactoryAndProperties()
+        {
+            var node = GenerateSqlTableAlias();
+
+            Assert.Equal(SyntaxKind.None, node.SqlAsKeyword.Kind());
+            Assert.Equal(SyntaxKind.SqlTableAlias, node.TableAlias.Kind());
+            var newNode = node.WithSqlAsKeyword(node.SqlAsKeyword).WithTableAlias(node.TableAlias);
+            Assert.Equal(node, newNode);
+        }
+
+        [Fact]
+        public void TestSqlSelectColumnFactoryAndProperties()
+        {
+            var node = GenerateSqlSelectColumn();
+
+            Assert.Equal(default, node.ColumnName);
+            Assert.Null(node.OutputIdentifier);
+            var newNode = node.WithColumnName(node.ColumnName).WithOutputIdentifier(node.OutputIdentifier);
+            Assert.Equal(node, newNode);
+        }
+
+        [Fact]
+        public void TestSqlInputIdentifierSegmentFactoryAndProperties()
+        {
+            var node = GenerateSqlInputIdentifierSegment();
+
+            Assert.NotNull(node.SqlIdentifierToken);
+            var newNode = node.WithSqlIdentifierToken(node.SqlIdentifierToken);
+            Assert.Equal(node, newNode);
+        }
+
+        [Fact]
+        public void TestSqlOutputIdentifierSegmentFactoryAndProperties()
+        {
+            var node = GenerateSqlOutputIdentifierSegment();
+
+            Assert.Equal(SyntaxKind.IdentifierToken, node.OpenBracketToken.Kind());
+            Assert.Equal(SyntaxKind.IdentifierToken, node.SqlIdentifierToken.Kind());
+            Assert.Equal(SyntaxKind.IdentifierToken, node.CloseBracketToken.Kind());
+            var newNode = node.WithOpenBracketToken(node.OpenBracketToken).WithSqlIdentifierToken(node.SqlIdentifierToken).WithCloseBracketToken(node.CloseBracketToken);
             Assert.Equal(node, newNode);
         }
 
@@ -18520,110 +18952,6 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
         }
 
         [Fact]
-        public void TestSqlTextBlockTokenDeleteRewriter()
-        {
-            var oldNode = GenerateSqlTextBlock();
-            var rewriter = new TokenDeleteRewriter();
-            var newNode = rewriter.Visit(oldNode);
-
-            if(!oldNode.IsMissing)
-            {
-                Assert.NotEqual(oldNode, newNode);
-            }
-
-            Assert.NotNull(newNode);
-            Assert.True(newNode.IsMissing, "No tokens => missing");
-        }
-
-        [Fact]
-        public void TestSqlTextBlockIdentityRewriter()
-        {
-            var oldNode = GenerateSqlTextBlock();
-            var rewriter = new IdentityRewriter();
-            var newNode = rewriter.Visit(oldNode);
-
-            Assert.Same(oldNode, newNode);
-        }
-
-        [Fact]
-        public void TestSqlTextSegmentTokenDeleteRewriter()
-        {
-            var oldNode = GenerateSqlTextSegment();
-            var rewriter = new TokenDeleteRewriter();
-            var newNode = rewriter.Visit(oldNode);
-
-            if(!oldNode.IsMissing)
-            {
-                Assert.NotEqual(oldNode, newNode);
-            }
-
-            Assert.NotNull(newNode);
-            Assert.True(newNode.IsMissing, "No tokens => missing");
-        }
-
-        [Fact]
-        public void TestSqlTextSegmentIdentityRewriter()
-        {
-            var oldNode = GenerateSqlTextSegment();
-            var rewriter = new IdentityRewriter();
-            var newNode = rewriter.Visit(oldNode);
-
-            Assert.Same(oldNode, newNode);
-        }
-
-        [Fact]
-        public void TestSqlInputIdentifierSegmentTokenDeleteRewriter()
-        {
-            var oldNode = GenerateSqlInputIdentifierSegment();
-            var rewriter = new TokenDeleteRewriter();
-            var newNode = rewriter.Visit(oldNode);
-
-            if(!oldNode.IsMissing)
-            {
-                Assert.NotEqual(oldNode, newNode);
-            }
-
-            Assert.NotNull(newNode);
-            Assert.True(newNode.IsMissing, "No tokens => missing");
-        }
-
-        [Fact]
-        public void TestSqlInputIdentifierSegmentIdentityRewriter()
-        {
-            var oldNode = GenerateSqlInputIdentifierSegment();
-            var rewriter = new IdentityRewriter();
-            var newNode = rewriter.Visit(oldNode);
-
-            Assert.Same(oldNode, newNode);
-        }
-
-        [Fact]
-        public void TestSqlOutputIdentifierSegmentTokenDeleteRewriter()
-        {
-            var oldNode = GenerateSqlOutputIdentifierSegment();
-            var rewriter = new TokenDeleteRewriter();
-            var newNode = rewriter.Visit(oldNode);
-
-            if(!oldNode.IsMissing)
-            {
-                Assert.NotEqual(oldNode, newNode);
-            }
-
-            Assert.NotNull(newNode);
-            Assert.True(newNode.IsMissing, "No tokens => missing");
-        }
-
-        [Fact]
-        public void TestSqlOutputIdentifierSegmentIdentityRewriter()
-        {
-            var oldNode = GenerateSqlOutputIdentifierSegment();
-            var rewriter = new IdentityRewriter();
-            var newNode = rewriter.Visit(oldNode);
-
-            Assert.Same(oldNode, newNode);
-        }
-
-        [Fact]
         public void TestSqlDoClauseTokenDeleteRewriter()
         {
             var oldNode = GenerateSqlDoClause();
@@ -18695,6 +19023,318 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
         public void TestSqlEndClauseIdentityRewriter()
         {
             var oldNode = GenerateSqlEndClause();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlTextBlockTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlTextBlock();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlTextBlockIdentityRewriter()
+        {
+            var oldNode = GenerateSqlTextBlock();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlSelectStatementTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlSelectStatement();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlSelectStatementIdentityRewriter()
+        {
+            var oldNode = GenerateSqlSelectStatement();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlTextSegmentTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlTextSegment();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlTextSegmentIdentityRewriter()
+        {
+            var oldNode = GenerateSqlTextSegment();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlOnKeywordTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlOnKeyword();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlOnKeywordIdentityRewriter()
+        {
+            var oldNode = GenerateSqlOnKeyword();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlFromKeywordTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlFromKeyword();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlFromKeywordIdentityRewriter()
+        {
+            var oldNode = GenerateSqlFromKeyword();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlJoinKeywordTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlJoinKeyword();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlJoinKeywordIdentityRewriter()
+        {
+            var oldNode = GenerateSqlJoinKeyword();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlSelectSourceTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlSelectSource();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlSelectSourceIdentityRewriter()
+        {
+            var oldNode = GenerateSqlSelectSource();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlTableSourceTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlTableSource();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlTableSourceIdentityRewriter()
+        {
+            var oldNode = GenerateSqlTableSource();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlTableAliasTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlTableAlias();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlTableAliasIdentityRewriter()
+        {
+            var oldNode = GenerateSqlTableAlias();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlSelectColumnTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlSelectColumn();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlSelectColumnIdentityRewriter()
+        {
+            var oldNode = GenerateSqlSelectColumn();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlInputIdentifierSegmentTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlInputIdentifierSegment();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlInputIdentifierSegmentIdentityRewriter()
+        {
+            var oldNode = GenerateSqlInputIdentifierSegment();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlOutputIdentifierSegmentTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlOutputIdentifierSegment();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlOutputIdentifierSegmentIdentityRewriter()
+        {
+            var oldNode = GenerateSqlOutputIdentifierSegment();
             var rewriter = new IdentityRewriter();
             var newNode = rewriter.Visit(oldNode);
 

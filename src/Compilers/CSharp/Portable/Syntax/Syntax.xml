@@ -3004,6 +3004,7 @@
     <Field Name="Expression" Type="ExpressionSyntax"/>
   </Node>
 
+  <!--sql, sqldo, sqlempty and sqlend clauses-->
   <Node Name="SqlStatementSyntax" Base="StatementSyntax">
     <Kind Name="SqlStatement"/>
     <Field Name="AttributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
@@ -3014,31 +3015,6 @@
     <Field Name="SqlDoClause" Type="SqlDoClauseSyntax" Optional="true"/>
     <Field Name="SqlEmptyClause" Type="SqlEmptyClauseSyntax" Optional="true"/>
     <Field Name="SqlEndClause" Type="SqlEndClauseSyntax" Optional="true"/>
-  </Node>
-  <AbstractNode Name="SqlSegmentSyntax" Base="CSharpSyntaxNode" />
-  <Node Name="SqlTextBlockSyntax" Base="CSharpSyntaxNode">
-    <Kind Name="SqlTextBlock"/>
-    <Field Name="SqlOpenBraceToken" Type="SyntaxToken">
-      <Kind Name="OpenBraceToken"/>
-    </Field>
-    <Field Name="Segments" Type="SyntaxList&lt;SqlSegmentSyntax&gt;"/>
-    <Field Name="SqlCloseBraceToken" Type="SyntaxToken">
-      <Kind Name="CloseBraceToken"/>
-    </Field>
-  </Node>
-  <Node Name="SqlTextSegmentSyntax" Base="SqlSegmentSyntax">
-    <Kind Name="SqlTextSegment"/>
-    <Field Name="SqlTextToken" Type="SyntaxToken"/>
-  </Node>
-  <Node Name="SqlInputIdentifierSegmentSyntax" Base="SqlSegmentSyntax">
-    <Kind Name="SqlInputIdentifierSegment"/>
-    <Field Name="SqlIdentifierToken" Type="IdentifierNameSyntax"/>
-  </Node>
-  <Node Name="SqlOutputIdentifierSegmentSyntax" Base="SqlSegmentSyntax">
-    <Kind Name="SqlOutputIdentifierSegment"/>
-    <Field Name="OpenBracketToken" Type="SyntaxToken" />
-    <Field Name="SqlIdentifierToken" Type="SyntaxToken"/>
-    <Field Name="CloseBracketToken" Type="SyntaxToken" />
   </Node>
   <Node Name="SqlDoClauseSyntax" Base="CSharpSyntaxNode">
     <Kind Name="SqlDoClause"/>
@@ -3061,7 +3037,102 @@
     </Field>
     <Field Name="Block" Type="BlockSyntax"/>
   </Node>
+  
+  <!--Block housing raw SQL-->
+  <Node Name="SqlTextBlockSyntax" Base="CSharpSyntaxNode">
+    <Kind Name="SqlTextBlock"/>
+    <Field Name="OpenBraceToken" Type="SyntaxToken">
+      <Kind Name="OpenBraceToken"/>
+    </Field>
+    <Field Name="SelectSegment" Type="SqlSelectStatementSyntax"/>
+    <Field Name="CloseBraceToken" Type="SyntaxToken">
+      <Kind Name="CloseBraceToken"/>
+    </Field>
+  </Node>
 
+  <AbstractNode Name="SqlSegmentSyntax" Base="CSharpSyntaxNode" />
+  <AbstractNode Name="SqlSourceSyntax" Base="SqlSegmentSyntax" />
+  
+  <!--SELECT statement-->
+  <Node Name="SqlSelectStatementSyntax" Base="SqlSegmentSyntax">
+    <Kind Name="SqlSelectStatement"/>
+    <Field Name="SqlSelectKeyword" Type="SyntaxToken">
+      <Kind Name="SqlSelectKeyword"/>
+    </Field>
+    <!--Field Name="ColumnList" Type="SyntaxList&lt;SqlSelectColumnSyntax&gt;"/-->
+    <Field Name="Segments" Type="SyntaxList&lt;SqlSegmentSyntax&gt;"/>
+  </Node>
+
+  <!--FROM, ON, JOIN keywords and various text fragments-->
+  <Node Name="SqlTextSegmentSyntax" Base="SqlSegmentSyntax">
+    <Kind Name="SqlTextSegment"/>
+    <Field Name="SqlTextToken" Type="SyntaxToken"/>
+  </Node>
+  <Node Name="SqlOnKeywordSyntax" Base="SqlSegmentSyntax">
+    <Kind Name="SqlOnKeyword"/>
+    <Field Name="SqlOnKeyword" Type="SyntaxToken"/>
+  </Node>
+  <Node Name="SqlFromKeywordSyntax" Base="SqlSegmentSyntax">
+    <Kind Name="SqlFromKeyword"/>
+    <Field Name="SqlFromKeyword" Type="SyntaxToken"/>
+  </Node>
+  <Node Name="SqlJoinKeywordSyntax" Base="SqlSegmentSyntax">
+    <Kind Name="SqlJoinKeyword"/>
+    <Field Name="SqlJoinKeyword" Type="SyntaxToken"/>
+  </Node>
+  
+  <!--Where we get our data from. Tables and subqueries-->
+  <Node Name="SqlSelectSourceSyntax" Base="SqlSourceSyntax">
+    <Kind Name="SqlSelectSource"/>
+    <Field Name="OpenParenToken" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="SelectStatement" Type="SqlSelectStatementSyntax"/>
+    <Field Name="CloseParenToken" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
+    <Field Name="TableAlias" Type="SqlAliasSyntax"/>
+  </Node>
+  <Node Name="SqlTableSourceSyntax" Base="SqlSourceSyntax">
+    <Kind Name="SqlTableSource"/>
+    <Field Name="TableName" Type="SyntaxToken">
+      <Kind Name="SqlTableName"/>
+    </Field>
+    <Field Name="TableAlias" Type="SqlAliasSyntax" Optional="true"/>
+  </Node>
+
+  <!--Definition for aliasing with and without AS keyword-->
+  <Node Name="SqlAliasSyntax" Base="SqlSegmentSyntax">
+    <Kind Name="SqlAliasSegment"/>
+    <Field Name="SqlAsKeyword" Type="SyntaxToken" Optional="true">
+      <Kind Name="SqlAsKeyword"/>
+    </Field>
+    <Field Name="Alias" Type="SyntaxToken">
+      <Kind Name="SqlAlias"/>
+    </Field>
+  </Node>
+  
+  <!--Columns referred to at beginning of sql SELECT-->
+  <Node Name="SqlSelectColumnSyntax" Base="SqlSegmentSyntax">
+    <Kind Name="SqlSelectColumn"/>
+    <Field Name="ColumnName" Type="SyntaxList&lt;SqlTextSegmentSyntax&gt;"/>
+    <Field Name="OutputIdentifier" Type="SqlOutputIdentifierSegmentSyntax" Optional="true"/>
+    <Field Name="ColumnAlias" Type="SqlAliasSyntax" Optional="true"/>
+  </Node>
+  
+  <!--Sql input and output variables-->
+  <Node Name="SqlInputIdentifierSegmentSyntax" Base="SqlSegmentSyntax">
+    <Kind Name="SqlInputIdentifierSegment"/>
+    <Field Name="SqlIdentifierToken" Type="IdentifierNameSyntax"/>
+  </Node>
+  <Node Name="SqlOutputIdentifierSegmentSyntax" Base="SqlSegmentSyntax">
+    <Kind Name="SqlOutputIdentifierSegment"/>
+    <Field Name="OpenBracketToken" Type="SyntaxToken" />
+    <Field Name="SqlIdentifierToken" Type="SyntaxToken"/>
+    <Field Name="CloseBracketToken" Type="SyntaxToken" />
+  </Node>
+
+  
   <Node Name="TryStatementSyntax" Base="StatementSyntax">
     <Kind Name="TryStatement"/>
     <Field Name="AttributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>

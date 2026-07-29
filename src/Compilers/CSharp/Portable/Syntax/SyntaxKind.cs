@@ -334,6 +334,16 @@ namespace Microsoft.CodeAnalysis.CSharp
         SqlEmptyKeyword = 8387,
         /// <summary>Represents <see langword="sqlend"/>.</summary>
         SqlEndKeyword = 8388,
+        /// <summary>Represents <see langword="SELECT"/>.</summary>
+        SqlSelectKeyword = 8389,
+        /// <summary>Represents <see langword="FROM"/>.</summary>
+        SqlFromKeyword = 8390,
+        /// <summary>Represents <see langword="AS"/>.</summary>
+        SqlAsKeyword = 8391,
+        /// <summary>Represents <see langword="ON"/>.</summary>
+        SqlOnKeyword = 8392,
+        /// <summary>Represents <see langword="JOIN"/>.</summary>
+        SqlJoinKeyword = 8393,
 
         // contextual keywords
         /// <summary>Represents <see langword="yield"/>.</summary>
@@ -873,6 +883,13 @@ namespace Microsoft.CodeAnalysis.CSharp
         SqlTextSegment = 8935,
         SqlInputIdentifierSegment = 8936,
         SqlOutputIdentifierSegment = 8937,
+        SqlSelectStatement = 8938,
+        SqlSelectSource = 8939,
+        SqlTableSource = 8940,
+        SqlTableName = 8941,
+        SqlAliasSegment = 8942,
+        SqlAlias = 8943,
+        SqlSelectColumn = 8944,
 
         // patterns (for pattern-matching)
         DeclarationPattern = 9000,
