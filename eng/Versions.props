@@ -46,6 +46,7 @@
     <SystemValueTupleVersion>4.5.0</SystemValueTupleVersion>
   </PropertyGroup>
   <PropertyGroup>
+	<MicrosoftSqlServerTransactSqlScriptDomVersion>180.59.2</MicrosoftSqlServerTransactSqlScriptDomVersion>
     <MicrosoftVSSDKBuildToolsVersion>17.14.1043-preview2</MicrosoftVSSDKBuildToolsVersion>
     <vswhereVersion>3.1.7</vswhereVersion>
     <!--

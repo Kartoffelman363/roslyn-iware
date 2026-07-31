@@ -15,7 +15,7 @@ namespace Microsoft.CodeAnalysis.CSharp.CommandLine
         {
 #if DEBUG
             //if (file.Path.Contains("DemoTry.cs") || file.Path.Contains("Example.cs"))
-            //Debugger.Launch();
+            // Debugger.Launch();
 #endif
             try
             {
