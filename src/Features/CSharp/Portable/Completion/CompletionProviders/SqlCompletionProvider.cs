@@ -18,6 +18,7 @@ using Microsoft.CodeAnalysis.Options;
 using Microsoft.CodeAnalysis.Tags;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.SqlServer.TransactSql.ScriptDom;
+using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.CSharp.Completion.Providers;
 
@@ -156,6 +157,7 @@ internal sealed class SqlCompletionProvider : CompletionProvider
         public string? _tableName;
         private readonly HashSet<string> _columnNamesSet = new();
         public DateTime _lastUpdatedColumns = DateTime.MinValue;
+        public DateTime _lastAttemptedUpdateColumns = DateTime.MinValue;
 
         public TableReference(string? tableName)
         {
@@ -178,10 +180,11 @@ internal sealed class SqlCompletionProvider : CompletionProvider
             }
 
             // Prevent function from firing too frequently
-            if ((DateTime.Now - _lastUpdatedColumns).TotalSeconds < 5)
+            if ((DateTime.Now - _lastAttemptedUpdateColumns).TotalSeconds < 5)
             {
                 return;
             }
+            _lastAttemptedUpdateColumns = DateTime.Now;
 
             // No db settings file
             var filePath = context.Document.FilePath;
@@ -197,7 +200,7 @@ internal sealed class SqlCompletionProvider : CompletionProvider
                 return;
             }
 
-            var columnNames = SqlCompletionQueries.GetColumnNames(filePath, _tableName);
+            var columnNames = SqlCompletionQueries.GetColumnNamesFromTable(filePath, _tableName);
             if (columnNames != null)
             {
                 MergeColumns(columnNames);
@@ -215,6 +218,8 @@ internal sealed class SqlCompletionProvider : CompletionProvider
         public readonly List<TableReference> _tableReferences = new();
         private readonly HashSet<string> _tableReferencesNamesSet = new();
         public DateTime _lastUpdated = DateTime.MinValue;
+        public DateTime _lastAttemptedUpdate = DateTime.MinValue;
+        public DateTime _lastAttemptedColumnUpdate = DateTime.MinValue;
         public SqlSelectSyntaxInfo? _syntaxInfo = null;
         public SqlSelectSyntaxInfo? _currentQuery = null;
         public SqlSelectSyntaxInfo? CurrentQuery
@@ -289,10 +294,11 @@ internal sealed class SqlCompletionProvider : CompletionProvider
         public void UpdateTableNames(CompletionContext context)
         {
             // Prevent function from firing too frequently
-            if ((DateTime.Now - _lastUpdated).TotalSeconds < 5)
+            if ((DateTime.Now - _lastAttemptedUpdate).TotalSeconds < 5)
             {
                 return;
             }
+            _lastAttemptedUpdate = DateTime.Now;
 
             var filePath = context.Document.FilePath;
             if (filePath == null)
@@ -301,7 +307,7 @@ internal sealed class SqlCompletionProvider : CompletionProvider
             }
 
             var lastUpdated = SqlCompletionQueries.LastTableChangedTime(filePath);
-            if (lastUpdated == null && lastUpdated < _lastUpdated)
+            if (lastUpdated == null || lastUpdated < _lastUpdated)
             {
                 return;
             }
@@ -360,13 +366,15 @@ internal sealed class SqlCompletionProvider : CompletionProvider
         {
             List<string> columnNames = new();
 
-            var columns = CurrentQuery?._columns;
-            if (columns != null)
-            {
-                columnNames.AddRange(columns
-                    .Select(col => col.GetAliasString() ?? col.GetNameString())
-                    .OfType<string>());
-            }
+            List<SqlSelectSyntaxInfo.ColumnInfo> columns =
+            [
+                .. CurrentQuery?._columns ?? [],
+                .. CurrentQuery?._subqueries.SelectMany(subquery => subquery._columns) ?? [],
+            ];
+
+            columnNames.AddRange(columns
+                .Select(col => col.GetAliasString() ?? col.GetNameString())
+                .OfType<string>());
 
             return columnNames;
         }
@@ -402,10 +410,61 @@ internal sealed class SqlCompletionProvider : CompletionProvider
         // Update column list of tables referenced in the local context
         public void UpdateLocallyReferencedTableColumnNames(CompletionContext context)
         {
-            foreach (var tableReference in GetLocallyReferencedTableReferences())
+            if ((DateTime.Now - _lastAttemptedColumnUpdate).TotalSeconds < 5)
+            {
+                return;
+            }
+            _lastAttemptedColumnUpdate = DateTime.Now;
+
+            var tableReferences = GetLocallyReferencedTableReferences().Where(tr => !string.IsNullOrEmpty(tr._tableName));
+
+            // TODO aljaz use GetColumnNamesFromTables and TablesChangedTime to reduce number of queries
+
+            var tableNames = tableReferences
+                .Select(tr => tr._tableName)
+                .OfType<string>()
+                .ToList();
+
+            // Prevent function from firing too frequently
+            //if ((DateTime.Now - _lastUpdatedColumns).TotalSeconds < 5)
+            //{
+            //    return;
+            //}
+
+            // No db settings file
+            var filePath = context.Document.FilePath;
+            if (filePath == null)
+            {
+                return;
+            }
+
+            if (tableNames.IsEmpty())
+            {
+                return;
+            }
+
+            var tablesChangedTimes = SqlCompletionQueries.TablesChangedTime(filePath, tableNames);
+            List<TableReference> updateTables = new();
+            updateTables.AddRange(tableReferences
+                .Where(tr => tablesChangedTimes
+                    .Any(tct => (tr._tableName?
+                        .Equals(tct.Table, StringComparison.InvariantCultureIgnoreCase) ?? false) && tr._lastUpdatedColumns < tct.Time)));
+
+            var columnsAndTables = SqlCompletionQueries.GetColumnNamesFromTables(filePath, updateTables.Select(ut => ut._tableName!).ToList());
+
+            foreach (var ut in updateTables)
+            {
+                ut.MergeColumns(columnsAndTables
+                    .Where(cat => cat.Table.Equals(ut._tableName, StringComparison.InvariantCultureIgnoreCase))
+                    .Select(cat => cat.Column)
+                    .ToList());
+            }
+            /*
+            foreach (var tableReference in tableReferences)
             {
                 tableReference.UpdateColumnNames(context);
             }
+            */
         }
     }
 

@@ -10,6 +10,7 @@ using static Microsoft.CodeAnalysis.CSharp.Completion.iWareSql.DbConnection;
 
 namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
 {
+    //TODO aljaz handle multiple tables with the same name across these queries
     internal class SqlCompletionQueries
     {
         private const string DbConfigFileName = "iWareDatabase.json";
@@ -49,30 +50,19 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
             }
 
             SetSettings(configPath);
-            SqlConnection conn;
             try
             {
-                conn = Conn();
-            }
-            catch
-            {
-                return null;
-            }
-
-            try
-            {
-                using (var cmd = conn.CreateCommand())
+                using var conn = Conn();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT name FROM iw_tables_schema WHERE tid = @tennantId OR tid IS NULL";
+                cmd.CommandType = System.Data.CommandType.Text;
+                cmd.Parameters.AddWithValue("@tennantId", TenantId);
+                var reader = cmd.ExecuteReader();
+                while (reader.Read())
                 {
-                    cmd.CommandText = "SELECT name FROM iw_tables_schema WHERE tid = @tennantId OR tid IS NULL";
-                    cmd.CommandType = System.Data.CommandType.Text;
-                    cmd.Parameters.AddWithValue("@tennantId", TenantId);
-                    var reader = cmd.ExecuteReader();
-                    while (reader.Read())
+                    if (!reader.IsDBNull(0))
                     {
-                        if (!reader.IsDBNull(0))
-                        {
-                            tableNames.Add(reader.GetString(0));
-                        }
+                        tableNames.Add(reader.GetString(0));
                     }
                 }
             }
@@ -94,33 +84,22 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
             }
 
             SetSettings(configPath);
-            SqlConnection conn;
             try
             {
-                conn = Conn();
-            }
-            catch
-            {
-                return null;
-            }
-
-            try
-            {
-                using (var cmd = conn.CreateCommand())
+                using var conn = Conn();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT max(modify_date) AS last_modified FROM sys.tables";
+                cmd.CommandType = System.Data.CommandType.Text;
+                var reader = cmd.ExecuteReader();
+                while (reader.Read())
                 {
-                    cmd.CommandText = "SELECT max(modify_date) AS last_modified FROM sys.tables";
-                    cmd.CommandType = System.Data.CommandType.Text;
-                    var reader = cmd.ExecuteReader();
-                    while (reader.Read())
+                    if (reader.IsDBNull(0))
                     {
-                        if (reader.IsDBNull(0))
-                        {
-                            return DateTime.MinValue;
-                        }
-                        return reader.GetDateTime(0);
+                        return DateTime.MinValue;
                     }
-                    return null;
+                    return reader.GetDateTime(0);
                 }
+                return null;
             }
             catch
             {
@@ -137,34 +116,23 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
             }
 
             SetSettings(configPath);
-            SqlConnection conn;
             try
             {
-                conn = Conn();
-            }
-            catch
-            {
-                return null;
-            }
-
-            try
-            {
-                using (var cmd = conn.CreateCommand())
+                using var conn = Conn();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT modify_date FROM sys.tables WHERE name = @tableName";
+                cmd.CommandType = System.Data.CommandType.Text;
+                cmd.Parameters.AddWithValue("@tableName", tableName);
+                var reader = cmd.ExecuteReader();
+                while (reader.Read())
                 {
-                    cmd.CommandText = "SELECT modify_date FROM sys.tables WHERE name = @tableName";
-                    cmd.CommandType = System.Data.CommandType.Text;
-                    cmd.Parameters.AddWithValue("@tableName", tableName);
-                    var reader = cmd.ExecuteReader();
-                    while (reader.Read())
+                    if (reader.IsDBNull(0))
                     {
-                        if (reader.IsDBNull(0))
-                        {
-                            return null;
-                        }
-                        return reader.GetDateTime(0);
+                        return null;
                     }
-                    return null;
+                    return reader.GetDateTime(0);
                 }
+                return null;
             }
             catch
             {
@@ -172,7 +140,42 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
             }
         }
 
-        public static List<string>? GetColumnNames(string fileDir, string tableName)
+        public static List<(DateTime Time, string Table)> TablesChangedTime(string fileDir, List<string> tableNames)
+        {
+            List<(DateTime, string)> tablesChangedTime = new();
+            var inTableNames = string.Join(", ", tableNames);
+            if (string.IsNullOrEmpty(inTableNames))
+            {
+                return tablesChangedTime;
+            }
+
+            var configPath = FindDbConfigFile(fileDir);
+            if (configPath == null)
+            {
+                return tablesChangedTime;
+            }
+
+            SetSettings(configPath);
+            try
+            {
+                using var conn = Conn();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"SELECT modify_date, name FROM sys.tables WHERE name IN ({inTableNames})";
+                cmd.CommandType = System.Data.CommandType.Text;
+                var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    tablesChangedTime.Add((reader.GetDateTime(0), reader.GetString(1)));
+                }
+                return tablesChangedTime;
+            }
+            catch
+            {
+                return tablesChangedTime;
+            }
+        }
+
+        public static List<string>? GetColumnNamesFromTable(string fileDir, string tableName)
         {
             var columnNames = new List<string>();
             var configPath = FindDbConfigFile(fileDir);
@@ -182,30 +185,19 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
             }
 
             SetSettings(configPath);
-            SqlConnection conn;
             try
             {
-                conn = Conn();
-            }
-            catch
-            {
-                return null;
-            }
-
-            try
-            {
-                using (var cmd = conn.CreateCommand())
+                using var conn = Conn();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @tableName";
+                cmd.CommandType = System.Data.CommandType.Text;
+                cmd.Parameters.AddWithValue("@tableName", tableName);
+                var reader = cmd.ExecuteReader();
+                while (reader.Read())
                 {
-                    cmd.CommandText = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @tableName";
-                    cmd.CommandType = System.Data.CommandType.Text;
-                    cmd.Parameters.AddWithValue("@tableName", tableName);
-                    var reader = cmd.ExecuteReader();
-                    while (reader.Read())
+                    if (!reader.IsDBNull(0))
                     {
-                        if (!reader.IsDBNull(0))
-                        {
-                            columnNames.Add(reader.GetString(0));
-                        }
+                        columnNames.Add(reader.GetString(0));
                     }
                 }
             }
@@ -215,6 +207,41 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
             }
 
             return columnNames;
+        }
+
+        public static List<(string Column, string Table)> GetColumnNamesFromTables(string fileDir, List<string> tableNames)
+        {
+            List<(string, string)> tablesChangedTime = new();
+            var inTableNames = string.Join(", ", tableNames);
+            if (string.IsNullOrEmpty(inTableNames))
+            {
+                return tablesChangedTime;
+            }
+
+            var configPath = FindDbConfigFile(fileDir);
+            if (configPath == null)
+            {
+                return tablesChangedTime;
+            }
+
+            SetSettings(configPath);
+            try
+            {
+                using var conn = Conn();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"SELECT COLUMN_NAME, TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME IN ({inTableNames})";
+                cmd.CommandType = System.Data.CommandType.Text;
+                var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    tablesChangedTime.Add((reader.GetString(0), reader.GetString(1)));
+                }
+                return tablesChangedTime;
+            }
+            catch
+            {
+                return tablesChangedTime;
+            }
         }
     }
 }
