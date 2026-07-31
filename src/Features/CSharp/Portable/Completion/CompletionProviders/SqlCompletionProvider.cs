@@ -217,6 +217,11 @@ internal sealed class SqlCompletionProvider : CompletionProvider
         public DateTime _lastUpdated = DateTime.MinValue;
         public SqlSelectSyntaxInfo? _syntaxInfo = null;
         public SqlSelectSyntaxInfo? _currentQuery = null;
+        public SqlSelectSyntaxInfo? CurrentQuery
+        {
+            get => _currentQuery ?? _syntaxInfo;
+            set => _currentQuery = value;
+        }
 
         public void Merge(List<string> tableNames)
         {
@@ -259,7 +264,7 @@ internal sealed class SqlCompletionProvider : CompletionProvider
             List<(string, string)> aliases = new();
 
             // Add all tables with an alias
-            var tables = _currentQuery?._tables;
+            var tables = CurrentQuery?._tables;
             if (tables != null)
             {
                 aliases.AddRange(tables
@@ -269,7 +274,7 @@ internal sealed class SqlCompletionProvider : CompletionProvider
             }
 
             // Add all direct subqueries with an alias
-            var subqueries = _currentQuery?._subqueries;
+            var subqueries = CurrentQuery?._subqueries;
             if (subqueries != null)
             {
                 aliases.AddRange(subqueries
@@ -312,9 +317,9 @@ internal sealed class SqlCompletionProvider : CompletionProvider
         {
             var sqlStatement = sqlBlock.Segments;
             var sqlStatementString = sqlStatement.ToFullString();
-            var relativePosition = context.Position - sqlStatement.Span.Start;
-            _syntaxInfo = SqlSelectSyntaxInfo.GetInfoFromString(sqlStatementString);
-            _currentQuery = _syntaxInfo?.GetQueryAtCursorPosition(relativePosition);
+            var relativePosition = context.Position - sqlStatement.FullSpan.Start;
+            _syntaxInfo = SqlSelectSyntaxInfo.GetInfoFromString(sqlStatementString) ?? _syntaxInfo;
+            CurrentQuery = _syntaxInfo?.GetQueryAtCursorPosition(relativePosition);
         }
 
         public TableReference? GetTableReferenceByNameOrAlias(string nameOrAlias)
@@ -329,14 +334,14 @@ internal sealed class SqlCompletionProvider : CompletionProvider
 
         public TableReference? GetTableReferenceByAlias(string alias)
         {
-            var tableInfo = _currentQuery?._tables.Find(tab => tab.CompareAlias(alias));
+            var tableInfo = CurrentQuery?._tables.Find(tab => tab.CompareAlias(alias));
             var tableName = tableInfo?.GetNameString();
             if (tableName != null)
             {
                 return _tableReferences.Find(tr => tr._tableName?.Equals(tableName, StringComparison.InvariantCultureIgnoreCase) ?? false);
             }
 
-            var subqueryInfo = _currentQuery?._subqueries.Find(subquery => subquery.CompareAlias(alias));
+            var subqueryInfo = CurrentQuery?._subqueries.Find(subquery => subquery.CompareAlias(alias));
             if (subqueryInfo != null)
             {
                 // Return anonymous table reference
@@ -355,7 +360,7 @@ internal sealed class SqlCompletionProvider : CompletionProvider
         {
             List<string> columnNames = new();
 
-            var columns = _currentQuery?._columns;
+            var columns = CurrentQuery?._columns;
             if (columns != null)
             {
                 columnNames.AddRange(columns
@@ -383,7 +388,7 @@ internal sealed class SqlCompletionProvider : CompletionProvider
         {
             List<TableReference> tableReferences = new();
 
-            var syntaxTables = _currentQuery?._tables;
+            var syntaxTables = CurrentQuery?._tables;
             if (syntaxTables != null)
             {
                 tableReferences.AddRange(_tableReferences
@@ -448,12 +453,10 @@ internal sealed class SqlCompletionProvider : CompletionProvider
 
     public override async Task ProvideCompletionsAsync(CompletionContext context)
     {
-        /*
         if (!System.Diagnostics.Debugger.IsAttached)
         {
             System.Diagnostics.Debugger.Launch();
         }
-        */
 
         var tree = await context.Document.GetSyntaxTreeAsync(context.CancellationToken).ConfigureAwait(false);
         var root = tree?.GetRoot(context.CancellationToken);
