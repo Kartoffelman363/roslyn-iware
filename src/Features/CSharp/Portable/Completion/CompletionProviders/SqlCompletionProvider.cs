@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Composition;
 using System.Linq;
@@ -17,8 +16,7 @@ using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.CodeAnalysis.Options;
 using Microsoft.CodeAnalysis.Tags;
 using Microsoft.CodeAnalysis.Text;
-using Microsoft.SqlServer.TransactSql.ScriptDom;
-using Roslyn.Utilities;
+using Microsoft.CodeAnalysis.CSharp.iWareSql;
 
 namespace Microsoft.CodeAnalysis.CSharp.Completion.Providers;
 
@@ -28,89 +26,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.Providers;
 [method: Obsolete(MefConstruction.ImportingConstructorMessage, error: true)]
 internal sealed class SqlCompletionProvider : CompletionProvider
 {
-    private static readonly string[] s_sqlKeywords =
-    [
-        "SELECT",
-        "DISTINCT",
-        "TOP",
-        "PERCENT",
-        "WITH TIES",
-        "AS",
-        "FROM",
-        "JOIN",
-        "INNER JOIN",
-        "LEFT JOIN",
-        "LEFT OUTER JOIN",
-        "RIGHT JOIN",
-        "RIGHT OUTER JOIN",
-        "FULL JOIN",
-        "FULL OUTER JOIN",
-        "CROSS JOIN",
-        "CROSS APPLY",
-        "OUTER APPLY",
-        "ON",
-        "WHERE",
-        "GROUP BY",
-        "HAVING",
-        "ORDER BY",
-        "ASC",
-        "DESC",
-        "OFFSET",
-        "FETCH",
-        "NEXT",
-        "ROWS",
-        "ROWS ONLY",
-        "UNION",
-        "UNION ALL",
-        "INTERSECT",
-        "EXCEPT",
-        "AND",
-        "OR",
-        "NOT",
-        "IN",
-        "BETWEEN",
-        "LIKE",
-        "IS NULL",
-        "IS NOT NULL",
-        "EXISTS",
-        "ANY",
-        "ALL",
-        "SOME",
-        "CASE",
-        "WHEN",
-        "THEN",
-        "ELSE",
-        "END",
-        "OVER",
-        "PARTITION BY",
-        "ROW_NUMBER",
-        "RANK",
-        "DENSE_RANK",
-        "NTILE",
-        "WITH",
-        "PIVOT",
-        "UNPIVOT",
-        "FOR",
-        "TABLESAMPLE",
-        "INTO",
-        "COUNT",
-        "COUNT_BIG",
-        "SUM",
-        "AVG",
-        "MIN",
-        "MAX",
-        "STDEV",
-        "STDEVP",
-        "VAR",
-        "VARP",
-        "GROUPING",
-        "GROUPING_ID",
-        "CHECKSUM_AGG",
-        "STRING_AGG",
-        "APPROX_COUNT_DISTINCT",
-    ];
-
-    private readonly QueryInfo _tableReferences = new();
+    private readonly QueryInfo _queryInfo = new();
 
     [ImportingConstructor]
     [Obsolete(MefConstruction.ImportingConstructorMessage, error: true)]
@@ -118,358 +34,12 @@ internal sealed class SqlCompletionProvider : CompletionProvider
     {
     }
 
-    private static class Helpers
-    {
-        public static void Merge<T>(List<T> list, List<T> incomingList, HashSet<T> listHashSet)
-        {
-            var incomingHashSet = new HashSet<T>(incomingList);
-
-            //Remove all elements from list not present in incomingList
-            list.RemoveAll(tr =>
-            {
-                var shouldRemove = !incomingList.Contains(tr);
-                if (shouldRemove)
-                {
-                    listHashSet.Remove(tr);
-                }
-                return shouldRemove;
-            });
-
-            // Add all elements from incomingList that don't exist in list
-            foreach (var incoming in incomingList)
-            {
-                if (!listHashSet.Contains(incoming))
-                {
-                    list.Add(incoming);
-                    listHashSet.Add(incoming);
-                }
-            }
-        }
-    }
-
-    private abstract class SourceReference
-    {
-        public List<string> _columnNames = new();
-    }
-
-    private class TableReference : SourceReference
-    {
-        public string? _tableName;
-        private readonly HashSet<string> _columnNamesSet = new();
-        public DateTime _lastUpdatedColumns = DateTime.MinValue;
-        public DateTime _lastAttemptedUpdateColumns = DateTime.MinValue;
-
-        public TableReference(string? tableName)
-        {
-            _tableName = tableName;
-        }
-
-        public void MergeColumns(List<string> columnNames)
-        {
-            Helpers.Merge(_columnNames, columnNames, _columnNamesSet);
-
-            _lastUpdatedColumns = DateTime.Now;
-        }
-
-        public void UpdateColumnNames(CompletionContext context)
-        {
-            // Anonymous table
-            if (_tableName == null)
-            {
-                return;
-            }
-
-            // Prevent function from firing too frequently
-            if ((DateTime.Now - _lastAttemptedUpdateColumns).TotalSeconds < 5)
-            {
-                return;
-            }
-            _lastAttemptedUpdateColumns = DateTime.Now;
-
-            // No db settings file
-            var filePath = context.Document.FilePath;
-            if (filePath == null)
-            {
-                return;
-            }
-
-            // Last update more recent than last change on database
-            var lastUpdated = SqlCompletionQueries.TableChangedTime(filePath, _tableName);
-            if (lastUpdated == null || lastUpdated < _lastUpdatedColumns)
-            {
-                return;
-            }
-
-            var columnNames = SqlCompletionQueries.GetColumnNamesFromTable(filePath, _tableName);
-            if (columnNames != null)
-            {
-                MergeColumns(columnNames);
-            }
-        }
-
-        public List<string> GetColumnNames()
-        {
-            return _columnNames ?? [];
-        }
-    }
-
-    private class QueryInfo
-    {
-        public readonly List<TableReference> _tableReferences = new();
-        private readonly HashSet<string> _tableReferencesNamesSet = new();
-        public DateTime _lastUpdated = DateTime.MinValue;
-        public DateTime _lastAttemptedUpdate = DateTime.MinValue;
-        public DateTime _lastAttemptedColumnUpdate = DateTime.MinValue;
-        public SqlSelectSyntaxInfo? _syntaxInfo = null;
-        public SqlSelectSyntaxInfo? _currentQuery = null;
-        public SqlSelectSyntaxInfo? CurrentQuery
-        {
-            get => _currentQuery ?? _syntaxInfo;
-            set => _currentQuery = value;
-        }
-
-        public void Merge(List<string> tableNames)
-        {
-            var tableNamesSet = new HashSet<string>(tableNames);
-
-            //Remove all tableReferences not in tableNames
-            _tableReferences.RemoveAll(tr =>
-            {
-                if (tr._tableName != null && !tableNamesSet.Contains(tr._tableName!))
-                {
-                    _tableReferencesNamesSet.Remove(tr._tableName);
-                    return true;
-                }
-                return false;
-            });
-
-            // Add tableNames which don't exist in tableReferences
-            foreach (var tableName in tableNames)
-            {
-                if (!_tableReferencesNamesSet.Contains(tableName))
-                {
-                    _tableReferences.Add(new TableReference(tableName));
-                    _tableReferencesNamesSet.Add(tableName);
-                }
-            }
-
-            _lastUpdated = DateTime.Now;
-        }
-
-        public List<string> GetTableNames()
-        {
-            return _tableReferences
-                .ConvertAll(tr => tr._tableName)
-                .OfType<string>()
-                .ToList();
-        }
-
-        public List<(string Alias, string TableName)> GetTableAliases()
-        {
-            List<(string, string)> aliases = new();
-
-            // Add all tables with an alias
-            var tables = CurrentQuery?._tables;
-            if (tables != null)
-            {
-                aliases.AddRange(tables
-                    .Select(tab => (Alias: tab.GetAliasString(), Name: tab.GetNameString()))
-                    .Where(tab => tab.Alias != null && tab.Name != null)
-                    .Select(tab => (tab.Alias!, tab.Name!)));
-            }
-
-            // Add all direct subqueries with an alias
-            var subqueries = CurrentQuery?._subqueries;
-            if (subqueries != null)
-            {
-                aliases.AddRange(subqueries
-                    .Select(sub => (Alias: sub.GetAliasString(), Name: "Subquery"))
-                    .Where(sub => sub.Alias != null)
-                    .Select(sub => (sub.Alias!, sub.Name)));
-            }
-
-            return aliases;
-        }
-
-        public void UpdateTableNames(CompletionContext context)
-        {
-            // Prevent function from firing too frequently
-            if ((DateTime.Now - _lastAttemptedUpdate).TotalSeconds < 5)
-            {
-                return;
-            }
-            _lastAttemptedUpdate = DateTime.Now;
-
-            var filePath = context.Document.FilePath;
-            if (filePath == null)
-            {
-                return;
-            }
-
-            var lastUpdated = SqlCompletionQueries.LastTableChangedTime(filePath);
-            if (lastUpdated == null || lastUpdated < _lastUpdated)
-            {
-                return;
-            }
-
-            var tableNames = SqlCompletionQueries.GetTableNames(filePath);
-            if (tableNames != null)
-            {
-                Merge(tableNames);
-            }
-        }
-
-        public void UpdateQuerySyntaxInfo(SqlTextBlockSyntax sqlBlock, CompletionContext context)
-        {
-            var sqlStatement = sqlBlock.Segments;
-            var sqlStatementString = sqlStatement.ToFullString();
-            var relativePosition = context.Position - sqlStatement.FullSpan.Start;
-            _syntaxInfo = SqlSelectSyntaxInfo.GetInfoFromString(sqlStatementString) ?? _syntaxInfo;
-            CurrentQuery = _syntaxInfo?.GetQueryAtCursorPosition(relativePosition);
-        }
-
-        public TableReference? GetTableReferenceByNameOrAlias(string nameOrAlias)
-        {
-            return GetTableReferenceByName(nameOrAlias) ?? GetTableReferenceByAlias(nameOrAlias);
-        }
-
-        public TableReference? GetTableReferenceByName(string tableName)
-        {
-            return _tableReferences.Find(tr => tr._tableName == tableName);
-        }
-
-        public TableReference? GetTableReferenceByAlias(string alias)
-        {
-            var tableInfo = CurrentQuery?._tables.Find(tab => tab.CompareAlias(alias));
-            var tableName = tableInfo?.GetNameString();
-            if (tableName != null)
-            {
-                return _tableReferences.Find(tr => tr._tableName?.Equals(tableName, StringComparison.InvariantCultureIgnoreCase) ?? false);
-            }
-
-            var subqueryInfo = CurrentQuery?._subqueries.Find(subquery => subquery.CompareAlias(alias));
-            if (subqueryInfo != null)
-            {
-                // Return anonymous table reference
-                var anonymousTable = new TableReference(null);
-                anonymousTable._columnNames = subqueryInfo._columns
-                    .Select(col => col.GetNameString())
-                    .OfType<string>()
-                    .ToList();
-                return anonymousTable;
-            }
-            return null;
-        }
-
-        // List of column names or aliaes defined in the local context
-        public List<string> GetLocallyReferencedColumnNames()
-        {
-            List<string> columnNames = new();
-
-            List<SqlSelectSyntaxInfo.ColumnInfo> columns =
-            [
-                .. CurrentQuery?._columns ?? [],
-                .. CurrentQuery?._subqueries.SelectMany(subquery => subquery._columns) ?? [],
-            ];
-
-            columnNames.AddRange(columns
-                .Select(col => col.GetAliasString() ?? col.GetNameString())
-                .OfType<string>());
-
-            return columnNames;
-        }
-
-        // List of column names belonging to tables referenced in the local context
-        public List<string> GetLocallyReferencedTableColumnNames()
-        {
-            List<string> columnNames = new();
-
-            foreach (var tableReference in GetLocallyReferencedTableReferences())
-            {
-                columnNames.AddRange(tableReference._columnNames);
-            }
-
-            return columnNames;
-        }
-
-        public List<TableReference> GetLocallyReferencedTableReferences()
-        {
-            List<TableReference> tableReferences = new();
-
-            var syntaxTables = CurrentQuery?._tables;
-            if (syntaxTables != null)
-            {
-                tableReferences.AddRange(_tableReferences
-                    .Where(tr => syntaxTables
-                        .Any(st => st.GetNameString()?.Equals(tr._tableName) ?? false)));
-            }
-
-            return tableReferences;
-        }
-
-        // Update column list of tables referenced in the local context
-        public void UpdateLocallyReferencedTableColumnNames(CompletionContext context)
-        {
-            if ((DateTime.Now - _lastAttemptedColumnUpdate).TotalSeconds < 5)
-            {
-                return;
-            }
-            _lastAttemptedColumnUpdate = DateTime.Now;
-
-            var tableReferences = GetLocallyReferencedTableReferences().Where(tr => !string.IsNullOrEmpty(tr._tableName));
-
-            // TODO aljaz use GetColumnNamesFromTables and TablesChangedTime to reduce number of queries
-
-            var tableNames = tableReferences
-                .Select(tr => tr._tableName)
-                .OfType<string>()
-                .ToList();
-
-            // Prevent function from firing too frequently
-            //if ((DateTime.Now - _lastUpdatedColumns).TotalSeconds < 5)
-            //{
-            //    return;
-            //}
-
-            // No db settings file
-            var filePath = context.Document.FilePath;
-            if (filePath == null)
-            {
-                return;
-            }
-
-            if (tableNames.IsEmpty())
-            {
-                return;
-            }
-
-            var tablesChangedTimes = SqlCompletionQueries.TablesChangedTime(filePath, tableNames);
-            List<TableReference> updateTables = new();
-            updateTables.AddRange(tableReferences
-                .Where(tr => tablesChangedTimes
-                    .Any(tct => (tr._tableName?
-                        .Equals(tct.Table, StringComparison.InvariantCultureIgnoreCase) ?? false) && tr._lastUpdatedColumns < tct.Time)));
-
-            var columnsAndTables = SqlCompletionQueries.GetColumnNamesFromTables(filePath, updateTables.Select(ut => ut._tableName!).ToList());
-
-            foreach (var ut in updateTables)
-            {
-                ut.MergeColumns(columnsAndTables
-                    .Where(cat => cat.Table.Equals(ut._tableName, StringComparison.InvariantCultureIgnoreCase))
-                    .Select(cat => cat.Column)
-                    .ToList());
-            }
-            /*
-            foreach (var tableReference in tableReferences)
-            {
-                tableReference.UpdateColumnNames(context);
-            }
-            */
-        }
-    }
-
-    // If found match returns true
-    private bool dotTokenCompletion(SyntaxToken? token, CompletionContext context)
+    /*
+     * If cursor is in such a position that we're autocompleting a table property e.g.
+     * tableName.<partialPropertyName>
+     * then we output the siginificant property names and return true
+     */
+    private bool DotTokenCompletion(SyntaxToken? token, CompletionContext context)
     {
         if (token.HasValue)
         {
@@ -479,21 +49,20 @@ internal sealed class SqlCompletionProvider : CompletionProvider
             if (dotToken.ToString() == "." || (dotToken = dotToken.Value.GetPreviousToken()).ToString() == ".")
             {
                 // Get table reference for name of token before dot
-                var tableName = dotToken.Value.GetPreviousToken().ToString();
-                var tableReference = _tableReferences.GetTableReferenceByNameOrAlias(tableName);
-                if (tableReference == null)
+                var sourceName = dotToken.Value.GetPreviousToken().ToString();
+                var sourceReference = _queryInfo.GetSourceReferenceByNameOrAlias(sourceName);
+                if (sourceReference == null)
                 {
                     return false;
                 }
 
-                // Update if not anonymous table
-                if (tableReference._tableName != null)
+                // Update if reference to table
+                if (sourceReference is TableReference tr)
                 {
-                    tableReference.UpdateColumnNames(context);
+                    tr.UpdateColumnNames(context);
                 }
 
-                var columnNames = tableReference.GetColumnNames();
-                foreach (var columnName in columnNames)
+                foreach (var columnName in sourceReference.ColumnNames)
                 {
                     context.AddItem(CompletionItem.Create(
                         displayText: columnName,
@@ -530,16 +99,16 @@ internal sealed class SqlCompletionProvider : CompletionProvider
             return;
         }
 
-        _tableReferences.UpdateTableNames(context); // TODO aljaz do we always want to be updating tableNames?
-        _tableReferences.UpdateQuerySyntaxInfo(sqlBlock, context);
-        _tableReferences.UpdateLocallyReferencedTableColumnNames(context);
+        _queryInfo.UpdateTableNames(context); // TODO aljaz do we always want to be updating tableNames?
+        _queryInfo.UpdateQuerySyntaxInfo(sqlBlock, context);
+        _queryInfo.UpdateLocallyReferencedTableColumnNames(context);
 
-        if (dotTokenCompletion(token, context))
+        if (DotTokenCompletion(token, context))
         {
             return;
         }
 
-        foreach (var alias in _tableReferences.GetTableAliases())
+        foreach (var alias in _queryInfo.GetTableAliases())
         {
             var displayText = $"{alias.Alias} [{alias.TableName}]";
             context.AddItem(CompletionItem.Create(
@@ -552,7 +121,7 @@ internal sealed class SqlCompletionProvider : CompletionProvider
                 tags: [WellKnownTags.Keyword]));
         }
 
-        foreach (var tableName in _tableReferences.GetTableNames())
+        foreach (var tableName in _queryInfo.GetTableNames())
         {
             context.AddItem(CompletionItem.Create(
                 displayText: tableName,
@@ -562,7 +131,7 @@ internal sealed class SqlCompletionProvider : CompletionProvider
                 tags: [WellKnownTags.Keyword]));
         }
 
-        foreach (var column in _tableReferences.GetLocallyReferencedColumnNames())
+        foreach (var column in _queryInfo.GetLocallyReferencedColumnNames())
         {
             context.AddItem(CompletionItem.Create(
                 displayText: column,
@@ -572,7 +141,7 @@ internal sealed class SqlCompletionProvider : CompletionProvider
                 tags: [WellKnownTags.Keyword]));
         }
 
-        foreach (var column in _tableReferences.GetLocallyReferencedTableColumnNames())
+        foreach (var column in _queryInfo.GetLocallyReferencedSourcesColumnNames())
         {
             context.AddItem(CompletionItem.Create(
                 displayText: column,
@@ -582,7 +151,7 @@ internal sealed class SqlCompletionProvider : CompletionProvider
                 tags: [WellKnownTags.Keyword]));
         }
 
-        foreach (var kw in s_sqlKeywords)
+        foreach (var kw in SqlKeywords.SqlKeywordsList)
         {
             context.AddItem(CompletionItem.Create(
                 displayText: kw,

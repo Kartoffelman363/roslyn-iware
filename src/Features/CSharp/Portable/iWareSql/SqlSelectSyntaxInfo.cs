@@ -6,31 +6,33 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.SqlServer.TransactSql.ScriptDom;
 using Roslyn.Utilities;
 
+#pragma warning disable RS0016 // Add public types and members to the declared API
 namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
 {
-    internal class SqlSelectSyntaxInfo
+    public class SqlSelectSyntaxInfo
     {
-        public readonly List<ColumnInfo> _columns = new();
-        public readonly List<SqlSubquerySyntaxInfo> _subqueries = new();
-        public readonly List<TableInfo> _tables = new();
-        public int _start;
-        public int _length;
+        public readonly List<ColumnInfo> Columns = new();
+        public readonly List<SqlSubquerySyntaxInfo> Subqueries = new();
+        public readonly List<TableInfo> Tables = new();
+        public int Start;
+        public int Length;
 
         public abstract class ColumnOrTableInfo(MultiPartIdentifier? name, Identifier? alias)
         {
-            public MultiPartIdentifier? _name = name;
-            public Identifier? _alias = alias;
+            public MultiPartIdentifier? Name = name;
+            public Identifier? Alias = alias;
 
             public string? GetNameString()
             {
-                if (_name == null)
+                if (Name == null)
                 {
                     return null;
                 }
-                var tableNameIdentifiers = _name.Identifiers;
+                var tableNameIdentifiers = Name.Identifiers;
                 if (tableNameIdentifiers.IsEmpty())
                 {
                     return null;
@@ -40,7 +42,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
 
             public string? GetAliasString()
             {
-                return _alias?.Value;
+                return Alias?.Value;
             }
 
             public bool CompareAlias(string other)
@@ -55,7 +57,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
 
             public bool CompareName(MultiPartIdentifier other)
             {
-                var idents = _name?.Identifiers;
+                var idents = Name?.Identifiers;
                 if (idents == null)
                 {
                     return false;
@@ -92,7 +94,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
 
             public override string ToString()
             {
-                return $"{string.Join(".", _name?.Identifiers.Select(id => id.Value) ?? [])}{(_alias != null ? $", {_alias.Value}" : null)}";
+                return $"{string.Join(".", Name?.Identifiers.Select(id => id.Value) ?? [])}{(Alias != null ? $", {Alias.Value}" : null)}";
             }
         }
 
@@ -102,26 +104,26 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
 
         public class SqlSubquerySyntaxInfo : SqlSelectSyntaxInfo
         {
-            public Identifier? _alias;
+            public Identifier? Alias;
 
             public SqlSubquerySyntaxInfo(Identifier? subqueryAlias) : base()
             {
-                _alias = subqueryAlias;
+                Alias = subqueryAlias;
             }
 
             public SqlSubquerySyntaxInfo(QuerySpecification qs, Identifier? subqueryAlias = null) : base(qs)
             {
-                _alias = subqueryAlias;
+                Alias = subqueryAlias;
             }
 
             public bool CompareAlias(string other)
             {
-                return _alias?.Value.Equals(other, StringComparison.InvariantCultureIgnoreCase) ?? false;
+                return Alias?.Value.Equals(other, StringComparison.InvariantCultureIgnoreCase) ?? false;
             }
 
             public string? GetAliasString()
             {
-                return _alias?.Value;
+                return Alias?.Value;
             }
         }
 
@@ -181,8 +183,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
 
         private void Populate(QuerySpecification qs)
         {
-            _start = qs.StartOffset;
-            _length = qs.FragmentLength;
+            Start = qs.StartOffset;
+            Length = qs.FragmentLength;
 
             // 1. Columns
             foreach (var element in qs.SelectElements)
@@ -200,7 +202,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
                                 colRef.MultiPartIdentifier,
                             _ => null
                         };
-                        _columns.Add(new ColumnInfo(columnName, alias));
+                        Columns.Add(new ColumnInfo(columnName, alias));
                         break;
 
                         //TODO aljaz figure out what to do with star expression
@@ -228,7 +230,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
                 element.Accept(finder);
             }
             qs.WhereClause?.Accept(finder);
-            _subqueries.AddRange(finder.Found);
+            Subqueries.AddRange(finder.Found);
         }
 
         private void CollectTables(TableReference tableRef)
@@ -241,12 +243,12 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
                     var tableName = named.SchemaObject as MultiPartIdentifier;
                     var tableIdent = named.SchemaObject.Identifiers;
                     var tableAlias = named.Alias;
-                    _tables.Add(new TableInfo(tableName, tableAlias));
+                    Tables.Add(new TableInfo(tableName, tableAlias));
                     break;
 
                 case QueryDerivedTable derived when derived.QueryExpression is QuerySpecification innerQs:
                     var derivedAlias = derived.Alias;
-                    _subqueries.Add(new SqlSubquerySyntaxInfo(innerQs, derivedAlias));
+                    Subqueries.Add(new SqlSubquerySyntaxInfo(innerQs, derivedAlias));
                     break;
 
                 case QualifiedJoin join:
@@ -268,11 +270,30 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
         // Returns the deepest SQL query at the position or null if cursor is outside
         public SqlSelectSyntaxInfo? GetQueryAtCursorPosition(int cursorPosition)
         {
-            if (cursorPosition >= _start && cursorPosition < _start + _length)
+            if (cursorPosition >= Start && cursorPosition < Start + Length)
             {
-                return _subqueries.Find(subquery => subquery.GetQueryAtCursorPosition(cursorPosition) != null) ?? this;
+                return Subqueries.Find(subquery => subquery.GetQueryAtCursorPosition(cursorPosition) != null) ?? this;
             }
             return null;
+        }
+
+        // Return a flattened list of subqueries for this query
+        public List<SqlSubquerySyntaxInfo> FlattenSubqueries()
+        {
+            return Subqueries.SelectMany(subquery => subquery.FlattenQueries()).OfType<SqlSubquerySyntaxInfo>().ToList();
+        }
+
+        // Return a flattened list of subqueries for this query including itself
+        public List<SqlSelectSyntaxInfo> FlattenQueries()
+        {
+            // No subqueries return itself
+            if (Subqueries.IsNullOrEmpty())
+            {
+                return [this];
+            }
+
+            // Has subqueries return self and subqueries
+            return [this, .. Subqueries.SelectMany(subquery => subquery.FlattenQueries())];
         }
 
         /*
@@ -301,3 +322,4 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
         */
     }
 }
+#pragma warning restore RS0016 // Add public types and members to the declared API
