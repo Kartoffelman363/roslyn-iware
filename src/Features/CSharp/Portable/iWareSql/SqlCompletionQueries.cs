@@ -55,7 +55,14 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = "SELECT name FROM iw_tables_schema WHERE tid = @tennantId OR tid IS NULL";
                 cmd.CommandType = System.Data.CommandType.Text;
-                cmd.Parameters.AddWithValue("@tennantId", TenantId);
+                if (TenantId != null && Int32.TryParse(TenantId, out var tid))
+                {
+                    cmd.Parameters.AddWithValue("@tennantId", tid);
+                }
+                else
+                {
+                    cmd.Parameters.AddWithValue("@tennantId", DBNull.Value);
+                }
                 var reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {

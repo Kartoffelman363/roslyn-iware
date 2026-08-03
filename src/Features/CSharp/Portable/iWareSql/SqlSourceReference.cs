@@ -73,6 +73,7 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
 
         public SubqueryReference(SqlSelectSyntaxInfo.SqlSubquerySyntaxInfo syntaxInfo)
         {
+            Alias = syntaxInfo.Alias?.Value;
             UpdateColumnNames(syntaxInfo);
         }
 

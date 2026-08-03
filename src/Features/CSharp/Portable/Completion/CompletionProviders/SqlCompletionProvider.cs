@@ -81,10 +81,12 @@ internal sealed class SqlCompletionProvider : CompletionProvider
 
     public override async Task ProvideCompletionsAsync(CompletionContext context)
     {
+#if DEBUG
         if (!System.Diagnostics.Debugger.IsAttached)
         {
             System.Diagnostics.Debugger.Launch();
         }
+#endif
 
         var tree = await context.Document.GetSyntaxTreeAsync(context.CancellationToken).ConfigureAwait(false);
         var root = tree?.GetRoot(context.CancellationToken);

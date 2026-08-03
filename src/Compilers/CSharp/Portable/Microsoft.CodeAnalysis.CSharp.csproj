@@ -93,13 +93,6 @@
     <PackageReference Include="Microsoft.Data.SqlClient" />
     <PackageReference Include="System.Text.Json" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="iWareSql\Verifier\**\*">
-      <Pack>true</Pack>
-      <PackagePath>iWareSql\Verifier\</PackagePath>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
 
   <Import Project="..\CSharpAnalyzerDriver\CSharpAnalyzerDriver.projitems" Label="Shared" />
 </Project>

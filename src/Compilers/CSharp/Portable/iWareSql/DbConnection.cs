@@ -2,13 +2,12 @@
 using System.Text.Json;
 using System.IO;
 
-
 namespace Microsoft.CodeAnalysis.CSharp.iWareSql
 {
 #pragma warning disable RS0016 // Add public types and members to the declared API
     public static class DbConnection
     {
-        public static int? TenantId { get; set; }
+        public static string? TenantId { get; set; }
         public static string? ConnectionString { private get; set; }
         public const string DbConfigFileName = "iWareDatabase.json";
         private static string? s_dbConfiFile = null;
@@ -16,7 +15,7 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
         internal class DbSettings
         {
             public string? CompanyName { get; set; }
-            public int? TID { get; set; }
+            public string? TID { get; set; }
             public string? ConnectionString { get; set; }
             public string? ExternalFile { get; set; }
         }
