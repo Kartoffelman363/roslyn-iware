@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "csc-arm64", "csc\arm64\csc-
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "CSharpAnalyzerDriver", "CSharpAnalyzerDriver\CSharpAnalyzerDriver.shproj", "{54E08BF5-F819-404F-A18D-0AB9EA81EA04}"
 EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Microsoft.CodeAnalysis.CSharp.iWareSql", "..\..\Dependencies\iWareSql\Microsoft.CodeAnalysis.CSharp.iWareSql.shproj", "{26758B64-D63A-4B6E-AEBE-6B46178BA2E4}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Microsoft.CodeAnalysis.CSharp", "Portable\Microsoft.CodeAnalysis.CSharp.csproj", "{0B06BD1C-7EF2-43E1-8EFE-E55864C07583}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Microsoft.CodeAnalysis.CSharp.CommandLine.UnitTests", "Test\CommandLine\Microsoft.CodeAnalysis.CSharp.CommandLine.UnitTests.csproj", "{21BB716C-A3B4-68A2-7654-9895B988B737}"
@@ -111,8 +113,10 @@ Global
 	EndGlobalSection
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		CSharpAnalyzerDriver\CSharpAnalyzerDriver.projitems*{0b06bd1c-7ef2-43e1-8efe-e55864c07583}*SharedItemsImports = 5
+		..\..\Dependencies\iWareSql\Microsoft.CodeAnalysis.CSharp.iWareSql.projitems*{0b06bd1c-7ef2-43e1-8efe-e55864c07583}*SharedItemsImports = 5
 		csc\CscCommandLine.projitems*{1296f284-feb2-0cc6-935f-6cb6aede3969}*SharedItemsImports = 5
 		CSharpAnalyzerDriver\CSharpAnalyzerDriver.projitems*{54e08bf5-f819-404f-a18d-0ab9ea81ea04}*SharedItemsImports = 13
+		..\..\Dependencies\iWareSql\Microsoft.CodeAnalysis.CSharp.iWareSql.projitems*{26758b64-d63a-4b6e-aebe-6b46178ba2e4}*SharedItemsImports = 13
 		..\Core\AnalyzerDriver\AnalyzerDriver.projitems*{554b0e95-2d64-50b4-351b-734c9b692215}*SharedItemsImports = 5
 		..\..\Dependencies\CodeAnalysis.Debugging\Microsoft.CodeAnalysis.Debugging.projitems*{554b0e95-2d64-50b4-351b-734c9b692215}*SharedItemsImports = 5
 		..\..\Dependencies\Collections\Microsoft.CodeAnalysis.Collections.projitems*{554b0e95-2d64-50b4-351b-734c9b692215}*SharedItemsImports = 5

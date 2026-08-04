@@ -67,6 +67,8 @@
       "src\\Dependencies\\CodeAnalysis.Debugging\\Microsoft.CodeAnalysis.Debugging.shproj",
       "src\\Dependencies\\Collections\\Microsoft.CodeAnalysis.Collections.Package.csproj",
       "src\\Dependencies\\Collections\\Microsoft.CodeAnalysis.Collections.shproj",
+      "src\\Dependencies\\iWareSql\\Microsoft.CodeAnalysis.CSharp.iWareSql.Package.csproj",
+      "src\\Dependencies\\iWareSql\\Microsoft.CodeAnalysis.CSharp.iWareSql.shproj",
       "src\\Dependencies\\Contracts\\Microsoft.CodeAnalysis.Contracts.Package.csproj",
       "src\\Dependencies\\Contracts\\Microsoft.CodeAnalysis.Contracts.shproj",
       "src\\Dependencies\\PooledObjects\\Microsoft.CodeAnalysis.PooledObjects.Package.csproj",

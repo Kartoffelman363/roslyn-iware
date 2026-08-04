@@ -5,7 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using static Microsoft.CodeAnalysis.CSharp.Completion.iWareSql.DbConnection;
+using static Microsoft.CodeAnalysis.CSharp.iWareSql.DbConnection;
 
 namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
 {

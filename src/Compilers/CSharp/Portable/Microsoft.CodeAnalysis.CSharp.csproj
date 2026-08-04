@@ -95,4 +95,5 @@
   </ItemGroup>
 
   <Import Project="..\CSharpAnalyzerDriver\CSharpAnalyzerDriver.projitems" Label="Shared" />
+  <Import Project="..\..\..\Dependencies\iWareSql\Microsoft.CodeAnalysis.CSharp.iWareSql.projitems" Label="Shared" />
 </Project>

@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- Licensed to the .NET Foundation under one or more agreements. The .NET Foundation licenses this file to you under the MIT license. See the LICENSE file in the project root for more information. -->
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>26758b64-d63a-4b6e-aebe-6b46178ba2e4</SharedGUID>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <Import_RootNamespace>Microsoft.CodeAnalysis.CSharp.iWareSql</Import_RootNamespace>
+  </PropertyGroup>
+
+  <!-- DbConnection.cs has no compiler- or IDE-internal dependencies (just
+       System.IO / System.Text.Json / Microsoft.Data.SqlClient), so it is
+       safe to compile into every consumer of this shared project. -->
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)DbConnection.cs" />
+  </ItemGroup>
+
+  <!-- ParseSql.cs / VerifySql.cs use compiler-internal types (ErrorCode,
+       BindingDiagnosticBag, the generated Sql*SegmentSyntax/SqlStatementSyntax
+       nodes) that only exist inside Microsoft.CodeAnalysis.CSharp itself, so
+       these can only be compiled into that project - never into Features,
+       which doesn't have access to those internals. -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Microsoft.CodeAnalysis.CSharp'">
+    <Compile Include="$(MSBuildThisFileDirectory)ParseSql.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)VerifySql.cs" />
+  </ItemGroup>
+
+  <!-- Helpers.cs / QueryInfo.cs / SqlCompletionQueries.cs / SqlKeywords.cs /
+       SqlSelectSyntaxInfo.cs / SqlSourceReference.cs use IDE/completion-layer
+       types (Microsoft.CodeAnalysis.Completion) and the TransactSql.ScriptDom
+       parser, which the compiler layer must not depend on, so these can only
+       be compiled into Microsoft.CodeAnalysis.CSharp.Features. -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Microsoft.CodeAnalysis.CSharp.Features'">
+    <Compile Include="$(MSBuildThisFileDirectory)Helpers.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)QueryInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SqlCompletionQueries.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SqlKeywords.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SqlSelectSyntaxInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SqlSourceReference.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(DefaultLanguageSourceExtension)' != '' AND '$(BuildingInsideVisualStudio)' != 'true'">
+    <ExpectedCompile Include="$(MSBuildThisFileDirectory)**\*$(DefaultLanguageSourceExtension)" />
+  </ItemGroup>
+</Project>
