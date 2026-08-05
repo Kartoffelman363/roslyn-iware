@@ -35,6 +35,16 @@ namespace Microsoft.CodeAnalysis.CSharp
         public override DiagnosticFormatter DiagnosticFormatter { get { return _diagnosticFormatter; } }
         protected internal new CSharpCommandLineArguments Arguments { get { return (CSharpCommandLineArguments)base.Arguments; } }
 
+        // iWare: the synthesized [Orm]/[DbField] attribute-declaration tree is injected
+        // directly into every CSharpCompilation (see CSharpCompilation.Create /
+        // EnsureOrmAttributesTreeMatchesOptions), so it never appears in Arguments.SourceFiles.
+        // CommonCompiler's own bookkeeping (sourceFileAnalyzerConfigOptions, and the
+        // SourceFiles.Length-based split between "source" and "generated" trees) is built
+        // strictly from Arguments.SourceFiles and must not see this extra tree, or its
+        // positional indexing against compilation.SyntaxTrees goes out of bounds / misaligns.
+        protected override bool IsSynthesizedSourceFile(SyntaxTree tree) =>
+            tree.FilePath == CSharpCompilation.OrmAttributesSyntheticFilePath;
+
         public override Compilation? CreateCompilation(
             TextWriter consoleOutput,
             TouchedFileLogger? touchedFilesLogger,

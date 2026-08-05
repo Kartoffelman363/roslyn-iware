@@ -1,0 +1,1 @@
+dotnet publish .\src\LanguageServer\Microsoft.CodeAnalysis.LanguageServer\ -c Release -o .\artifacts\MojLangserverRelease /p:DebugType=portable /p:IncludeSymbols=true

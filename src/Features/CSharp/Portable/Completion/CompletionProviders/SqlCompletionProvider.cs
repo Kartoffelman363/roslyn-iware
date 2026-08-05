@@ -39,7 +39,7 @@ internal sealed class SqlCompletionProvider : CompletionProvider
      * tableName.<partialPropertyName>
      * then we output the siginificant property names and return true
      */
-    private bool DotTokenCompletion(SyntaxToken? token, CompletionContext context)
+    private async Task<bool> DotTokenCompletion(SyntaxToken? token, CompletionContext context)
     {
         if (token.HasValue)
         {
@@ -59,7 +59,7 @@ internal sealed class SqlCompletionProvider : CompletionProvider
                 // Update if reference to table
                 if (sourceReference is TableReference tr)
                 {
-                    tr.UpdateColumnNames(context);
+                    await tr.UpdateColumnNames(context).ConfigureAwait(false);
                 }
 
                 foreach (var columnName in sourceReference.ColumnNames)
@@ -101,11 +101,11 @@ internal sealed class SqlCompletionProvider : CompletionProvider
             return;
         }
 
-        _queryInfo.UpdateTableNames(context); // TODO aljaz do we always want to be updating tableNames?
+        await _queryInfo.UpdateTableNames(context).ConfigureAwait(false); // TODO aljaz do we always want to be updating tableNames?
         _queryInfo.UpdateQuerySyntaxInfo(sqlBlock, context);
-        _queryInfo.UpdateLocallyReferencedTableColumnNames(context);
+        await _queryInfo.UpdateLocallyReferencedTableColumnNames(context).ConfigureAwait(false);
 
-        if (DotTokenCompletion(token, context))
+        if (await DotTokenCompletion(token, context).ConfigureAwait(false))
         {
             return;
         }

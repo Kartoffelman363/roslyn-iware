@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.Completion;
 using Microsoft.CodeAnalysis.CSharp.Completion.iWareSql;
 
@@ -36,7 +37,7 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             LastUpdatedColumns = DateTime.Now;
         }
 
-        public void UpdateColumnNames(CompletionContext context)
+        public async Task UpdateColumnNames(CompletionContext context)
         {
             // Prevent function from firing too frequently
             if ((DateTime.Now - LastAttemptedUpdateColumns).TotalSeconds < 5)
@@ -45,21 +46,16 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             }
             LastAttemptedUpdateColumns = DateTime.Now;
 
-            // No db settings file
-            var filePath = context.Document.FilePath;
-            if (filePath == null)
+            // Column names now come from [Orm]/[DbField]-annotated classes in the compilation
+            // instead of a live database, via OrmSchemaProvider - see
+            // SqlCompletionQueries.GetColumnNamesFromTable.
+            var compilation = await context.Document.Project.GetCompilationAsync(context.CancellationToken).ConfigureAwait(false);
+            if (compilation == null)
             {
                 return;
             }
 
-            // Last update more recent than last change on database
-            var lastUpdated = SqlCompletionQueries.TableChangedTime(filePath, TableName);
-            if (lastUpdated == null || lastUpdated < LastUpdatedColumns)
-            {
-                return;
-            }
-
-            var columnNames = SqlCompletionQueries.GetColumnNamesFromTable(filePath, TableName);
+            var columnNames = SqlCompletionQueries.GetColumnNamesFromTable(compilation, TableName);
             if (columnNames != null)
             {
                 MergeColumns(columnNames);

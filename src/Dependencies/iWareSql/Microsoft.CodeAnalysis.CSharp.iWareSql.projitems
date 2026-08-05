@@ -21,10 +21,20 @@
        BindingDiagnosticBag, the generated Sql*SegmentSyntax/SqlStatementSyntax
        nodes) that only exist inside Microsoft.CodeAnalysis.CSharp itself, so
        these can only be compiled into that project - never into Features,
-       which doesn't have access to those internals. -->
+       which doesn't have access to those internals.
+
+       OrmSchema.cs only needs public Microsoft.CodeAnalysis(.CSharp) API
+       (Compilation, INamedTypeSymbol, AttributeData) so it *could* live in
+       the Features-only bucket below, but it's placed here instead so that
+       Binder_Statements.cs / VerifySql.cs can consume the same schema later
+       without anything needing to move. Its public types are how Features
+       reaches it, since Features does not get InternalsVisibleTo from this
+       project. -->
   <ItemGroup Condition="'$(MSBuildProjectName)' == 'Microsoft.CodeAnalysis.CSharp'">
     <Compile Include="$(MSBuildThisFileDirectory)ParseSql.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)VerifySql.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)OrmSchema.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)OrmAttributesSource.cs" />
   </ItemGroup>
 
   <!-- Helpers.cs / QueryInfo.cs / SqlCompletionQueries.cs / SqlKeywords.cs /

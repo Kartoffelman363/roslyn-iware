@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.CSharp.iWareSql;
 using TableReference = Microsoft.CodeAnalysis.CSharp.iWareSql.TableReference;
 using Microsoft.CodeAnalysis.Completion;
@@ -112,7 +113,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
             */
         }
 
-        public void UpdateTableNames(CompletionContext context)
+        public async Task UpdateTableNames(CompletionContext context)
         {
             // Prevent function from firing too frequently
             if ((DateTime.Now - LastAttemptedUpdate).TotalSeconds < 5)
@@ -121,23 +122,16 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
             }
             LastAttemptedUpdate = DateTime.Now;
 
-            var filePath = context.Document.FilePath;
-            if (filePath == null)
+            // Table names now come from [Orm]-annotated classes in the compilation instead of
+            // a live database, via OrmSchemaProvider - see SqlCompletionQueries.GetTableNames.
+            var compilation = await context.Document.Project.GetCompilationAsync(context.CancellationToken).ConfigureAwait(false);
+            if (compilation == null)
             {
                 return;
             }
 
-            var lastUpdated = SqlCompletionQueries.LastTableChangedTime(filePath);
-            if (lastUpdated == null || lastUpdated < LastUpdated)
-            {
-                return;
-            }
-
-            var tableNames = SqlCompletionQueries.GetTableNames(filePath);
-            if (tableNames != null)
-            {
-                Merge(tableNames);
-            }
+            var tableNames = SqlCompletionQueries.GetTableNames(compilation);
+            Merge(tableNames);
         }
 
         public void UpdateQuerySyntaxInfo(Syntax.SqlTextBlockSyntax sqlBlock, CompletionContext context)
@@ -236,7 +230,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
         }
 
         // Update column list of tables referenced in the local context
-        public void UpdateLocallyReferencedTableColumnNames(CompletionContext context)
+        public async Task UpdateLocallyReferencedTableColumnNames(CompletionContext context)
         {
             if ((DateTime.Now - LastAttemptedColumnUpdate).TotalSeconds < 5)
             {
@@ -244,40 +238,30 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
             }
             LastAttemptedColumnUpdate = DateTime.Now;
 
-            var tableReferences = GetLocallyReferencedTableReferences().Where(tr => !string.IsNullOrEmpty(tr.TableName));
-
-            // TODO aljaz use GetColumnNamesFromTables and TablesChangedTime to reduce number of queries
-
-            var tableNames = tableReferences
-                .Select(tr => tr.TableName)
-                .OfType<string>()
-                .ToList();
-
-            // No db settings file
-            var filePath = context.Document.FilePath;
-            if (filePath == null)
+            var tableReferences = GetLocallyReferencedTableReferences().Where(tr => !string.IsNullOrEmpty(tr.TableName)).ToList();
+            if (tableReferences.Count < 1)
             {
                 return;
             }
 
-            if (tableNames.Count < 1)
+            // Column names now come from [Orm]/[DbField]-annotated classes in the compilation
+            // instead of a live database, via OrmSchemaProvider. There's no "changed since"
+            // dimension to worry about anymore (unlike sys.tables.modify_date) - OrmSchemaProvider
+            // is exact for a given Compilation instance, so we can just fetch what's needed
+            // directly instead of first querying which tables changed.
+            var compilation = await context.Document.Project.GetCompilationAsync(context.CancellationToken).ConfigureAwait(false);
+            if (compilation == null)
             {
                 return;
             }
 
-            var tablesChangedTimes = SqlCompletionQueries.TablesChangedTime(filePath, tableNames);
-            List<TableReference> updateTables = new();
-            updateTables.AddRange(tableReferences
-                .Where(tr => tablesChangedTimes
-                    .Any(tct => (tr.TableName?
-                        .Equals(tct.Table, StringComparison.InvariantCultureIgnoreCase) ?? false) && tr.LastUpdatedColumns < tct.Time)));
+            var tableNames = tableReferences.Select(tr => tr.TableName!).ToList();
+            var columnsAndTables = SqlCompletionQueries.GetColumnNamesFromTables(compilation, tableNames);
 
-            var columnsAndTables = SqlCompletionQueries.GetColumnNamesFromTables(filePath, updateTables.Select(ut => ut.TableName!).ToList());
-
-            foreach (var ut in updateTables)
+            foreach (var tr in tableReferences)
             {
-                ut.MergeColumns(columnsAndTables
-                    .Where(cat => cat.Table.Equals(ut.TableName, StringComparison.InvariantCultureIgnoreCase))
+                tr.MergeColumns(columnsAndTables
+                    .Where(cat => cat.Table.Equals(tr.TableName, StringComparison.InvariantCultureIgnoreCase))
                     .Select(cat => cat.Column)
                     .ToList());
             }

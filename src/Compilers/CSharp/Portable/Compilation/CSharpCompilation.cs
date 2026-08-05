@@ -13,6 +13,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Metadata;
+using System.Text;
 using System.Threading;
 using Microsoft.Cci;
 using Microsoft.CodeAnalysis;
@@ -445,6 +446,9 @@ namespace Microsoft.CodeAnalysis.CSharp
             RoslynDebug.Assert(options != null);
             Debug.Assert(!isSubmission || options.ReferencesSupersedeLowerVersions);
 
+            // Materialize once - syntaxTrees may be a one-shot enumerable.
+            var materializedSyntaxTrees = syntaxTrees?.ToImmutableArray() ?? default;
+
             var validatedReferences = ValidateReferences<CSharpCompilationReference>(references);
 
             // We can't reuse the whole Reference Manager entirely (reuseReferenceManager = false)
@@ -475,9 +479,29 @@ namespace Microsoft.CodeAnalysis.CSharp
                     state: null),
                 semanticModelProvider: null);
 
-            if (syntaxTrees != null)
+            if (!isSubmission)
             {
-                compilation = compilation.AddSyntaxTrees(syntaxTrees);
+                // Seed the [Orm]/[DbField] marker attribute declarations into every regular
+                // (non-scripting) compilation, so consuming projects never declare or reference
+                // these types themselves - see OrmAttributesSource / OrmSchemaProvider in
+                // src/Dependencies/iWareSql. Excluded for script/interactive submissions
+                // (isSubmission: true) since those chain multiple CSharpCompilation instances
+                // together and re-injecting a type declaration into each submission is untested
+                // territory that regular project compiles never need to worry about.
+                //
+                // What LanguageVersion/Features this initial copy is parsed with doesn't matter -
+                // EnsureOrmAttributesTreeMatchesOptions (called from every CSharpCompilation
+                // construction, see the constructor below) re-parses it to match whichever real
+                // trees are actually present the moment that's knowable, whether that's right
+                // here (if syntaxTrees is non-empty) or later via a separate AddSyntaxTrees call
+                // (the Workspaces/IDE pattern of building an empty compilation first).
+                compilation = compilation.AddSyntaxTrees(
+                    CSharpSyntaxTree.ParseText(iWareSql.OrmAttributesSource.Text, options: CSharpParseOptions.Default, path: OrmAttributesSyntheticFilePath, encoding: Encoding.UTF8));
+            }
+
+            if (!materializedSyntaxTrees.IsDefault)
+            {
+                compilation = compilation.AddSyntaxTrees(materializedSyntaxTrees);
             }
 
             Debug.Assert(compilation._lazyAssemblySymbol is null);
@@ -497,8 +521,85 @@ namespace Microsoft.CodeAnalysis.CSharp
             SyntaxAndDeclarationManager syntaxAndDeclarations,
             SemanticModelProvider? semanticModelProvider,
             AsyncQueue<CompilationEvent>? eventQueue = null)
-            : this(assemblyName, options, references, previousSubmission, submissionReturnType, hostObjectType, isSubmission, referenceManager, reuseReferenceManager, syntaxAndDeclarations, SyntaxTreeCommonFeatures(syntaxAndDeclarations.ExternalSyntaxTrees), semanticModelProvider, eventQueue)
+            // EnsureOrmAttributesTreeMatchesOptions is evaluated twice here (once inline, once
+            // inside SyntaxTreeCommonFeatures's argument) because a constructor initializer list
+            // can't introduce a local to share between two argument expressions. It's a cheap
+            // check-and-return-same-instance in the common case (see the method), so this is a
+            // minor redundant scan, not a redundant re-parse.
+            : this(assemblyName, options, references, previousSubmission, submissionReturnType, hostObjectType, isSubmission, referenceManager, reuseReferenceManager,
+                  syntaxAndDeclarations: EnsureOrmAttributesTreeMatchesOptions(syntaxAndDeclarations),
+                  features: SyntaxTreeCommonFeatures(EnsureOrmAttributesTreeMatchesOptions(syntaxAndDeclarations).ExternalSyntaxTrees),
+                  semanticModelProvider, eventQueue)
         {
+        }
+
+        // Path used to identify the synthesized [Orm]/[DbField] tree (see OrmAttributesSource)
+        // among a compilation's syntax trees, so it can be found and re-parsed below.
+        // internal (not private) so CSharpCompiler (the csc.exe/batch command-line driver) can
+        // recognize and filter out this tree from its own SourceFiles-derived positional
+        // bookkeeping - see CommonCompiler.IsSynthesizedSourceFile.
+        internal const string OrmAttributesSyntheticFilePath = "__iWareOrmAttributes.g.cs";
+
+        // Every CSharpCompilation construction funnels through this constructor overload (Create,
+        // Update, WithAssemblyName, WithOptions, etc. all end up here), which makes it the one
+        // place all of a compilation's syntax trees are known together before Roslyn's own
+        // "every tree must share the same LanguageVersion/Features" invariant is checked
+        // (CommonLanguageVersion / SyntaxTreeCommonFeatures, both below). The synthesized
+        // [Orm]/[DbField] tree is seeded with placeholder parse options in Create (see above)
+        // since the real trees' options aren't always known yet at that point (e.g. Workspaces/
+        // the language server often builds an empty compilation first, adding documents
+        // afterward) - so instead of guessing right once, this re-derives and re-parses the
+        // synthetic tree here, every time, against whatever real trees are actually present at
+        // construction time. Cheap in the common case: if the synthetic tree's options already
+        // match, it returns the same SyntaxAndDeclarationManager instance unchanged.
+        private static SyntaxAndDeclarationManager EnsureOrmAttributesTreeMatchesOptions(SyntaxAndDeclarationManager syntaxAndDeclarations)
+        {
+            var trees = syntaxAndDeclarations.ExternalSyntaxTrees;
+            if (trees.IsDefaultOrEmpty)
+            {
+                return syntaxAndDeclarations;
+            }
+
+            SyntaxTree? ormAttributesTree = null;
+            CSharpParseOptions? otherTreeOptions = null;
+
+            foreach (var tree in trees)
+            {
+                if (tree.FilePath == OrmAttributesSyntheticFilePath)
+                {
+                    ormAttributesTree = tree;
+                }
+                else if (otherTreeOptions is null && tree.Options is CSharpParseOptions options)
+                {
+                    otherTreeOptions = options;
+                }
+            }
+
+            // Our tree isn't part of this set (script/interactive compilation, or it hasn't been
+            // seeded yet), or there's nothing else present yet to reconcile it against.
+            if (ormAttributesTree is null || otherTreeOptions is null)
+            {
+                return syntaxAndDeclarations;
+            }
+
+            if (ormAttributesTree.Options is CSharpParseOptions currentOptions &&
+                currentOptions.LanguageVersion == otherTreeOptions.LanguageVersion &&
+                currentOptions.Features.Count == otherTreeOptions.Features.Count &&
+                currentOptions.Features.All(kvp => otherTreeOptions.Features.TryGetValue(kvp.Key, out var value) && value == kvp.Value))
+            {
+                // Already consistent with the rest of the compilation - nothing to do.
+                return syntaxAndDeclarations;
+            }
+
+            var replacementTree = CSharpSyntaxTree.ParseText(
+                iWareSql.OrmAttributesSource.Text,
+                options: otherTreeOptions,
+                path: OrmAttributesSyntheticFilePath,
+                encoding: Encoding.UTF8);
+
+            return syntaxAndDeclarations
+                .RemoveSyntaxTrees(new HashSet<SyntaxTree> { ormAttributesTree })
+                .AddSyntaxTrees(new[] { replacementTree });
         }
 
         private CSharpCompilation(

@@ -114,6 +114,20 @@ namespace Microsoft.CodeAnalysis
 
         protected abstract bool TryGetCompilerDiagnosticCode(string diagnosticId, out uint code);
 
+        /// <summary>
+        /// iWare: identifies syntax trees that were silently injected into every
+        /// <see cref="Compilation"/> (e.g. the synthesized [Orm]/[DbField] attribute
+        /// declarations), rather than having originated from <see cref="CommandLineArguments.SourceFiles"/>
+        /// or from a source generator. <see cref="CommonCompiler"/> maintains its own
+        /// bookkeeping (such as <c>sourceFileAnalyzerConfigOptions</c>) that is built
+        /// positionally from <see cref="CommandLineArguments.SourceFiles"/> and later
+        /// zipped/indexed against <c>compilation.SyntaxTrees</c>; such injected trees must
+        /// be filtered out of <c>compilation.SyntaxTrees</c> before any of that positional
+        /// bookkeeping is used, or indexing will run out of bounds / misalign. Defaults to
+        /// <see langword="false"/> so non-C# compilers (e.g. VB) are unaffected.
+        /// </summary>
+        protected virtual bool IsSynthesizedSourceFile(SyntaxTree tree) => false;
+
         protected abstract void ResolveAnalyzersFromArguments(
             List<DiagnosticInfo> diagnostics,
             CommonMessageProvider messageProvider,
@@ -1078,7 +1092,7 @@ namespace Microsoft.CodeAnalysis
 
                 analyzerConfigProvider = UpdateAnalyzerConfigOptionsProvider(
                     analyzerConfigProvider,
-                    compilation.SyntaxTrees,
+                    compilation.SyntaxTrees.Where(t => !IsSynthesizedSourceFile(t)),
                     sourceFileAnalyzerConfigOptions,
                     additionalTextFiles,
                     additionalFileAnalyzerOptions);
@@ -1151,7 +1165,7 @@ namespace Microsoft.CodeAnalysis
                     (compilation, generatorTimingInfo) = RunGenerators(compilation, baseDirectory, Arguments.ParseOptions, generators, analyzerConfigProvider, additionalTextFiles, diagnostics);
 
                     bool hasAnalyzerConfigs = !Arguments.AnalyzerConfigPaths.IsEmpty;
-                    var generatedSyntaxTrees = compilation.SyntaxTrees.Skip(Arguments.SourceFiles.Length).ToList();
+                    var generatedSyntaxTrees = compilation.SyntaxTrees.Where(t => !IsSynthesizedSourceFile(t)).Skip(Arguments.SourceFiles.Length).ToList();
                     var analyzerOptionsBuilder = hasAnalyzerConfigs ? ArrayBuilder<AnalyzerConfigOptionsResult>.GetInstance(generatedSyntaxTrees.Count) : null;
                     var embeddedTextBuilder = ArrayBuilder<EmbeddedText>.GetInstance(generatedSyntaxTrees.Count);
                     try
