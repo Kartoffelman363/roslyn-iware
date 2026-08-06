@@ -9133,6 +9133,30 @@ done:
             return token;
         }
 
+        /// <summary>
+        /// Parses the C# expression embedded in a sql block, either inside <c>[ ]</c> (an output
+        /// target) or following <c>@</c> (an input parameter).
+        /// </summary>
+        /// <remarks>
+        /// Parsing stops at <see cref="Precedence.Primary"/>, so only a postfix chain is consumed:
+        /// member access, element access and invocation, to any depth. Binary operators are
+        /// deliberately excluded, because an input is not bracketed and the SQL continues right
+        /// after it — in <c>WHERE age &gt; @minAge - 1</c> the <c>- 1</c> belongs to the SQL, not
+        /// to the C# expression. Arguments nested inside <c>( )</c> or <c>[ ]</c> are unrestricted,
+        /// since those are delimited.
+        /// </remarks>
+        private ExpressionSyntax ParseSqlEmbeddedExpression()
+        {
+            // The enclosing sql block sets _termState to IsEndOfSqlBlock, which treats '}' as a
+            // terminator; that would truncate any expression containing braces, such as a lambda
+            // body or a collection initializer in an argument list. Clear it for the duration.
+            var saveTerm = _termState;
+            _termState = TerminatorState.EndOfFile;
+            var expression = this.ParseSubExpression(Precedence.Primary);
+            _termState = saveTerm;
+            return expression;
+        }
+
         private SqlTextBlockSyntax ParseSqlBlock()
         {
             var openBrace = EatToken(SyntaxKind.OpenBraceToken);
@@ -9156,25 +9180,20 @@ done:
                 else if (CurrentToken.Text.Length > 0 && CurrentToken.Text[0] == '@')
                 {
                     var positionBeforeParse = CurrentToken;
-                    var identifierName = ParseIdentifierName();
-                    if (identifierName.IsMissing && CurrentToken == positionBeforeParse)
+                    var inputExpression = ParseSqlEmbeddedExpression();
+                    if (CurrentToken == positionBeforeParse)
                     {
-                        // ParseIdentifierName failed to consume anything (e.g. lone '@' with
-                        // no valid identifier following) — eat the raw token ourselves so we
+                        // ParseSqlEmbeddedExpression failed to consume anything (e.g. lone '@'
+                        // with no valid expression following) — eat the raw token ourselves so we
                         // always make forward progress.
                         sqlBlockBuilder.Add(_syntaxFactory.SqlTextSegment(EatSqlTextToken()));
                     }
                     else
                     {
                         sqlBlockBuilder.Add(
-                            _syntaxFactory.SqlInputIdentifierSegment(identifierName));
+                            _syntaxFactory.SqlInputIdentifierSegment(inputExpression));
                     }
 
-                    /*
-                    sqlBlockBuilder.Add(
-                        _syntaxFactory.SqlInputIdentifierSegment(
-                            ParseIdentifierName()));
-                    */
                     continue;
                 }
                 else
@@ -9193,17 +9212,16 @@ done:
                             isComment = true;
                             break;
                         case SyntaxKind.OpenBracketToken:
-                            //TODO-aljaz is there something like SyntaxFactory.IdentifierName, but for declaring
-                            //variables that would allow me /to /create variables instead of output symbols being
-                            //parsed just as text and bound later?
-                            // Add query text
+                            // Inside a sql block '[' always introduces a C# output binding, never a
+                            // T-SQL quoted identifier; a column name needing quoting must be written
+                            // with double quotes under QUOTED_IDENTIFIER ON.
                             var openBracket = EatToken(SyntaxKind.OpenBracketToken);
-                            var ident = EatToken();
+                            var outputExpression = ParseSqlEmbeddedExpression();
                             var closeBracket = EatToken(SyntaxKind.CloseBracketToken);
                             sqlBlockBuilder.Add(
                                 _syntaxFactory.SqlOutputIdentifierSegment(
                                     openBracket,
-                                    ident,
+                                    outputExpression,
                                     closeBracket));
                             continue;
                     }

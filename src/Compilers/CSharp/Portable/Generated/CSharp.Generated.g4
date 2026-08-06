@@ -574,11 +574,11 @@ sql_segment
   ;
 
 sql_input_identifier_segment
-  : identifier_name
+  : expression
   ;
 
 sql_output_identifier_segment
-  : '[' syntax_token ']'
+  : '[' expression ']'
   ;
 
 sql_text_segment

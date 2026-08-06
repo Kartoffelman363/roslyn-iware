@@ -45,9 +45,9 @@ namespace Microsoft.CodeAnalysis.CSharp
             private readonly BoundBlock? _sqlDoBoundBlock;
             private readonly BoundBlock? _sqlEmptyBoundBlock;
             private readonly BoundBlock? _sqlEndBoundBlock;
-            private readonly ImmutableArray<Symbol> _querySymbols;
+            private readonly ImmutableArray<BoundExpression> _queryTargets;
             private readonly ImmutableArray<string> _querySqlNames;
-            private readonly ImmutableArray<Symbol> _parameterSymbols;
+            private readonly ImmutableArray<BoundExpression> _parameterExpressions;
             private readonly ImmutableArray<string> _parameterNames;
             // Fields
             private readonly FieldSymbol _dbNullValueProperty;
@@ -78,10 +78,10 @@ namespace Microsoft.CodeAnalysis.CSharp
                     _sqlEndBoundBlock = (BoundBlock)localRewriter.VisitBlock(node.SqlEndOpt);
                 }
 
-                _querySymbols = node.querySymbols;
-                _querySqlNames = node.querySqlNames;
-                _parameterSymbols = node.parameterSymbols;
-                _parameterNames = node.parameterNames;
+                _queryTargets = node.QueryTargets;
+                _querySqlNames = node.QuerySqlNames;
+                _parameterExpressions = node.ParameterExpressions;
+                _parameterNames = node.ParameterNames;
 
                 // Builtin types
                 _stringType = _compilation.GetSpecialType(SpecialType.System_String);
@@ -234,17 +234,17 @@ namespace Microsoft.CodeAnalysis.CSharp
                 // ImmutableArray<string> sqlNameValues = sqlQueryNames;
                 var sqlNamesSymbol = _factory.SynthesizedLocal(_immutableArrayOfStringsType);
                 var sqlNamesLocal = _factory.Local(sqlNamesSymbol);
-                sideEffects.Add(AssignImmutableArrayToLocal(sqlNamesLocal, _querySqlNames));
+                sideEffects.Add(AssignStringArrayToLocal(sqlNamesLocal, _querySqlNames));
 
-                // ImmutableArray<object> parameters = parameterSymbols;
+                // ImmutableArray<object> parameters = /*INPUT EXPRESSIONS*/;
                 var parametersSymbol = _factory.SynthesizedLocal(_immutableArrayOfObjectsType);
                 var parametersLocal = _factory.Local(parametersSymbol);
-                sideEffects.Add(AssignImmutableArrayToLocal(parametersLocal, _parameterSymbols));
+                sideEffects.Add(AssignExpressionArrayToLocal(parametersLocal, _parameterExpressions));
 
                 // ImmutableArray<string> parameterNames = parameterNames;
                 var parameterNamesSymbol = _factory.SynthesizedLocal(_immutableArrayOfStringsType);
                 var parameterNamesLocal = _factory.Local(parameterNamesSymbol);
-                sideEffects.Add(AssignImmutableArrayToLocal(parameterNamesLocal, _parameterNames));
+                sideEffects.Add(AssignStringArrayToLocal(parameterNamesLocal, _parameterNames));
 
                 // sqlReader = Begin(/*QUERY*/, parameters);
                 var sqlReaderBeginStatement = _factory.Assignment(
@@ -258,7 +258,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                             parameterNamesLocal)));
 
                 //  /*ASSIGN LOCALS*/
-                var assignLocalsStatements = AssignLocals(_querySymbols, readValuesLocal);
+                var assignLocalsStatements = AssignLocals(_queryTargets, readValuesLocal);
 
                 // do
                 // {
@@ -345,18 +345,64 @@ namespace Microsoft.CodeAnalysis.CSharp
                             sqlNamesLocal))));
             }
 
-            private BoundBlock AssignImmutableArrayToLocal<T>(BoundLocal local, ImmutableArray<T> arr)
+            private BoundBlock AssignStringArrayToLocal(BoundLocal local, ImmutableArray<string> values)
             {
-                // T supports string and Symbol, anything else fails
+                var elements = ImmutableArray.CreateBuilder<BoundExpression>(values.Length);
+                foreach (var value in values)
+                {
+                    elements.Add(_factory.Literal(value));
+                }
+
+                return BuildImmutableArray(local, _stringType, elements.ToImmutable());
+            }
+
+            private BoundBlock AssignExpressionArrayToLocal(BoundLocal local, ImmutableArray<BoundExpression> expressions)
+            {
+                var elements = ImmutableArray.CreateBuilder<BoundExpression>(expressions.Length);
+                foreach (var expression in expressions)
+                {
+                    elements.Add(ConvertToObject(expression));
+                }
+
+                return BuildImmutableArray(local, _objectType, elements.ToImmutable());
+            }
+
+            /// <summary>
+            /// Lowers an input expression and converts it to <c>object</c> so it can be stored in the
+            /// parameter array. Boxing for value types, an implicit reference conversion otherwise.
+            /// </summary>
+            private BoundExpression ConvertToObject(BoundExpression expression)
+            {
+                // The expression comes straight from the binder, so it has to be lowered before it
+                // is embedded in the synthesized tree — a property read has to become its getter
+                // call here, an indexer read its get_Item call, and so on.
+                var lowered = _localRewriter.VisitExpression(expression)!;
+
+                // A null type means binding already failed and reported; the statement carries
+                // HasErrors and will not reach codegen, so just hand the expression back untouched
+                // rather than crashing on the way there.
+                if (lowered.Type is null || lowered.Type.Equals(_objectType, TypeCompareKind.AllIgnoreOptions))
+                {
+                    return lowered;
+                }
+
+                var useSiteInfo = CompoundUseSiteInfo<AssemblySymbol>.Discarded;
+                var conversion = _compilation.Conversions.ClassifyConversionFromType(
+                    lowered.Type, _objectType, isChecked: false, ref useSiteInfo);
+                Debug.Assert(conversion.Exists, $"No conversion found from {lowered.Type} to object");
+
+                return _localRewriter.MakeConversionNode(
+                    syntax: expression.Syntax,
+                    rewrittenOperand: lowered,
+                    conversion: conversion,
+                    rewrittenType: _objectType,
+                    @checked: false);
+            }
+
+            private BoundBlock BuildImmutableArray(BoundLocal local, TypeSymbol targetType, ImmutableArray<BoundExpression> elements)
+            {
                 var sideEffects = ImmutableArray.CreateBuilder<BoundStatement>();
 
-                var targetType = arr switch
-                {
-                    ImmutableArray<string> _ => _stringType,
-                    ImmutableArray<Symbol> _ => _objectType,
-                    _ => null
-                };
-                Debug.Assert(targetType is not null, "Type error in AssignImmutableArrayToLocal");
                 var immutableArrayType = _immutableArrayType
                     .Construct(targetType);
                 Debug.Assert(immutableArrayType is not null, $"type ImmutableArray<{targetType}> could not be constructed");
@@ -386,26 +432,17 @@ namespace Microsoft.CodeAnalysis.CSharp
                             null,
                             immutableArrayBuilderMethod)));
 
-                //foreach o in arr builder.Add(o)
-                foreach (var o in arr)
+                //foreach element builder.Add(element)
+                foreach (var element in elements)
                 {
-                    var expr = o switch
-                    {
-                        string str => _factory.Literal(str),
-                        LocalSymbol sym => _factory.Convert(_objectType, _factory.Local(sym)),
-                        _ => null
-                    };
-                    if (expr is null)
-                        Debug.Fail("Type error in AssignImmutableArrayToLocal");
-
                     sideEffects.Add(
                         _factory.ExpressionStatement(_factory.Call(
                             builderLocal,
                             addMethod,
-                            expr)));
+                            element)));
                 }
 
-                //sqlNamesLocal = builder.ToImmutableArray();
+                //local = builder.ToImmutableArray();
                 sideEffects.Add(_factory.Assignment(
                     local,
                     _factory.Call(
@@ -442,11 +479,13 @@ namespace Microsoft.CodeAnalysis.CSharp
                 }
             }
 
-            BoundStatement AssignLocals(ImmutableArray<Symbol> querySymbols, BoundExpression readValuesLocal)
+            BoundStatement AssignLocals(ImmutableArray<BoundExpression> queryTargets, BoundExpression readValuesLocal)
             {
                 var sideEffects = ImmutableArray.CreateBuilder<BoundStatement>();
+                var locals = ImmutableArray.CreateBuilder<LocalSymbol>();
                 var tmpSymbol = _factory.SynthesizedLocal(_objectType);
                 var tmpLocal = _factory.Local(tmpSymbol);
+                locals.Add(tmpSymbol);
                 var getItemMethodSymbol =
                     readValuesLocal.Type!
                         .GetMembers("get_Item")
@@ -459,16 +498,16 @@ namespace Microsoft.CodeAnalysis.CSharp
                 var domainOfTOpenType = _compilation.GetTypeByMetadataName("iWareSql.Domain.Abstractions.Domain`1");
                 Debug.Assert(domainOfTOpenType is not null, "type iWareSql.Domain.Abstractions.Domain<T> not found");
 
-                for (int i = 0; i < querySymbols.Length; i++)
+                for (int i = 0; i < queryTargets.Length; i++)
                 {
-                    var symbol = querySymbols[i];
-                    var targetType = symbol switch
+                    var target = queryTargets[i];
+                    var targetType = target.Type;
+                    if (targetType is null)
                     {
-                        LocalSymbol l => l.Type,
-                        FieldSymbol f => f.Type,
-                        PropertySymbol p => p.Type,
-                        _ => _compilation.GetSpecialType(SpecialType.System_Object)
-                    };
+                        // Binding already failed and reported for this target; the statement carries
+                        // HasErrors and will not reach codegen. Skip it rather than crash first.
+                        continue;
+                    }
 
                     var assignTmp = _factory.Assignment(
                         tmpLocal,
@@ -481,19 +520,50 @@ namespace Microsoft.CodeAnalysis.CSharp
                         _factory.ObjectEqual(tmpLocal, _factory.Field(null, _dbNullValueProperty)),
                         _factory.Assignment(tmpLocal, _factory.Null(tmpLocal.Type)));
 
-                    var convertedValue = BuildConversionFromObject(tmpLocal, targetType, domainOfTOpenType);
+                    // Land the converted value in a temp of the target's own type. Doing this before
+                    // the real assignment keeps the right-hand side a plain local read, which is safe
+                    // for VisitAssignmentOperator to walk over again.
+                    var valueSymbol = _factory.SynthesizedLocal(targetType);
+                    var valueLocal = _factory.Local(valueSymbol);
+                    locals.Add(valueSymbol);
 
-                    BoundExpression lhs = symbol switch
-                    {
-                        LocalSymbol l => _factory.Local(l),
-                        FieldSymbol f => _factory.Field(null, f),
-                        PropertySymbol p => _factory.Property(null, p),
-                        _ => throw ExceptionUtilities.UnexpectedValue(symbol.Kind)
-                    };
-
-                    sideEffects.AddRange(assignTmp, objConvertStatement, _factory.Assignment(lhs, convertedValue));
+                    sideEffects.AddRange(
+                        assignTmp,
+                        objConvertStatement,
+                        _factory.Assignment(
+                            valueLocal,
+                            BuildConversionFromObject(tmpLocal, targetType, domainOfTOpenType)),
+                        _factory.ExpressionStatement(AssignToTarget(target, valueLocal)));
                 }
-                return _factory.Block([tmpSymbol], sideEffects.ToImmutableArray());
+
+                return _factory.Block(locals.ToImmutable(), sideEffects.ToImmutableArray());
+            }
+
+            /// <summary>
+            /// Builds <c>target = value</c> in lowered form.
+            /// </summary>
+            /// <remarks>
+            /// This goes through the local rewriter's own assignment lowering rather than
+            /// <c>SyntheticBoundNodeFactory.Assignment</c>, which produces a raw
+            /// <see cref="BoundAssignmentOperator"/> with no lowering at all. The rewriter visits the
+            /// target with <c>isLeftOfAssignment: true</c>, so a property or indexer target becomes a
+            /// call to its set accessor instead of its get accessor, and it handles implicit indexers
+            /// (<c>^1</c> and ranges) and dynamic targets too.
+            ///
+            /// Any receiver is evaluated here, i.e. once per result row, which is what the equivalent
+            /// hand-written assignment inside the read loop would do.
+            /// </remarks>
+            private BoundExpression AssignToTarget(BoundExpression target, BoundExpression value)
+            {
+                var assignment = new BoundAssignmentOperator(
+                    target.Syntax,
+                    target,
+                    value,
+                    isRef: false,
+                    target.Type!)
+                { WasCompilerGenerated = true };
+
+                return _localRewriter.VisitAssignmentOperator(assignment, used: false);
             }
 
             private BoundExpression BuildConversionFromObject(

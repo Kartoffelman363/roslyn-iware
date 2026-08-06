@@ -2498,6 +2498,18 @@ namespace Microsoft.CodeAnalysis.CSharp
             return null;
         }
 
+        protected override void VisitSqlQueryTargets(ImmutableArray<BoundExpression> queryTargets)
+        {
+            base.VisitSqlQueryTargets(queryTargets);
+            foreach (var target in queryTargets)
+            {
+                // The generated read loop writes every target once per result row. Without marking
+                // them assigned here, a local used only as a sql output would be reported as
+                // unassigned at its first use in the sqldo block.
+                Assign(target, value: null);
+            }
+        }
+
         public override BoundNode VisitDeconstructionAssignmentOperator(BoundDeconstructionAssignmentOperator node)
         {
             base.VisitDeconstructionAssignmentOperator(node);

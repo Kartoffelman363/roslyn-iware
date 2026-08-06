@@ -3032,13 +3032,30 @@
   </Node>
   <Node Name="SqlInputIdentifierSegmentSyntax" Base="SqlSegmentSyntax">
     <Kind Name="SqlInputIdentifierSegment"/>
-    <Field Name="SqlIdentifierToken" Type="IdentifierNameSyntax"/>
+    <Field Name="Expression" Type="ExpressionSyntax">
+      <PropertyComment>
+        <summary>The C# expression supplying the value for this SQL parameter, e.g. the
+        <c>n.krneki</c> in <c>WHERE name = @n.krneki</c>. Restricted to a postfix chain
+        (member access, indexer and invocation) so that SQL operators following the
+        parameter are not absorbed into the expression.</summary>
+      </PropertyComment>
+    </Field>
   </Node>
   <Node Name="SqlOutputIdentifierSegmentSyntax" Base="SqlSegmentSyntax">
     <Kind Name="SqlOutputIdentifierSegment"/>
-    <Field Name="OpenBracketToken" Type="SyntaxToken" />
-    <Field Name="SqlIdentifierToken" Type="SyntaxToken"/>
-    <Field Name="CloseBracketToken" Type="SyntaxToken" />
+    <Field Name="OpenBracketToken" Type="SyntaxToken">
+      <Kind Name="OpenBracketToken"/>
+    </Field>
+    <Field Name="Expression" Type="ExpressionSyntax">
+      <PropertyComment>
+        <summary>The C# expression each result column is assigned into, e.g. the
+        <c>n.krneki</c> in <c>SELECT u.name[n.krneki]</c>. Must be assignable; this is
+        checked when the statement is bound.</summary>
+      </PropertyComment>
+    </Field>
+    <Field Name="CloseBracketToken" Type="SyntaxToken">
+      <Kind Name="CloseBracketToken"/>
+    </Field>
   </Node>
   <Node Name="SqlDoClauseSyntax" Base="CSharpSyntaxNode">
     <Kind Name="SqlDoClause"/>

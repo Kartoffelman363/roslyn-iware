@@ -4257,46 +4257,43 @@ namespace Microsoft.CodeAnalysis.CSharp
 
     internal sealed partial class BoundSqlStatement : BoundStatement
     {
-        public BoundSqlStatement(SyntaxNode syntax, string sqlContents, BoundBlock? sqlDoOpt, BoundBlock? sqlEmptyOpt, BoundBlock? sqlEndOpt, ImmutableArray<Symbol> querySymbols, ImmutableArray<string> querySqlNames, ImmutableArray<Symbol> parameterSymbols, ImmutableArray<string> parameterNames, ImmutableArray<BoundExpression> boundIdentifiers, bool hasErrors = false)
-            : base(BoundKind.SqlStatement, syntax, hasErrors || sqlDoOpt.HasErrors() || sqlEmptyOpt.HasErrors() || sqlEndOpt.HasErrors() || boundIdentifiers.HasErrors())
+        public BoundSqlStatement(SyntaxNode syntax, string sqlContents, BoundBlock? sqlDoOpt, BoundBlock? sqlEmptyOpt, BoundBlock? sqlEndOpt, ImmutableArray<BoundExpression> queryTargets, ImmutableArray<string> querySqlNames, ImmutableArray<BoundExpression> parameterExpressions, ImmutableArray<string> parameterNames, bool hasErrors = false)
+            : base(BoundKind.SqlStatement, syntax, hasErrors || sqlDoOpt.HasErrors() || sqlEmptyOpt.HasErrors() || sqlEndOpt.HasErrors() || queryTargets.HasErrors() || parameterExpressions.HasErrors())
         {
 
             RoslynDebug.Assert(sqlContents is object, "Field 'sqlContents' cannot be null (make the type nullable in BoundNodes.xml to remove this check)");
-            RoslynDebug.Assert(!querySymbols.IsDefault, "Field 'querySymbols' cannot be null (use Null=\"allow\" in BoundNodes.xml to remove this check)");
+            RoslynDebug.Assert(!queryTargets.IsDefault, "Field 'queryTargets' cannot be null (use Null=\"allow\" in BoundNodes.xml to remove this check)");
             RoslynDebug.Assert(!querySqlNames.IsDefault, "Field 'querySqlNames' cannot be null (use Null=\"allow\" in BoundNodes.xml to remove this check)");
-            RoslynDebug.Assert(!parameterSymbols.IsDefault, "Field 'parameterSymbols' cannot be null (use Null=\"allow\" in BoundNodes.xml to remove this check)");
+            RoslynDebug.Assert(!parameterExpressions.IsDefault, "Field 'parameterExpressions' cannot be null (use Null=\"allow\" in BoundNodes.xml to remove this check)");
             RoslynDebug.Assert(!parameterNames.IsDefault, "Field 'parameterNames' cannot be null (use Null=\"allow\" in BoundNodes.xml to remove this check)");
-            RoslynDebug.Assert(!boundIdentifiers.IsDefault, "Field 'boundIdentifiers' cannot be null (use Null=\"allow\" in BoundNodes.xml to remove this check)");
 
             this.SqlContents = sqlContents;
             this.SqlDoOpt = sqlDoOpt;
             this.SqlEmptyOpt = sqlEmptyOpt;
             this.SqlEndOpt = sqlEndOpt;
-            this.querySymbols = querySymbols;
-            this.querySqlNames = querySqlNames;
-            this.parameterSymbols = parameterSymbols;
-            this.parameterNames = parameterNames;
-            this.boundIdentifiers = boundIdentifiers;
+            this.QueryTargets = queryTargets;
+            this.QuerySqlNames = querySqlNames;
+            this.ParameterExpressions = parameterExpressions;
+            this.ParameterNames = parameterNames;
         }
 
         public string SqlContents { get; }
         public BoundBlock? SqlDoOpt { get; }
         public BoundBlock? SqlEmptyOpt { get; }
         public BoundBlock? SqlEndOpt { get; }
-        public ImmutableArray<Symbol> querySymbols { get; }
-        public ImmutableArray<string> querySqlNames { get; }
-        public ImmutableArray<Symbol> parameterSymbols { get; }
-        public ImmutableArray<string> parameterNames { get; }
-        public ImmutableArray<BoundExpression> boundIdentifiers { get; }
+        public ImmutableArray<BoundExpression> QueryTargets { get; }
+        public ImmutableArray<string> QuerySqlNames { get; }
+        public ImmutableArray<BoundExpression> ParameterExpressions { get; }
+        public ImmutableArray<string> ParameterNames { get; }
 
         [DebuggerStepThrough]
         public override BoundNode? Accept(BoundTreeVisitor visitor) => visitor.VisitSqlStatement(this);
 
-        public BoundSqlStatement Update(string sqlContents, BoundBlock? sqlDoOpt, BoundBlock? sqlEmptyOpt, BoundBlock? sqlEndOpt, ImmutableArray<Symbol> querySymbols, ImmutableArray<string> querySqlNames, ImmutableArray<Symbol> parameterSymbols, ImmutableArray<string> parameterNames, ImmutableArray<BoundExpression> boundIdentifiers)
+        public BoundSqlStatement Update(string sqlContents, BoundBlock? sqlDoOpt, BoundBlock? sqlEmptyOpt, BoundBlock? sqlEndOpt, ImmutableArray<BoundExpression> queryTargets, ImmutableArray<string> querySqlNames, ImmutableArray<BoundExpression> parameterExpressions, ImmutableArray<string> parameterNames)
         {
-            if (sqlContents != this.SqlContents || sqlDoOpt != this.SqlDoOpt || sqlEmptyOpt != this.SqlEmptyOpt || sqlEndOpt != this.SqlEndOpt || querySymbols != this.querySymbols || querySqlNames != this.querySqlNames || parameterSymbols != this.parameterSymbols || parameterNames != this.parameterNames || boundIdentifiers != this.boundIdentifiers)
+            if (sqlContents != this.SqlContents || sqlDoOpt != this.SqlDoOpt || sqlEmptyOpt != this.SqlEmptyOpt || sqlEndOpt != this.SqlEndOpt || queryTargets != this.QueryTargets || querySqlNames != this.QuerySqlNames || parameterExpressions != this.ParameterExpressions || parameterNames != this.ParameterNames)
             {
-                var result = new BoundSqlStatement(this.Syntax, sqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, querySymbols, querySqlNames, parameterSymbols, parameterNames, boundIdentifiers, this.HasErrors);
+                var result = new BoundSqlStatement(this.Syntax, sqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, queryTargets, querySqlNames, parameterExpressions, parameterNames, this.HasErrors);
                 result.CopyAttributes(this);
                 return result;
             }
@@ -10313,7 +10310,8 @@ namespace Microsoft.CodeAnalysis.CSharp
             this.Visit(node.SqlDoOpt);
             this.Visit(node.SqlEmptyOpt);
             this.Visit(node.SqlEndOpt);
-            this.VisitList(node.boundIdentifiers);
+            this.VisitList(node.QueryTargets);
+            this.VisitList(node.ParameterExpressions);
             return null;
         }
         public override BoundNode? VisitCatchBlock(BoundCatchBlock node)
@@ -11608,13 +11606,12 @@ namespace Microsoft.CodeAnalysis.CSharp
         }
         public override BoundNode? VisitSqlStatement(BoundSqlStatement node)
         {
-            ImmutableArray<Symbol> querySymbols = this.VisitSymbols<Symbol>(node.querySymbols);
-            ImmutableArray<Symbol> parameterSymbols = this.VisitSymbols<Symbol>(node.parameterSymbols);
             BoundBlock? sqlDoOpt = (BoundBlock?)this.Visit(node.SqlDoOpt);
             BoundBlock? sqlEmptyOpt = (BoundBlock?)this.Visit(node.SqlEmptyOpt);
             BoundBlock? sqlEndOpt = (BoundBlock?)this.Visit(node.SqlEndOpt);
-            ImmutableArray<BoundExpression> boundIdentifiers = this.VisitList(node.boundIdentifiers);
-            return node.Update(node.SqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, querySymbols, node.querySqlNames, parameterSymbols, node.parameterNames, boundIdentifiers);
+            ImmutableArray<BoundExpression> queryTargets = this.VisitList(node.QueryTargets);
+            ImmutableArray<BoundExpression> parameterExpressions = this.VisitList(node.ParameterExpressions);
+            return node.Update(node.SqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, queryTargets, node.QuerySqlNames, parameterExpressions, node.ParameterNames);
         }
         public override BoundNode? VisitCatchBlock(BoundCatchBlock node)
         {
@@ -13703,17 +13700,6 @@ namespace Microsoft.CodeAnalysis.CSharp
             BoundMultipleLocalDeclarations declarations = (BoundMultipleLocalDeclarations)this.Visit(node.Declarations);
             BoundStatement body = (BoundStatement)this.Visit(node.Body);
             return node.Update(locals, declarations, body);
-        }
-
-        public override BoundNode? VisitSqlStatement(BoundSqlStatement node)
-        {
-            ImmutableArray<Symbol> querySymbols = GetUpdatedArray(node, node.querySymbols);
-            ImmutableArray<Symbol> parameterSymbols = GetUpdatedArray(node, node.parameterSymbols);
-            BoundBlock? sqlDoOpt = (BoundBlock?)this.Visit(node.SqlDoOpt);
-            BoundBlock? sqlEmptyOpt = (BoundBlock?)this.Visit(node.SqlEmptyOpt);
-            BoundBlock? sqlEndOpt = (BoundBlock?)this.Visit(node.SqlEndOpt);
-            ImmutableArray<BoundExpression> boundIdentifiers = this.VisitList(node.boundIdentifiers);
-            return node.Update(node.SqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, querySymbols, node.querySqlNames, parameterSymbols, node.parameterNames, boundIdentifiers);
         }
 
         public override BoundNode? VisitCatchBlock(BoundCatchBlock node)
@@ -16194,11 +16180,10 @@ namespace Microsoft.CodeAnalysis.CSharp
             new TreeDumperNode("sqlDoOpt", null, new TreeDumperNode[] { Visit(node.SqlDoOpt, null) }),
             new TreeDumperNode("sqlEmptyOpt", null, new TreeDumperNode[] { Visit(node.SqlEmptyOpt, null) }),
             new TreeDumperNode("sqlEndOpt", null, new TreeDumperNode[] { Visit(node.SqlEndOpt, null) }),
-            new TreeDumperNode("querySymbols", node.querySymbols, null),
-            new TreeDumperNode("querySqlNames", node.querySqlNames, null),
-            new TreeDumperNode("parameterSymbols", node.parameterSymbols, null),
-            new TreeDumperNode("parameterNames", node.parameterNames, null),
-            new TreeDumperNode("boundIdentifiers", null, from x in node.boundIdentifiers select Visit(x, null)),
+            new TreeDumperNode("queryTargets", null, from x in node.QueryTargets select Visit(x, null)),
+            new TreeDumperNode("querySqlNames", node.QuerySqlNames, null),
+            new TreeDumperNode("parameterExpressions", null, from x in node.ParameterExpressions select Visit(x, null)),
+            new TreeDumperNode("parameterNames", node.ParameterNames, null),
             new TreeDumperNode("hasErrors", node.HasErrors, null)
         }
         );

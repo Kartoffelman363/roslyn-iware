@@ -1696,18 +1696,17 @@ namespace Microsoft.CodeAnalysis.CSharp.CodeGen
             var sqlDoClause = node.SqlDoOpt != null ? (BoundBlock)this.Visit(node.SqlDoOpt) : null;
             var sqlEmptyClause = node.SqlEmptyOpt != null ? (BoundBlock)this.Visit(node.SqlEmptyOpt) : null;
             var sqlEndClause = node.SqlEndOpt != null ? (BoundBlock)this.Visit(node.SqlEndOpt) : null;
-            var boundIdentifiers = (ImmutableArray<BoundExpression>)this.VisitList(node.boundIdentifiers);
+            var parameterExpressions = (ImmutableArray<BoundExpression>)this.VisitList(node.ParameterExpressions);
 
             return node.Update(
                 sqlText,
                 sqlDoClause,
                 sqlEmptyClause,
                 sqlEndClause,
-                node.querySymbols,
-                node.querySqlNames,
-                node.parameterSymbols,
-                node.parameterNames,
-                boundIdentifiers
+                node.QueryTargets,
+                node.QuerySqlNames,
+                parameterExpressions,
+                node.ParameterNames
             );
         }
 

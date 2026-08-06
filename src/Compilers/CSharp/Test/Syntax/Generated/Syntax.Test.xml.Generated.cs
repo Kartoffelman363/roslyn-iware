@@ -458,7 +458,7 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
             => InternalSyntaxFactory.SqlInputIdentifierSegment(GenerateIdentifierName());
 
         private static Syntax.InternalSyntax.SqlOutputIdentifierSegmentSyntax GenerateSqlOutputIdentifierSegment()
-            => InternalSyntaxFactory.SqlOutputIdentifierSegment(InternalSyntaxFactory.Identifier("OpenBracketToken"), InternalSyntaxFactory.Identifier("SqlIdentifierToken"), InternalSyntaxFactory.Identifier("CloseBracketToken"));
+            => InternalSyntaxFactory.SqlOutputIdentifierSegment(InternalSyntaxFactory.Token(SyntaxKind.OpenBracketToken), GenerateIdentifierName(), InternalSyntaxFactory.Token(SyntaxKind.CloseBracketToken));
 
         private static Syntax.InternalSyntax.SqlDoClauseSyntax GenerateSqlDoClause()
             => InternalSyntaxFactory.SqlDoClause(InternalSyntaxFactory.Token(SyntaxKind.SqlDoKeyword), GenerateBlock());
@@ -2595,7 +2595,7 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
         {
             var node = GenerateSqlInputIdentifierSegment();
 
-            Assert.NotNull(node.SqlIdentifierToken);
+            Assert.NotNull(node.Expression);
 
             AttachAndCheckDiagnostics(node);
         }
@@ -2605,9 +2605,9 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
         {
             var node = GenerateSqlOutputIdentifierSegment();
 
-            Assert.Equal(SyntaxKind.IdentifierToken, node.OpenBracketToken.Kind);
-            Assert.Equal(SyntaxKind.IdentifierToken, node.SqlIdentifierToken.Kind);
-            Assert.Equal(SyntaxKind.IdentifierToken, node.CloseBracketToken.Kind);
+            Assert.Equal(SyntaxKind.OpenBracketToken, node.OpenBracketToken.Kind);
+            Assert.NotNull(node.Expression);
+            Assert.Equal(SyntaxKind.CloseBracketToken, node.CloseBracketToken.Kind);
 
             AttachAndCheckDiagnostics(node);
         }
@@ -11132,7 +11132,7 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
             => SyntaxFactory.SqlInputIdentifierSegment(GenerateIdentifierName());
 
         private static SqlOutputIdentifierSegmentSyntax GenerateSqlOutputIdentifierSegment()
-            => SyntaxFactory.SqlOutputIdentifierSegment(SyntaxFactory.Identifier("OpenBracketToken"), SyntaxFactory.Identifier("SqlIdentifierToken"), SyntaxFactory.Identifier("CloseBracketToken"));
+            => SyntaxFactory.SqlOutputIdentifierSegment(SyntaxFactory.Token(SyntaxKind.OpenBracketToken), GenerateIdentifierName(), SyntaxFactory.Token(SyntaxKind.CloseBracketToken));
 
         private static SqlDoClauseSyntax GenerateSqlDoClause()
             => SyntaxFactory.SqlDoClause(SyntaxFactory.Token(SyntaxKind.SqlDoKeyword), GenerateBlock());
@@ -13269,8 +13269,8 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
         {
             var node = GenerateSqlInputIdentifierSegment();
 
-            Assert.NotNull(node.SqlIdentifierToken);
-            var newNode = node.WithSqlIdentifierToken(node.SqlIdentifierToken);
+            Assert.NotNull(node.Expression);
+            var newNode = node.WithExpression(node.Expression);
             Assert.Equal(node, newNode);
         }
 
@@ -13279,10 +13279,10 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
         {
             var node = GenerateSqlOutputIdentifierSegment();
 
-            Assert.Equal(SyntaxKind.IdentifierToken, node.OpenBracketToken.Kind());
-            Assert.Equal(SyntaxKind.IdentifierToken, node.SqlIdentifierToken.Kind());
-            Assert.Equal(SyntaxKind.IdentifierToken, node.CloseBracketToken.Kind());
-            var newNode = node.WithOpenBracketToken(node.OpenBracketToken).WithSqlIdentifierToken(node.SqlIdentifierToken).WithCloseBracketToken(node.CloseBracketToken);
+            Assert.Equal(SyntaxKind.OpenBracketToken, node.OpenBracketToken.Kind());
+            Assert.NotNull(node.Expression);
+            Assert.Equal(SyntaxKind.CloseBracketToken, node.CloseBracketToken.Kind());
+            var newNode = node.WithOpenBracketToken(node.OpenBracketToken).WithExpression(node.Expression).WithCloseBracketToken(node.CloseBracketToken);
             Assert.Equal(node, newNode);
         }
 

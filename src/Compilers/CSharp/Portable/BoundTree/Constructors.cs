@@ -629,13 +629,12 @@ namespace Microsoft.CodeAnalysis.CSharp
             BoundBlock? sqlDoOpt,
             BoundBlock? sqlEmptyOpt,
             BoundBlock? sqlEndOpt,
-            ImmutableArray<Symbol> querySymbols,
+            ImmutableArray<BoundExpression> queryTargets,
             ImmutableArray<string> querySqlNames,
-            ImmutableArray<Symbol> parameterSymbols,
-            ImmutableArray<string> parameterNames,
-            ImmutableArray<BoundExpression> boundIdentifiers
+            ImmutableArray<BoundExpression> parameterExpressions,
+            ImmutableArray<string> parameterNames
                 )
-            : this(syntax, sqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, querySymbols, querySqlNames, parameterSymbols, parameterNames, boundIdentifiers, hasErrors: false)
+            : this(syntax, sqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, queryTargets, querySqlNames, parameterExpressions, parameterNames, hasErrors: false)
         {
         }
     }

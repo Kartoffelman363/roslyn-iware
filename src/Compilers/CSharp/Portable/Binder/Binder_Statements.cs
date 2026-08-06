@@ -3258,35 +3258,28 @@ namespace Microsoft.CodeAnalysis.CSharp
             ParseSql.getNamesFromSqlText(
                 out var sqlOutputs,
                 out var sqlInputs,
+                out var outputNames,
+                out var inputNames,
                 sqlTextSegments.Segments,
                 out var sqlText);
 
-            // TODO-aljaz symbols that are object or struct properties don't work eg. sql { select whatever [myObj.Whatever] ... }
-            // TODO-aljaz set correct location, probably best to move error reporting into GetSymbols
-            var outputSymbols = GetSymbols(
-                sqlOutputs,
-                out var outputSymbolsIsOk,
-                (message, location) => diagnostics.Add(
-                    ErrorCode.WRN_SQL_SymbolWarn,
-                    location,
-                    message));
-
-            var inputSymbols = GetSymbols(
-                sqlInputs,
-                out var inputSymbolsIsOk,
-                (message, location) => diagnostics.Add(
-                    ErrorCode.ERR_SQL_SymbolError,
-                    location,
-                    message));
-
-            var outputNames = outputSymbols.Select(s => s.Name).ToImmutableArray();
-            var inputNames = inputSymbols.Select(s => s.Name).ToImmutableArray();
-            var boundIdentifiersBuilder = ImmutableArray.CreateBuilder<BoundExpression>();
-            for (var i = 0; i < sqlInputs.Length; i++)
+            // Each output binding is assigned into once per result row, so bind it as an
+            // assignment target. BindValueKind.Assignable gives the ordinary C# diagnostics for
+            // a method call, a getter-only property or a readonly field, rather than letting the
+            // bad target reach lowering.
+            var queryTargetsBuilder = ImmutableArray.CreateBuilder<BoundExpression>(sqlOutputs.Length);
+            foreach (var sqlOutput in sqlOutputs)
             {
-                boundIdentifiersBuilder.Add(BindExpression(sqlInputs[i].SqlIdentifierToken, diagnostics));
+                ReportSqlAwait(sqlOutput.Expression, diagnostics);
+                queryTargetsBuilder.Add(BindValue(sqlOutput.Expression, diagnostics, BindValueKind.Assignable));
             }
-            var boundInputIdentifiers = boundIdentifiersBuilder.ToImmutableArray();
+
+            var parameterExpressionsBuilder = ImmutableArray.CreateBuilder<BoundExpression>(sqlInputs.Length);
+            foreach (var sqlInput in sqlInputs)
+            {
+                ReportSqlAwait(sqlInput.Expression, diagnostics);
+                parameterExpressionsBuilder.Add(BindValue(sqlInput.Expression, diagnostics, BindValueKind.RValue));
+            }
 
             var fileDir = Path.GetDirectoryName(Compilation.SyntaxTrees.First().FilePath);
 
@@ -3301,71 +3294,35 @@ namespace Microsoft.CodeAnalysis.CSharp
             var boundSqlDoClause = node.SqlDoClause != null ? BindEmbeddedBlock(node.SqlDoClause.Block, diagnostics) : null;
             var boundSqlEmptyClause = node.SqlEmptyClause != null ? BindEmbeddedBlock(node.SqlEmptyClause.Block, diagnostics) : null;
             var boundSqlEndClause = node.SqlEndClause != null ? BindEmbeddedBlock(node.SqlEndClause.Block, diagnostics) : null;
-            return new BoundSqlStatement(node, sqlText, boundSqlDoClause, boundSqlEmptyClause, boundSqlEndClause, outputSymbols, outputNames, inputSymbols, inputNames, boundInputIdentifiers);
+            return new BoundSqlStatement(
+                node,
+                sqlText,
+                boundSqlDoClause,
+                boundSqlEmptyClause,
+                boundSqlEndClause,
+                queryTargetsBuilder.ToImmutable(),
+                outputNames,
+                parameterExpressionsBuilder.ToImmutable(),
+                inputNames);
         }
 
-        private ImmutableArray<Symbol> GetSymbols(
-            ImmutableArray<SqlInputIdentifierSegmentSyntax> names,
-            out bool isOk,
-            Action<string, Location> addError)
+        /// <summary>
+        /// Reports an error for any <c>await</c> written inside a sql binding. The sql statement is
+        /// lowered into a goto-based read loop before the async rewriter runs, and that lowering has
+        /// no support for spilling, so an await in a binding cannot be given correct semantics.
+        /// </summary>
+        private static void ReportSqlAwait(ExpressionSyntax expression, BindingDiagnosticBag diagnostics)
         {
-            return GetSymbols(
-                names.Select(it => it.ToString()).ToArray(),
-                names.Select(it => it.Location).ToArray(),
-                out isOk,
-                addError);
-        }
-
-        private ImmutableArray<Symbol> GetSymbols(
-            ImmutableArray<SqlOutputIdentifierSegmentSyntax> names,
-            out bool isOk,
-            Action<string, Location> addError)
-        {
-            return GetSymbols(
-                names.Select(it => it.SqlIdentifierToken.ToString()).ToArray(),
-                names.Select(it => it.Location).ToArray(),
-                out isOk,
-                addError);
-        }
-
-        private ImmutableArray<Symbol> GetSymbols(
-            string[] names,
-            Location[] locations,
-            out bool isOk,
-            Action<string, Location> addError)
-        {
-            var useSiteInfo = CompoundUseSiteInfo<AssemblySymbol>.Discarded;
-            var symbolsBuilder = ImmutableArray.CreateBuilder<Symbol>();
-            isOk = true;
-            for (var i = 0; i < names.Length; i++)
+            foreach (var descendant in expression.DescendantNodesAndSelf(
+                child => child is not AnonymousFunctionExpressionSyntax))
             {
-                var nameString = names[i].Trim();
-                var res = sqlLookupSymbol(nameString);
-                if (res is null && nameString.StartsWith("@"))
+                if (descendant is AwaitExpressionSyntax awaitExpression)
                 {
-                    res = sqlLookupSymbol(nameString.Substring(1));
+                    diagnostics.Add(
+                        ErrorCode.ERR_SQL_SymbolError,
+                        awaitExpression.GetLocation(),
+                        "await cannot be used inside a sql binding");
                 }
-                if (res is null)
-                {
-                    addError($"Missing symbol for {nameString}", locations[i]);
-                    isOk = false;
-                    continue;
-                }
-                symbolsBuilder.Add(res);
-            }
-            return symbolsBuilder.ToImmutableArray();
-
-            Symbol sqlLookupSymbol(string name)
-            {
-                var lookupResult = LookupResult.GetInstance();
-                LookupSymbolsWithFallback(
-                    lookupResult,
-                    name,
-                    0,
-                    ref useSiteInfo);
-                var res = lookupResult.Symbols.FirstOrDefault();
-                lookupResult.Free();
-                return res;
             }
         }
 

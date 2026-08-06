@@ -9127,27 +9127,31 @@ public sealed partial class SqlTextSegmentSyntax : SqlSegmentSyntax
 /// </remarks>
 public sealed partial class SqlInputIdentifierSegmentSyntax : SqlSegmentSyntax
 {
-    private IdentifierNameSyntax? sqlIdentifierToken;
+    private ExpressionSyntax? expression;
 
     internal SqlInputIdentifierSegmentSyntax(InternalSyntax.CSharpSyntaxNode green, SyntaxNode? parent, int position)
       : base(green, parent, position)
     {
     }
 
-    public IdentifierNameSyntax SqlIdentifierToken => GetRedAtZero(ref this.sqlIdentifierToken)!;
+    /// <summary>The C# expression supplying the value for this SQL parameter, e.g. the
+    /// <c>n.krneki</c> in <c>WHERE name = @n.krneki</c>. Restricted to a postfix chain
+    /// (member access, indexer and invocation) so that SQL operators following the
+    /// parameter are not absorbed into the expression.</summary>
+    public ExpressionSyntax Expression => GetRedAtZero(ref this.expression)!;
 
-    internal override SyntaxNode? GetNodeSlot(int index) => index == 0 ? GetRedAtZero(ref this.sqlIdentifierToken)! : null;
+    internal override SyntaxNode? GetNodeSlot(int index) => index == 0 ? GetRedAtZero(ref this.expression)! : null;
 
-    internal override SyntaxNode? GetCachedSlot(int index) => index == 0 ? this.sqlIdentifierToken : null;
+    internal override SyntaxNode? GetCachedSlot(int index) => index == 0 ? this.expression : null;
 
     public override void Accept(CSharpSyntaxVisitor visitor) => visitor.VisitSqlInputIdentifierSegment(this);
     public override TResult? Accept<TResult>(CSharpSyntaxVisitor<TResult> visitor) where TResult : default => visitor.VisitSqlInputIdentifierSegment(this);
 
-    public SqlInputIdentifierSegmentSyntax Update(IdentifierNameSyntax sqlIdentifierToken)
+    public SqlInputIdentifierSegmentSyntax Update(ExpressionSyntax expression)
     {
-        if (sqlIdentifierToken != this.SqlIdentifierToken)
+        if (expression != this.Expression)
         {
-            var newNode = SyntaxFactory.SqlInputIdentifierSegment(sqlIdentifierToken);
+            var newNode = SyntaxFactory.SqlInputIdentifierSegment(expression);
             var annotations = GetAnnotations();
             return annotations?.Length > 0 ? newNode.WithAnnotations(annotations) : newNode;
         }
@@ -9155,7 +9159,7 @@ public sealed partial class SqlInputIdentifierSegmentSyntax : SqlSegmentSyntax
         return this;
     }
 
-    public SqlInputIdentifierSegmentSyntax WithSqlIdentifierToken(IdentifierNameSyntax sqlIdentifierToken) => Update(sqlIdentifierToken);
+    public SqlInputIdentifierSegmentSyntax WithExpression(ExpressionSyntax expression) => Update(expression);
 }
 
 /// <remarks>
@@ -9166,6 +9170,7 @@ public sealed partial class SqlInputIdentifierSegmentSyntax : SqlSegmentSyntax
 /// </remarks>
 public sealed partial class SqlOutputIdentifierSegmentSyntax : SqlSegmentSyntax
 {
+    private ExpressionSyntax? expression;
 
     internal SqlOutputIdentifierSegmentSyntax(InternalSyntax.CSharpSyntaxNode green, SyntaxNode? parent, int position)
       : base(green, parent, position)
@@ -9174,22 +9179,25 @@ public sealed partial class SqlOutputIdentifierSegmentSyntax : SqlSegmentSyntax
 
     public SyntaxToken OpenBracketToken => new SyntaxToken(this, ((InternalSyntax.SqlOutputIdentifierSegmentSyntax)this.Green).openBracketToken, Position, 0);
 
-    public SyntaxToken SqlIdentifierToken => new SyntaxToken(this, ((InternalSyntax.SqlOutputIdentifierSegmentSyntax)this.Green).sqlIdentifierToken, GetChildPosition(1), GetChildIndex(1));
+    /// <summary>The C# expression each result column is assigned into, e.g. the
+    /// <c>n.krneki</c> in <c>SELECT u.name[n.krneki]</c>. Must be assignable; this is
+    /// checked when the statement is bound.</summary>
+    public ExpressionSyntax Expression => GetRed(ref this.expression, 1)!;
 
     public SyntaxToken CloseBracketToken => new SyntaxToken(this, ((InternalSyntax.SqlOutputIdentifierSegmentSyntax)this.Green).closeBracketToken, GetChildPosition(2), GetChildIndex(2));
 
-    internal override SyntaxNode? GetNodeSlot(int index) => null;
+    internal override SyntaxNode? GetNodeSlot(int index) => index == 1 ? GetRed(ref this.expression, 1)! : null;
 
-    internal override SyntaxNode? GetCachedSlot(int index) => null;
+    internal override SyntaxNode? GetCachedSlot(int index) => index == 1 ? this.expression : null;
 
     public override void Accept(CSharpSyntaxVisitor visitor) => visitor.VisitSqlOutputIdentifierSegment(this);
     public override TResult? Accept<TResult>(CSharpSyntaxVisitor<TResult> visitor) where TResult : default => visitor.VisitSqlOutputIdentifierSegment(this);
 
-    public SqlOutputIdentifierSegmentSyntax Update(SyntaxToken openBracketToken, SyntaxToken sqlIdentifierToken, SyntaxToken closeBracketToken)
+    public SqlOutputIdentifierSegmentSyntax Update(SyntaxToken openBracketToken, ExpressionSyntax expression, SyntaxToken closeBracketToken)
     {
-        if (openBracketToken != this.OpenBracketToken || sqlIdentifierToken != this.SqlIdentifierToken || closeBracketToken != this.CloseBracketToken)
+        if (openBracketToken != this.OpenBracketToken || expression != this.Expression || closeBracketToken != this.CloseBracketToken)
         {
-            var newNode = SyntaxFactory.SqlOutputIdentifierSegment(openBracketToken, sqlIdentifierToken, closeBracketToken);
+            var newNode = SyntaxFactory.SqlOutputIdentifierSegment(openBracketToken, expression, closeBracketToken);
             var annotations = GetAnnotations();
             return annotations?.Length > 0 ? newNode.WithAnnotations(annotations) : newNode;
         }
@@ -9197,9 +9205,9 @@ public sealed partial class SqlOutputIdentifierSegmentSyntax : SqlSegmentSyntax
         return this;
     }
 
-    public SqlOutputIdentifierSegmentSyntax WithOpenBracketToken(SyntaxToken openBracketToken) => Update(openBracketToken, this.SqlIdentifierToken, this.CloseBracketToken);
-    public SqlOutputIdentifierSegmentSyntax WithSqlIdentifierToken(SyntaxToken sqlIdentifierToken) => Update(this.OpenBracketToken, sqlIdentifierToken, this.CloseBracketToken);
-    public SqlOutputIdentifierSegmentSyntax WithCloseBracketToken(SyntaxToken closeBracketToken) => Update(this.OpenBracketToken, this.SqlIdentifierToken, closeBracketToken);
+    public SqlOutputIdentifierSegmentSyntax WithOpenBracketToken(SyntaxToken openBracketToken) => Update(openBracketToken, this.Expression, this.CloseBracketToken);
+    public SqlOutputIdentifierSegmentSyntax WithExpression(ExpressionSyntax expression) => Update(this.OpenBracketToken, expression, this.CloseBracketToken);
+    public SqlOutputIdentifierSegmentSyntax WithCloseBracketToken(SyntaxToken closeBracketToken) => Update(this.OpenBracketToken, this.Expression, closeBracketToken);
 }
 
 /// <remarks>

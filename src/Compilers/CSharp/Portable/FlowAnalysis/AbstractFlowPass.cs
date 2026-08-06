@@ -1916,7 +1916,8 @@ namespace Microsoft.CodeAnalysis.CSharp
             {
                 VisitSqlEndBlock(node.SqlEndOpt);
             }
-            VisitSqlBoundIdentifiers(node.boundIdentifiers);
+            VisitSqlQueryTargets(node.QueryTargets);
+            VisitSqlBoundIdentifiers(node.ParameterExpressions);
             return null;
         }
 
@@ -1926,6 +1927,19 @@ namespace Microsoft.CodeAnalysis.CSharp
             foreach (var identifier in boundIdentifiers)
             {
                 Visit(identifier);
+            }
+        }
+
+        /// <summary>
+        /// Visits the expressions each result column is assigned into. These are assignment
+        /// targets, not reads, so any receiver and index arguments are visited but the target
+        /// itself is not treated as a use.
+        /// </summary>
+        protected virtual void VisitSqlQueryTargets(ImmutableArray<BoundExpression> queryTargets)
+        {
+            foreach (var target in queryTargets)
+            {
+                VisitLvalue(target);
             }
         }
 

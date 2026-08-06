@@ -1362,11 +1362,15 @@
     <Field Name="SqlDoOpt" Type="BoundBlock?"/>
     <Field Name="SqlEmptyOpt" Type="BoundBlock?"/>
     <Field Name="SqlEndOpt" Type="BoundBlock?"/>
-    <Field Name="querySymbols" Type="ImmutableArray&lt;Symbol&gt;"/>
-    <Field Name="querySqlNames" Type="ImmutableArray&lt;string&gt;"/>
-    <Field Name="parameterSymbols" Type="ImmutableArray&lt;Symbol&gt;"/>
-    <Field Name="parameterNames" Type="ImmutableArray&lt;string&gt;"/>
-    <Field Name="boundIdentifiers" Type="ImmutableArray&lt;BoundExpression&gt;"/>
+    <!-- Assignable expressions the result columns are written into, in column order.
+         QuerySqlNames holds the synthesized alias for each, matching the alias emitted
+         into SqlContents. -->
+    <Field Name="QueryTargets" Type="ImmutableArray&lt;BoundExpression&gt;"/>
+    <Field Name="QuerySqlNames" Type="ImmutableArray&lt;string&gt;"/>
+    <!-- Expressions supplying the SQL parameter values, in parameter order.
+         ParameterNames holds the synthesized @name for each, matching SqlContents. -->
+    <Field Name="ParameterExpressions" Type="ImmutableArray&lt;BoundExpression&gt;"/>
+    <Field Name="ParameterNames" Type="ImmutableArray&lt;string&gt;"/>
   </Node>
 
   <Node Name="BoundCatchBlock" Base="BoundNode">

@@ -1996,10 +1996,10 @@ public partial class CSharpSyntaxRewriter : CSharpSyntaxVisitor<SyntaxNode?>
         => node.Update(VisitToken(node.SqlTextToken));
 
     public override SyntaxNode? VisitSqlInputIdentifierSegment(SqlInputIdentifierSegmentSyntax node)
-        => node.Update((IdentifierNameSyntax?)Visit(node.SqlIdentifierToken) ?? throw new ArgumentNullException("sqlIdentifierToken"));
+        => node.Update((ExpressionSyntax?)Visit(node.Expression) ?? throw new ArgumentNullException("expression"));
 
     public override SyntaxNode? VisitSqlOutputIdentifierSegment(SqlOutputIdentifierSegmentSyntax node)
-        => node.Update(VisitToken(node.OpenBracketToken), VisitToken(node.SqlIdentifierToken), VisitToken(node.CloseBracketToken));
+        => node.Update(VisitToken(node.OpenBracketToken), (ExpressionSyntax?)Visit(node.Expression) ?? throw new ArgumentNullException("expression"), VisitToken(node.CloseBracketToken));
 
     public override SyntaxNode? VisitSqlDoClause(SqlDoClauseSyntax node)
         => node.Update(VisitToken(node.SqlDoKeyword), (BlockSyntax?)Visit(node.Block) ?? throw new ArgumentNullException("block"));
@@ -4769,17 +4769,24 @@ public static partial class SyntaxFactory
     }
 
     /// <summary>Creates a new SqlInputIdentifierSegmentSyntax instance.</summary>
-    public static SqlInputIdentifierSegmentSyntax SqlInputIdentifierSegment(IdentifierNameSyntax sqlIdentifierToken)
+    public static SqlInputIdentifierSegmentSyntax SqlInputIdentifierSegment(ExpressionSyntax expression)
     {
-        if (sqlIdentifierToken == null) throw new ArgumentNullException(nameof(sqlIdentifierToken));
-        return (SqlInputIdentifierSegmentSyntax)Syntax.InternalSyntax.SyntaxFactory.SqlInputIdentifierSegment((Syntax.InternalSyntax.IdentifierNameSyntax)sqlIdentifierToken.Green).CreateRed();
+        if (expression == null) throw new ArgumentNullException(nameof(expression));
+        return (SqlInputIdentifierSegmentSyntax)Syntax.InternalSyntax.SyntaxFactory.SqlInputIdentifierSegment((Syntax.InternalSyntax.ExpressionSyntax)expression.Green).CreateRed();
     }
 
     /// <summary>Creates a new SqlOutputIdentifierSegmentSyntax instance.</summary>
-    public static SqlOutputIdentifierSegmentSyntax SqlOutputIdentifierSegment(SyntaxToken openBracketToken, SyntaxToken sqlIdentifierToken, SyntaxToken closeBracketToken)
+    public static SqlOutputIdentifierSegmentSyntax SqlOutputIdentifierSegment(SyntaxToken openBracketToken, ExpressionSyntax expression, SyntaxToken closeBracketToken)
     {
-        return (SqlOutputIdentifierSegmentSyntax)Syntax.InternalSyntax.SyntaxFactory.SqlOutputIdentifierSegment((Syntax.InternalSyntax.SyntaxToken)openBracketToken.Node!, (Syntax.InternalSyntax.SyntaxToken)sqlIdentifierToken.Node!, (Syntax.InternalSyntax.SyntaxToken)closeBracketToken.Node!).CreateRed();
+        if (openBracketToken.Kind() != SyntaxKind.OpenBracketToken) throw new ArgumentException(nameof(openBracketToken));
+        if (expression == null) throw new ArgumentNullException(nameof(expression));
+        if (closeBracketToken.Kind() != SyntaxKind.CloseBracketToken) throw new ArgumentException(nameof(closeBracketToken));
+        return (SqlOutputIdentifierSegmentSyntax)Syntax.InternalSyntax.SyntaxFactory.SqlOutputIdentifierSegment((Syntax.InternalSyntax.SyntaxToken)openBracketToken.Node!, (Syntax.InternalSyntax.ExpressionSyntax)expression.Green, (Syntax.InternalSyntax.SyntaxToken)closeBracketToken.Node!).CreateRed();
     }
+
+    /// <summary>Creates a new SqlOutputIdentifierSegmentSyntax instance.</summary>
+    public static SqlOutputIdentifierSegmentSyntax SqlOutputIdentifierSegment(ExpressionSyntax expression)
+        => SyntaxFactory.SqlOutputIdentifierSegment(SyntaxFactory.Token(SyntaxKind.OpenBracketToken), expression, SyntaxFactory.Token(SyntaxKind.CloseBracketToken));
 
     /// <summary>Creates a new SqlDoClauseSyntax instance.</summary>
     public static SqlDoClauseSyntax SqlDoClause(SyntaxToken sqlDoKeyword, BlockSyntax block)
