@@ -52,10 +52,13 @@ namespace Microsoft.CodeAnalysis.CSharp
             // Fields
             private readonly FieldSymbol _dbNullValueProperty;
 
+            private readonly LocalRewriter _localRewriter;
+
             public RewriteSql(CSharpCompilation compilation, SyntheticBoundNodeFactory factory, BoundSqlStatement node, LocalRewriter localRewriter)
             {
                 _compilation = compilation;
                 _factory = factory;
+                _localRewriter = localRewriter;
 
                 _sqlTextBoundLiteral = _factory.Literal(node.SqlContents);
 
@@ -441,15 +444,6 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             BoundStatement AssignLocals(ImmutableArray<Symbol> querySymbols, BoundExpression readValuesLocal)
             {
-                //  for (int i .. querySymbols.Length)
-                //  {
-                //      var symbol = querySymbols[i];
-                //      var tmp = readValues[i];
-                //      if (tmp != null)
-                //      {
-                //          querySymbols[i] = tmp;
-                //      }
-                //  }
                 var sideEffects = ImmutableArray.CreateBuilder<BoundStatement>();
                 var tmpSymbol = _factory.SynthesizedLocal(_objectType);
                 var tmpLocal = _factory.Local(tmpSymbol);
@@ -459,12 +453,14 @@ namespace Microsoft.CodeAnalysis.CSharp
                         .OfType<MethodSymbol>()
                         .FirstOrDefault();
                 Debug.Assert(getItemMethodSymbol is not null, "ImmutableArray<object>.get_Item() not found");
-                Debug.Assert(
-                    getItemMethodSymbol.Parameters.Length == 1,
-                    "ImmutableArray<object>.get_Item() not found");
+                Debug.Assert(getItemMethodSymbol.Parameters.Length == 1, "ImmutableArray<object>.get_Item() not found");
+
+                // Open generic Domain<T> — used to detect "this target type wraps some underlying T".
+                var domainOfTOpenType = _compilation.GetTypeByMetadataName("iWareSql.Domain.Abstractions.Domain`1");
+                Debug.Assert(domainOfTOpenType is not null, "type iWareSql.Domain.Abstractions.Domain<T> not found");
+
                 for (int i = 0; i < querySymbols.Length; i++)
                 {
-                    //  var symbol = querySymbols[i];
                     var symbol = querySymbols[i];
                     var targetType = symbol switch
                     {
@@ -473,27 +469,19 @@ namespace Microsoft.CodeAnalysis.CSharp
                         PropertySymbol p => p.Type,
                         _ => _compilation.GetSpecialType(SpecialType.System_Object)
                     };
-                    //  var tmp = readValues[i];
+
                     var assignTmp = _factory.Assignment(
                         tmpLocal,
                         _factory.Convert(
                             tmpLocal.Type,
-                            _factory.Call(
-                                readValuesLocal,
-                                getItemMethodSymbol,
-                                [_factory.Literal(i)]),
+                            _factory.Call(readValuesLocal, getItemMethodSymbol, [_factory.Literal(i)]),
                             Conversion.Boxing));
 
-                    // if tmpLocal == DBNull.Value then tmpLocal = null
                     var objConvertStatement = _factory.If(
-                        _factory.ObjectEqual(
-                            tmpLocal,
-                            _factory.Field(null, _dbNullValueProperty)),
+                        _factory.ObjectEqual(tmpLocal, _factory.Field(null, _dbNullValueProperty)),
                         _factory.Assignment(tmpLocal, _factory.Null(tmpLocal.Type)));
-                    var conversion = _factory.Convert(
-                        targetType,
-                        tmpLocal,
-                        Conversion.Unboxing);
+
+                    var convertedValue = BuildConversionFromObject(tmpLocal, targetType, domainOfTOpenType);
 
                     BoundExpression lhs = symbol switch
                     {
@@ -503,13 +491,57 @@ namespace Microsoft.CodeAnalysis.CSharp
                         _ => throw ExceptionUtilities.UnexpectedValue(symbol.Kind)
                     };
 
-                    // if (tmp != null)
-                    sideEffects.AddRange(
-                        assignTmp,
-                        objConvertStatement,
-                        _factory.Assignment(lhs, conversion));
+                    sideEffects.AddRange(assignTmp, objConvertStatement, _factory.Assignment(lhs, convertedValue));
                 }
                 return _factory.Block([tmpSymbol], sideEffects.ToImmutableArray());
+            }
+
+            private BoundExpression BuildConversionFromObject(
+                BoundExpression objExpr,
+                TypeSymbol targetType,
+                NamedTypeSymbol domainOfTOpenType)
+            {
+                var useSiteInfo = CompoundUseSiteInfo<AssemblySymbol>.Discarded;
+
+                if (TryFindDomainUnderlyingType(targetType, domainOfTOpenType, out var underlyingType))
+                {
+                    // object -> T (the reader's real runtime type). Always a primitive
+                    // conversion (unboxing / explicit reference) — safe for codegen as-is.
+                    var toUnderlying = _compilation.Conversions.ClassifyConversionFromType(
+                        _objectType, underlyingType, isChecked: false, ref useSiteInfo);
+                    var underlyingExpr = _factory.Convert(underlyingType, objExpr, toUnderlying);
+
+                    // T -> targetType. This may be ImplicitUserDefined (e.g. implicit operator
+                    // TSelf(string)) — MUST go through MakeConversionNode, not _factory.Convert,
+                    // so the user-defined operator call actually gets lowered/emitted.
+                    var toTarget = _compilation.Conversions.ClassifyConversionFromType(
+                        underlyingType, targetType, isChecked: false, ref useSiteInfo);
+                    Debug.Assert(toTarget.Exists, $"No conversion found from {underlyingType} to {targetType}");
+
+                    return _localRewriter.MakeConversionNode(
+                        syntax: _factory.Syntax,
+                        rewrittenOperand: underlyingExpr,
+                        conversion: toTarget,
+                        rewrittenType: targetType,
+                        @checked: false);
+                }
+
+                // Non-domain target: preserve prior behavior.
+                return _factory.Convert(targetType, objExpr, Conversion.Unboxing);
+            }
+
+            private static bool TryFindDomainUnderlyingType(TypeSymbol targetType, NamedTypeSymbol domainOfTOpenType, out TypeSymbol underlyingType)
+            {
+                for (var t = targetType as NamedTypeSymbol; t is not null; t = t.BaseTypeNoUseSiteDiagnostics)
+                {
+                    if (t.OriginalDefinition.Equals(domainOfTOpenType, TypeCompareKind.ConsiderEverything))
+                    {
+                        underlyingType = t.TypeArgumentsWithAnnotationsNoUseSiteDiagnostics[0].Type;
+                        return true;
+                    }
+                }
+                underlyingType = null!;
+                return false;
             }
 
             private MethodSymbol? TryLookupFunction(string @namespace, string functionName)
