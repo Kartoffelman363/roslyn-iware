@@ -89,6 +89,7 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
         }
     }
 
+#pragma warning disable RS0016
     /// <summary>
     /// Walks the AST and collects every NamedTableReference (covers FROM, JOIN,
     /// UPDATE target, INSERT INTO target, DELETE FROM target, MERGE INTO, etc.)
@@ -103,4 +104,5 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             base.ExplicitVisit(node);
         }
     }
+#pragma warning restore RS0016
 }

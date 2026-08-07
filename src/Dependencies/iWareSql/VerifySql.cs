@@ -94,13 +94,15 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                 goto end;
             }
 
+            var resolvedSqlText = ResolveSQL(sqlText);
+
             try
             {
                 using (var cmd = conn.CreateCommand())
                 {
                     cmd.CommandText = "sp_describe_first_result_set";
                     cmd.CommandType = System.Data.CommandType.StoredProcedure;
-                    cmd.Parameters.AddWithValue("@tsql", sqlText);
+                    cmd.Parameters.AddWithValue("@tsql", resolvedSqlText);
                     cmd.ExecuteNonQuery();
                 }
             }
