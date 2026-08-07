@@ -28,8 +28,9 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
             set => _currentQuery = value;
         }
 
-        public void Merge(List<string> tableNames)
+        public void Merge(Dictionary<string, List<string>> tables)
         {
+            var tableNames = tables.Keys;
             var tableNamesSet = new HashSet<string>(tableNames);
 
             //Remove all tableReferences not in tableNames
@@ -44,12 +45,22 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
             });
 
             // Add tableNames which don't exist in tableReferences
-            foreach (var tableName in tableNames)
+            var tableReferences = SourceReferences.OfType<TableReference>();
+            foreach (var table in tables)
             {
-                if (!_tableReferencesNamesSet.Contains(tableName))
+                var tableName = table.Key;
+
+                var tableRefernce = tableReferences.FirstOrDefault(t => t.TableName == tableName);
+                if (tableRefernce == null)
                 {
-                    SourceReferences.Add(new TableReference(tableName));
+                    // Create new
+                    SourceReferences.Add(new TableReference(tableName, table.Value));
                     _tableReferencesNamesSet.Add(tableName);
+                }
+                else
+                {
+                    // Update column names
+                    tableRefernce.MergeColumns(table.Value);
                 }
             }
 
@@ -113,15 +124,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
             */
         }
 
-        public async Task UpdateTableNames(CompletionContext context)
+        public async Task UpdateTableNamesAsync(CompletionContext context)
         {
-            // Prevent function from firing too frequently
-            if ((DateTime.Now - LastAttemptedUpdate).TotalSeconds < 5)
-            {
-                return;
-            }
-            LastAttemptedUpdate = DateTime.Now;
-
             // Table names now come from [Orm]-annotated classes in the compilation instead of
             // a live database, via OrmSchemaProvider - see SqlCompletionQueries.GetTableNames.
             var compilation = await context.Document.Project.GetCompilationAsync(context.CancellationToken).ConfigureAwait(false);
@@ -130,16 +134,42 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
                 return;
             }
 
-            var tableNames = SqlCompletionQueries.GetTableNames(compilation);
-            Merge(tableNames);
+            var tables = SqlCompletionQueries.GetTableAndColumnNames(compilation);
+            Merge(tables);
         }
 
-        public void UpdateQuerySyntaxInfo(Syntax.SqlTextBlockSyntax sqlBlock, CompletionContext context)
+        /// <summary>
+        /// Because "SELECT id[myObj.myProp] ... WHERE id = @otherObj.prop;"
+        /// aren't valid syntaxes in SQL replace these with placeholder parameters like so
+        /// "SELECT id[p0] ... WHERE id = @pN;", where N is number of properties
+        /// </summary>
+        /// <param name="sqlStatement"></param>
+        /// <returns></returns>
+        public string SqlSegmentsToValidFullString(SyntaxList<Syntax.SqlSegmentSyntax> sqlStatement)
+        {
+            var segmentString = "";
+
+            int placeholderParamIdx = 0;
+            foreach (var segment in sqlStatement)
+            {
+                segmentString += segment.Kind() switch
+                {
+                    SyntaxKind.SqlInputIdentifierSegment => $"@input_identifier_placeholder{placeholderParamIdx++}",
+                    SyntaxKind.SqlOutputIdentifierSegment => $"[output_identifier_placeholder{placeholderParamIdx++}]",
+                    _ => segment.ToFullString()
+                };
+            }
+
+            return segmentString;
+        }
+
+        public async Task UpdateQuerySyntaxInfoAsync(Syntax.SqlTextBlockSyntax sqlBlock, CompletionContext context)
         {
             var sqlStatement = sqlBlock.Segments;
-            var sqlStatementString = sqlStatement.ToFullString();
+            //var sqlStatementString = sqlStatement.ToFullString();
+            var sqlStatementString = SqlSegmentsToValidFullString(sqlStatement);
             var relativePosition = context.Position - sqlStatement.FullSpan.Start;
-            SyntaxInfo = SqlSelectSyntaxInfo.GetInfoFromString(sqlStatementString) ?? SyntaxInfo;
+            SyntaxInfo = await SqlSelectSyntaxInfo.GetInfoFromStringAsync(sqlStatementString).ConfigureAwait(false) ?? SyntaxInfo;
             CurrentQuery = SyntaxInfo?.GetQueryAtCursorPosition(relativePosition);
 
             // If couldn't resolve query return, otherwise do merge
@@ -155,7 +185,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
             {
                 if (table.Alias != null)
                 {
-                    var tableReference = tableReferences.First(tr => table.CompareName(tr.TableName));
+                    var tableReference = tableReferences.FirstOrDefault(tr => table.CompareName(tr.TableName));
                     tableReference?.Alias = table.GetAliasString();
                 }
             }
@@ -227,44 +257,6 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
             }
 
             return sourceReferences;
-        }
-
-        // Update column list of tables referenced in the local context
-        public async Task UpdateLocallyReferencedTableColumnNames(CompletionContext context)
-        {
-            if ((DateTime.Now - LastAttemptedColumnUpdate).TotalSeconds < 5)
-            {
-                return;
-            }
-            LastAttemptedColumnUpdate = DateTime.Now;
-
-            var tableReferences = GetLocallyReferencedTableReferences().Where(tr => !string.IsNullOrEmpty(tr.TableName)).ToList();
-            if (tableReferences.Count < 1)
-            {
-                return;
-            }
-
-            // Column names now come from [Orm]/[DbField]-annotated classes in the compilation
-            // instead of a live database, via OrmSchemaProvider. There's no "changed since"
-            // dimension to worry about anymore (unlike sys.tables.modify_date) - OrmSchemaProvider
-            // is exact for a given Compilation instance, so we can just fetch what's needed
-            // directly instead of first querying which tables changed.
-            var compilation = await context.Document.Project.GetCompilationAsync(context.CancellationToken).ConfigureAwait(false);
-            if (compilation == null)
-            {
-                return;
-            }
-
-            var tableNames = tableReferences.Select(tr => tr.TableName!).ToList();
-            var columnsAndTables = SqlCompletionQueries.GetColumnNamesFromTables(compilation, tableNames);
-
-            foreach (var tr in tableReferences)
-            {
-                tr.MergeColumns(columnsAndTables
-                    .Where(cat => cat.Table.Equals(tr.TableName, StringComparison.InvariantCultureIgnoreCase))
-                    .Select(cat => cat.Column)
-                    .ToList());
-            }
         }
     }
 }

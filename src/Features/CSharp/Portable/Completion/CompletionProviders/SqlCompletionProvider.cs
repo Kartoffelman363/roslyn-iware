@@ -56,12 +56,6 @@ internal sealed class SqlCompletionProvider : CompletionProvider
                     return false;
                 }
 
-                // Update if reference to table
-                if (sourceReference is TableReference tr)
-                {
-                    await tr.UpdateColumnNames(context).ConfigureAwait(false);
-                }
-
                 foreach (var columnName in sourceReference.ColumnNames)
                 {
                     context.AddItem(CompletionItem.Create(
@@ -101,9 +95,10 @@ internal sealed class SqlCompletionProvider : CompletionProvider
             return;
         }
 
-        await _queryInfo.UpdateTableNames(context).ConfigureAwait(false); // TODO aljaz do we always want to be updating tableNames?
-        _queryInfo.UpdateQuerySyntaxInfo(sqlBlock, context);
-        await _queryInfo.UpdateLocallyReferencedTableColumnNames(context).ConfigureAwait(false);
+        // Table names should update first since query syntax references it's results
+        await _queryInfo.UpdateTableNamesAsync(context).ConfigureAwait(false);
+        await _queryInfo.UpdateQuerySyntaxInfoAsync(sqlBlock, context).ConfigureAwait(false);
+        //await _queryInfo.UpdateLocallyReferencedTableColumnNames(context).ConfigureAwait(false);
 
         if (await DotTokenCompletion(token, context).ConfigureAwait(false))
         {

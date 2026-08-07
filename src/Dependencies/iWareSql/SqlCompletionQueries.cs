@@ -1,4 +1,4 @@
-// Licensed to the .NET Foundation under one or more agreements.
+﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
@@ -19,29 +19,13 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
     // happens when the user actually edits and a new Compilation is produced.
     internal static class SqlCompletionQueries
     {
-        public static List<string> GetTableNames(Compilation compilation)
+        public static Dictionary<string, List<string>> GetTableAndColumnNames(Compilation compilation)
         {
-            return OrmSchemaProvider.GetSchema(compilation).Tables
-                .Select(t => t.TableName)
-                .ToList();
-        }
-
-        public static List<string>? GetColumnNamesFromTable(Compilation compilation, string tableName)
-        {
-            return OrmSchemaProvider.GetSchema(compilation).FindTable(tableName)?.Columns
-                .Select(c => c.ColumnName)
-                .ToList();
-        }
-
-        public static List<(string Column, string Table)> GetColumnNamesFromTables(Compilation compilation, List<string> tableNames)
-        {
-            var schema = OrmSchemaProvider.GetSchema(compilation);
-
-            return tableNames
-                .Select(schema.FindTable)
-                .OfType<OrmTable>()
-                .SelectMany(table => table.Columns.Select(column => (column.ColumnName, table.TableName)))
-                .ToList();
+            var tables = OrmSchemaProvider.GetSchema(compilation).Tables.ToList();
+            return tables
+                .ToDictionary(
+                    t => t.TableName,
+                    t => t.Columns.Select(c => c.ColumnName).ToList());
         }
     }
 }

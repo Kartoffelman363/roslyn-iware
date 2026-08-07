@@ -5,8 +5,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.Completion;
 using Microsoft.CodeAnalysis.CSharp.Completion.iWareSql;
 
 namespace Microsoft.CodeAnalysis.CSharp.iWareSql
@@ -14,7 +12,7 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
 #pragma warning disable RS0016 // Add public types and members to the declared API
     public abstract class SourceReference
     {
-        public List<string> ColumnNames { get; private set; } = new();
+        public List<string> ColumnNames { get; protected set; } = new();
         public string? Alias;
     }
 
@@ -30,36 +28,18 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             TableName = tableName;
         }
 
+        public TableReference(string tableName, List<string> columnNames)
+        {
+            TableName = tableName;
+            ColumnNames = columnNames;
+            _columnNamesSet.AddRange(columnNames);
+        }
+
         public void MergeColumns(List<string> columnNames)
         {
             Helpers.Merge(ColumnNames, columnNames, _columnNamesSet);
 
             LastUpdatedColumns = DateTime.Now;
-        }
-
-        public async Task UpdateColumnNames(CompletionContext context)
-        {
-            // Prevent function from firing too frequently
-            if ((DateTime.Now - LastAttemptedUpdateColumns).TotalSeconds < 5)
-            {
-                return;
-            }
-            LastAttemptedUpdateColumns = DateTime.Now;
-
-            // Column names now come from [Orm]/[DbField]-annotated classes in the compilation
-            // instead of a live database, via OrmSchemaProvider - see
-            // SqlCompletionQueries.GetColumnNamesFromTable.
-            var compilation = await context.Document.Project.GetCompilationAsync(context.CancellationToken).ConfigureAwait(false);
-            if (compilation == null)
-            {
-                return;
-            }
-
-            var columnNames = SqlCompletionQueries.GetColumnNamesFromTable(compilation, TableName);
-            if (columnNames != null)
-            {
-                MergeColumns(columnNames);
-            }
         }
     }
 

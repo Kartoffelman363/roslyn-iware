@@ -3032,14 +3032,7 @@
   </Node>
   <Node Name="SqlInputIdentifierSegmentSyntax" Base="SqlSegmentSyntax">
     <Kind Name="SqlInputIdentifierSegment"/>
-    <Field Name="Expression" Type="ExpressionSyntax">
-      <PropertyComment>
-        <summary>The C# expression supplying the value for this SQL parameter, e.g. the
-        <c>n.krneki</c> in <c>WHERE name = @n.krneki</c>. Restricted to a postfix chain
-        (member access, indexer and invocation) so that SQL operators following the
-        parameter are not absorbed into the expression.</summary>
-      </PropertyComment>
-    </Field>
+    <Field Name="Expression" Type="ExpressionSyntax"/>
   </Node>
   <Node Name="SqlOutputIdentifierSegmentSyntax" Base="SqlSegmentSyntax">
     <Kind Name="SqlOutputIdentifierSegment"/>

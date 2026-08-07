@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.SqlServer.TransactSql.ScriptDom;
 using Roslyn.Utilities;
@@ -155,16 +156,19 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
             Populate(qs);
         }
 
-        public static SqlSelectSyntaxInfo? GetInfoFromString(string sqlBlock)
+        public static async Task<SqlSelectSyntaxInfo?> GetInfoFromStringAsync(string sqlBlock)
         {
-            var parser = new TSql180Parser(true, SqlEngineType.All);
-            using (TextReader sr = new StringReader(sqlBlock))
+            return await Task.Run(() =>
             {
-                var tree = parser.Parse(sr, out _);
-                var visitor = new SqlQueryVisitor();
-                tree.Accept(visitor);
-                return visitor.VisitedQuery;
-            }
+                var parser = new TSql180Parser(true, SqlEngineType.All);
+                using (TextReader sr = new StringReader(sqlBlock))
+                {
+                    var tree = parser.Parse(sr, out _);
+                    var visitor = new SqlQueryVisitor();
+                    tree.Accept(visitor);
+                    return visitor.VisitedQuery;
+                }
+            }).ConfigureAwait(false);
         }
 
         private class ScalarSubqueryFinder : TSqlFragmentVisitor

@@ -9134,10 +9134,6 @@ public sealed partial class SqlInputIdentifierSegmentSyntax : SqlSegmentSyntax
     {
     }
 
-    /// <summary>The C# expression supplying the value for this SQL parameter, e.g. the
-    /// <c>n.krneki</c> in <c>WHERE name = @n.krneki</c>. Restricted to a postfix chain
-    /// (member access, indexer and invocation) so that SQL operators following the
-    /// parameter are not absorbed into the expression.</summary>
     public ExpressionSyntax Expression => GetRedAtZero(ref this.expression)!;
 
     internal override SyntaxNode? GetNodeSlot(int index) => index == 0 ? GetRedAtZero(ref this.expression)! : null;
