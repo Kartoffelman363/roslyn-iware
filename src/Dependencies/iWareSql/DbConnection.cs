@@ -99,13 +99,13 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             return conn;
         }
 
-        public static string ResolveSQL(string tenantId, string sqlString)
+        public static string ResolveSQL(string sqlString)
         {
-            //ParseOptions _options = new ParseOptions() { TransactSqlVersion = TransactSqlVersion.Version170, CompatibilityLevel = DatabaseCompatibilityLevel.Current };
-            //ParseResult _res = Parser.Parse(sql );
-
-            //Parser.Parse("", null, SQLType.TSql);
-            return sqlString;
+            if (TenantId == null)
+            {
+                return sqlString;
+            }
+            return Resolver.AddTenantIdToTableNames(sqlString, TenantId);
         }
     }
 }

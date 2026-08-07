@@ -9,14 +9,13 @@
   <PropertyGroup Label="Configuration">
     <Import_RootNamespace>Microsoft.CodeAnalysis.CSharp.iWareSql</Import_RootNamespace>
   </PropertyGroup>
-
   <!-- DbConnection.cs has no compiler- or IDE-internal dependencies (just
        System.IO / System.Text.Json / Microsoft.Data.SqlClient), so it is
        safe to compile into every consumer of this shared project. -->
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)DbConnection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Resolver.cs" />
   </ItemGroup>
-
   <!-- ParseSql.cs / VerifySql.cs use compiler-internal types (ErrorCode,
        BindingDiagnosticBag, the generated Sql*SegmentSyntax/SqlStatementSyntax
        nodes) that only exist inside Microsoft.CodeAnalysis.CSharp itself, so
@@ -36,7 +35,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)OrmSchema.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)OrmAttributesSource.cs" />
   </ItemGroup>
-
   <!-- Helpers.cs / QueryInfo.cs / SqlCompletionQueries.cs / SqlKeywords.cs /
        SqlSelectSyntaxInfo.cs / SqlSourceReference.cs use IDE/completion-layer
        types (Microsoft.CodeAnalysis.Completion) and the TransactSql.ScriptDom
@@ -50,7 +48,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)SqlSelectSyntaxInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SqlSourceReference.cs" />
   </ItemGroup>
-
   <ItemGroup Condition="'$(DefaultLanguageSourceExtension)' != '' AND '$(BuildingInsideVisualStudio)' != 'true'">
     <ExpectedCompile Include="$(MSBuildThisFileDirectory)**\*$(DefaultLanguageSourceExtension)" />
   </ItemGroup>
