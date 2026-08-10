@@ -92,11 +92,10 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.SqlClient" />
     <PackageReference Include="System.Text.Json" />
-    <!-- Resolver.cs, compiled in from the iWareSql shared project imported below,
-         uses the TransactSql.ScriptDom parser to rewrite table names per tenant. -->
+    <!-- iWareSql\Resolver.cs uses the TransactSql.ScriptDom parser to rewrite
+         table names per tenant. -->
     <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" />
   </ItemGroup>
 
   <Import Project="..\CSharpAnalyzerDriver\CSharpAnalyzerDriver.projitems" Label="Shared" />
-  <Import Project="..\..\..\Dependencies\iWareSql\Microsoft.CodeAnalysis.CSharp.iWareSql.projitems" Label="Shared" />
 </Project>

@@ -432,10 +432,6 @@ Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Microsoft.CodeAnalysis.Coll
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoft.CodeAnalysis.Collections.Package", "src\Dependencies\Collections\Microsoft.CodeAnalysis.Collections.Package.csproj", "{0C2E1633-1462-4712-88F4-A0C945BAD3A8}"
 EndProject
-Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Microsoft.CodeAnalysis.CSharp.iWareSql", "src\Dependencies\iWareSql\Microsoft.CodeAnalysis.CSharp.iWareSql.shproj", "{26758B64-D63A-4B6E-AEBE-6B46178BA2E4}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoft.CodeAnalysis.CSharp.iWareSql.Package", "src\Dependencies\iWareSql\Microsoft.CodeAnalysis.CSharp.iWareSql.Package.csproj", "{AD6409CA-56A4-4CB9-B2FA-6040F109A639}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoft.CodeAnalysis.Rebuild", "src\Compilers\Core\Rebuild\Microsoft.CodeAnalysis.Rebuild.csproj", "{B7D29559-4360-434A-B9B9-2C0612287999}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoft.CodeAnalysis.Rebuild.UnitTests", "src\Compilers\Core\RebuildTest\Microsoft.CodeAnalysis.Rebuild.UnitTests.csproj", "{21B49277-E55A-45EF-8818-744BCD6CB732}"
@@ -1335,10 +1331,6 @@ Global
 		{0C2E1633-1462-4712-88F4-A0C945BAD3A8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0C2E1633-1462-4712-88F4-A0C945BAD3A8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0C2E1633-1462-4712-88F4-A0C945BAD3A8}.Release|Any CPU.Build.0 = Release|Any CPU
-		{AD6409CA-56A4-4CB9-B2FA-6040F109A639}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{AD6409CA-56A4-4CB9-B2FA-6040F109A639}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{AD6409CA-56A4-4CB9-B2FA-6040F109A639}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{AD6409CA-56A4-4CB9-B2FA-6040F109A639}.Release|Any CPU.Build.0 = Release|Any CPU
 		{B7D29559-4360-434A-B9B9-2C0612287999}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{B7D29559-4360-434A-B9B9-2C0612287999}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B7D29559-4360-434A-B9B9-2C0612287999}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -2007,8 +1999,6 @@ Global
 		{41ED1BFA-FDAD-4FE4-8118-DB23FB49B0B0} = {DC014586-8D07-4DE6-B28E-C0540C59C085}
 		{E919DD77-34F8-4F57-8058-4D3FF4C2B241} = {C2D1346B-9665-4150-B644-075CF1636BAA}
 		{0C2E1633-1462-4712-88F4-A0C945BAD3A8} = {C2D1346B-9665-4150-B644-075CF1636BAA}
-		{26758B64-D63A-4B6E-AEBE-6B46178BA2E4} = {C2D1346B-9665-4150-B644-075CF1636BAA}
-		{AD6409CA-56A4-4CB9-B2FA-6040F109A639} = {C2D1346B-9665-4150-B644-075CF1636BAA}
 		{B7D29559-4360-434A-B9B9-2C0612287999} = {A41D1B99-F489-4C43-BBDF-96D61B19A6B9}
 		{21B49277-E55A-45EF-8818-744BCD6CB732} = {A41D1B99-F489-4C43-BBDF-96D61B19A6B9}
 		{BB987FFC-B758-4F73-96A3-923DE8DCFF1A} = {8977A560-45C2-4EC2-A849-97335B382C74}
@@ -2389,8 +2379,5 @@ Global
 		src\Workspaces\SharedUtilitiesAndExtensions\Compiler\Core\CompilerExtensions.projitems*{fce0046b-03f8-78f6-86a1-8ddcee8f4c9f}*SharedItemsImports = 5
 		src\Workspaces\SharedUtilitiesAndExtensions\Compiler\Extensions\Microsoft.CodeAnalysis.Extensions.projitems*{fce0046b-03f8-78f6-86a1-8ddcee8f4c9f}*SharedItemsImports = 5
 		src\Dependencies\Contracts\Microsoft.CodeAnalysis.Contracts.projitems*{fce88bbd-9bbd-4871-b9b0-de176d73a6b0}*SharedItemsImports = 5
-		src\Dependencies\iWareSql\Microsoft.CodeAnalysis.CSharp.iWareSql.projitems*{26758b64-d63a-4b6e-aebe-6b46178ba2e4}*SharedItemsImports = 13
-		src\Dependencies\iWareSql\Microsoft.CodeAnalysis.CSharp.iWareSql.projitems*{b501a547-c911-4a05-ac6e-274a50dff30e}*SharedItemsImports = 5
-		src\Dependencies\iWareSql\Microsoft.CodeAnalysis.CSharp.iWareSql.projitems*{3973b09a-4fbf-44a5-8359-3d22ceb71f71}*SharedItemsImports = 5
 	EndGlobalSection
 EndGlobal
