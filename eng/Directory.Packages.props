@@ -282,7 +282,9 @@
     <PackageVersion Include="Basic.Reference.Assemblies.Net100" Version="$(_BasicReferenceAssembliesVersion)" />
     <PackageVersion Include="Microsoft.TeamFoundationServer.Client" Version="19.232.0-preview" />
     <PackageVersion Include="System.Data.SqlClient" Version="$(SystemDataSqlClientVersion)" />
+	<PackageVersion Include="Microsoft.Data.SqlClient" Version="$(MicrosoftDataSqlClientVersion)" />
 	<PackageVersion Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="$(MicrosoftSqlServerTransactSqlScriptDomVersion)" />
+	<PackageVersion Include="iWare.Database" Version="$(iWareDatabaseVersion)" />
     <!-- fix of vulnerability in 6.0.0 coming via Microsoft.TeamFoundationServer.Client -->
     <PackageVersion Include="System.Security.Cryptography.Xml" Version="8.0.0" />
     <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="8.0.0" />

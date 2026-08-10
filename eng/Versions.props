@@ -47,6 +47,8 @@
   </PropertyGroup>
   <PropertyGroup>
 	<MicrosoftSqlServerTransactSqlScriptDomVersion>180.59.2</MicrosoftSqlServerTransactSqlScriptDomVersion>
+	<MicrosoftDataSqlClientVersion>5.2.3</MicrosoftDataSqlClientVersion>
+	<iWareDatabaseVersion>2.1.0</iWareDatabaseVersion>
     <MicrosoftVSSDKBuildToolsVersion>17.14.1043-preview2</MicrosoftVSSDKBuildToolsVersion>
     <vswhereVersion>3.1.7</vswhereVersion>
     <!--

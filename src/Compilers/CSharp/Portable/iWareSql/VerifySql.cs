@@ -8,7 +8,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Data.SqlClient;
-using static Microsoft.CodeAnalysis.CSharp.iWareSql.DbConnection;
+using static iWare.Database.DbConnection;
 
 namespace Microsoft.CodeAnalysis.CSharp.iWareSql
 {
@@ -67,7 +67,16 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                 return false;
             }
             */
-            var configPath = FindDbConfigFile(fileDir);
+            string? configPath;
+            try
+            {
+                configPath = FindDbConfigFile(fileDir);
+            }
+            catch
+            {
+                configPath = null;
+            }
+
             if (configPath == null)
             {
                 diagnosis._retVal = false;
@@ -94,10 +103,9 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                 goto end;
             }
 
-            var resolvedSqlText = ResolveSQL(sqlText);
-
             try
             {
+                var resolvedSqlText = ResolveSQL(sqlText);
                 using (var cmd = conn.CreateCommand())
                 {
                     cmd.CommandText = "sp_describe_first_result_set";

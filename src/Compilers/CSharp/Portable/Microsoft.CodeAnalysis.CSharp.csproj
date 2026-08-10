@@ -91,10 +91,10 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.SqlClient" />
-    <PackageReference Include="System.Text.Json" />
-    <!-- iWareSql\Resolver.cs uses the TransactSql.ScriptDom parser to rewrite
-         table names per tenant. -->
-    <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" />
+    <!-- DbConnection/Resolver live in the iWare.Database package rather than in this
+         repo: VerifySql.cs consumes them at compile time, and emitted sql statements
+         bind against the same package at run time (LocalRewriter_SqlStatement.cs). -->
+    <PackageReference Include="iWare.Database" />
   </ItemGroup>
 
   <Import Project="..\CSharpAnalyzerDriver\CSharpAnalyzerDriver.projitems" Label="Shared" />
