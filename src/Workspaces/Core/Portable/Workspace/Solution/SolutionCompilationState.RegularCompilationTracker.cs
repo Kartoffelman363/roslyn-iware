@@ -33,7 +33,7 @@ internal sealed partial class SolutionCompilationState
         private static readonly Func<ProjectState, string> s_logBuildCompilationAsync =
             state => string.Join(",", state.AssemblyName, state.DocumentStates.Count);
 
-        private static readonly CancellableLazy<Compilation?> s_lazyNullCompilation = new CancellableLazy<Compilation?>((Compilation?)null);
+        private static readonly CancellableLazy<Compilation?> s_lazyNullCompilation = new((Compilation?)null);
 
         public ProjectState ProjectState { get; }
 
@@ -213,22 +213,22 @@ internal sealed partial class SolutionCompilationState
             }
         }
 
-        public Task<Compilation> GetCompilationAsync(SolutionCompilationState compilationState, CancellationToken cancellationToken)
+        public async Task<Compilation> GetCompilationAsync(SolutionCompilationState compilationState, CancellationToken cancellationToken)
         {
             if (this.TryGetCompilation(out var compilation))
             {
-                return Task.FromResult(compilation);
+                return compilation;
             }
             else if (cancellationToken.IsCancellationRequested)
             {
                 // Handle early cancellation here to avoid throwing/catching cancellation exceptions in the async
                 // state machines. This helps reduce the total number of First Chance Exceptions occurring in IDE
                 // typing scenarios.
-                return Task.FromCanceled<Compilation>(cancellationToken);
+                return await Task.FromCanceled<Compilation>(cancellationToken).ConfigureAwait(false);
             }
             else
             {
-                return GetCompilationSlowAsync(compilationState, cancellationToken);
+                return await GetCompilationSlowAsync(compilationState, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -523,6 +523,15 @@ internal sealed partial class SolutionCompilationState
 
                             staleCompilationWithGeneratedDocuments = staleCompilationWithGeneratedDocuments?.WithScriptCompilationInfo(
                                 staleCompilationWithGeneratedDocuments.ScriptCompilationInfo!.WithPreviousScriptCompilation(previousSubmissionCompilation!));
+                        }
+                    }
+                    else if (!referencedProject.SupportsCompilation)
+                    {
+                        if (referencedProject.OutputFilePath is { } outputPath)
+                        {
+                            var metadataService = ProjectState.LanguageServices.SolutionServices.GetRequiredService<IMetadataService>();
+                            var metadataReference = metadataService.GetReference(outputPath, new MetadataReferenceProperties(MetadataImageKind.Assembly, projectReference.Aliases, projectReference.EmbedInteropTypes));
+                            AddMetadataReference(projectReference, metadataReference);
                         }
                     }
                     else

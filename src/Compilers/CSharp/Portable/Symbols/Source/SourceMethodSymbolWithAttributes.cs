@@ -535,7 +535,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
             }
             else if (attribute.IsTargetAttribute(AttributeDescription.MethodImplAttribute))
             {
-                AttributeData.DecodeMethodImplAttribute<MethodWellKnownAttributeData, AttributeSyntax, CSharpAttributeData, AttributeLocation>(ref arguments, MessageProvider.Instance);
+                AttributeData.DecodeMethodImplAttribute<MethodWellKnownAttributeData, AttributeSyntax, CSharpAttributeData, AttributeLocation>(ref arguments, MessageProvider.Instance, this.ContainingType);
             }
             else if (attribute.IsTargetAttribute(AttributeDescription.DllImportAttribute))
             {
@@ -633,6 +633,26 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
                     diagnostics.Add(ErrorCode.ERR_UnscopedRefAttributeUnsupportedMemberTarget, arguments.AttributeSyntaxOpt.Location);
                 }
             }
+            else if (attribute.IsTargetAttribute(AttributeDescription.RequiresUnsafeAttribute))
+            {
+                if (this.MethodKind is MethodKind.AnonymousFunction or MethodKind.Destructor or MethodKind.LambdaMethod or MethodKind.StaticConstructor)
+                {
+                    diagnostics.Add(ErrorCode.ERR_RequiresUnsafeAttributeUnsupportedMemberTarget, arguments.AttributeSyntaxOpt.Location);
+                }
+                else
+                {
+                    if (ContainingModule.UseUpdatedMemorySafetyRules)
+                    {
+                        MessageID.IDS_FeatureUnsafeEvolution.CheckFeatureAvailability(diagnostics, arguments.AttributeSyntaxOpt);
+                    }
+                    else
+                    {
+                        diagnostics.Add(ErrorCode.WRN_RequiresUnsafeAttributeLegacyRules, arguments.AttributeSyntaxOpt.Location);
+                    }
+
+                    arguments.GetOrCreateData<MethodWellKnownAttributeData>().HasRequiresUnsafeAttribute = true;
+                }
+            }
             else if (attribute.IsTargetAttribute(AttributeDescription.InterceptsLocationAttribute))
             {
                 DecodeInterceptsLocationAttribute(arguments);
@@ -668,7 +688,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
             }
         }
 
-        internal ThreeState IsRuntimeAsyncEnabledInMethod
+        internal override ThreeState RuntimeAsyncMethodGenerationAttributeSetting
             => GetDecodedWellKnownAttributeData()?.RuntimeAsyncMethodGenerationSetting ?? ThreeState.Unknown;
 
         internal override ImmutableArray<string> NotNullMembers =>
@@ -835,7 +855,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
             bool hasErrors = false;
 
             var implementationPart = this.PartialImplementationPart ?? this;
-            if (!implementationPart.IsExtern || (!implementationPart.IsStatic && !implementationPart.GetIsNewExtensionMember()))
+            if (!implementationPart.IsExtern || (!implementationPart.IsStatic && !implementationPart.IsExtensionBlockMember()))
             {
                 diagnostics.Add(ErrorCode.ERR_DllImportOnInvalidMethod, arguments.AttributeSyntaxOpt.Name.Location);
                 hasErrors = true;
@@ -955,7 +975,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
             Debug.Assert(arguments.AttributeSyntaxOpt is object);
             var diagnostics = (BindingDiagnosticBag)arguments.Diagnostics;
 
-            if (MethodKind != MethodKind.Ordinary || this.GetIsNewExtensionMember())
+            if (MethodKind != MethodKind.Ordinary || this.IsExtensionBlockMember())
             {
                 diagnostics.Add(ErrorCode.ERR_ModuleInitializerMethodMustBeOrdinary, arguments.AttributeSyntaxOpt.Location);
                 return;
@@ -1359,7 +1379,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
 
         private bool ReportBadInterceptsLocation(BindingDiagnosticBag diagnostics, Location attributeLocation)
         {
-            if (!this.GetIsNewExtensionMember() && ContainingType.IsGenericType)
+            if (!this.IsExtensionBlockMember() && ContainingType.IsGenericType)
             {
                 diagnostics.Add(ErrorCode.ERR_InterceptorContainingTypeCannotBeGeneric, attributeLocation, this);
                 return true;
@@ -1756,15 +1776,19 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
                     result |= (System.Reflection.MethodImplAttributes.Runtime | System.Reflection.MethodImplAttributes.InternalCall);
                 }
 
-                if (this.IsAsync && this.DeclaringCompilation.IsRuntimeAsyncEnabledIn(this))
-                {
-                    // https://github.com/dotnet/roslyn/issues/79792: Use real value from MethodImplAttributes when available
-                    // When a method is emitted using runtime async, we add MethodImplAttributes.Async to indicate to the 
-                    // runtime to generate the state machine
-                    result |= (System.Reflection.MethodImplAttributes)0x2000;
-                }
+                AddAsyncImplAttributeIfNeeded(ref result);
 
                 return result;
+            }
+        }
+
+        protected void AddAsyncImplAttributeIfNeeded(ref System.Reflection.MethodImplAttributes result)
+        {
+            if (this.IsAsync && this.DeclaringCompilation.IsRuntimeAsyncEnabledIn(this))
+            {
+                // When a method is emitted using runtime async, we add MethodImplAttributes.Async to indicate to the 
+                // runtime to generate the state machine
+                result |= System.Reflection.MethodImplAttributes.Async;
             }
         }
 

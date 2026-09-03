@@ -555,18 +555,6 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
         /// </summary>
         internal virtual bool IsNativeIntegerWrapperType => false;
 
-#nullable enable
-        public virtual bool IsExtension
-            => TypeKind == TypeKind.Extension;
-
-        /// <summary>
-        /// For the type representing an extension declaration, returns the receiver parameter symbol.
-        /// It may be unnamed.
-        /// Note: this may be null even if <see cref="IsExtension"/> is true, in error cases.
-        /// </summary>
-        internal abstract ParameterSymbol? ExtensionParameter { get; }
-#nullable disable
-
         internal bool IsNativeIntegerType => IsNativeIntegerWrapperType
             || (SpecialType is SpecialType.System_IntPtr or SpecialType.System_UIntPtr && this.ContainingAssembly.RuntimeSupportsNumericIntPtr);
 
@@ -602,7 +590,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
 
 #nullable enable
         /// <summary>
-        /// Is this type a managed type (false for everything but enum, pointer, and
+        /// Is this type a managed type (true for everything but enum, pointer, and
         /// some struct types).
         /// </summary>
         /// <remarks>
@@ -671,6 +659,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
         /// Returns true if the type is a readonly struct
         /// </summary>
         public abstract bool IsReadOnly { get; }
+
+        internal sealed override CallerUnsafeMode CallerUnsafeMode => CallerUnsafeMode.None;
 
         public string ToDisplayString(CodeAnalysis.NullableFlowState topLevelNullability, SymbolDisplayFormat format = null)
         {
@@ -1806,6 +1796,14 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
                                                                                         }
                                                                                     },
                                                                                     (implementingType, isExplicit));
+
+                    SourceMemberContainerTypeSymbol.CheckCallerUnsafeMismatch(
+                        implementedEvent,
+                        implementingEvent,
+                        isExplicit ? ErrorCode.ERR_CallerUnsafeExplicitlyImplementingSafe : ErrorCode.ERR_CallerUnsafeImplicitlyImplementingSafe,
+                        (implementedEvent, implementingType, implementingEvent),
+                        static arg => GetImplicitImplementationDiagnosticLocation(arg.implementedEvent, arg.implementingType, arg.implementingEvent),
+                        diagnostics);
                 }
                 else
                 {
@@ -1892,6 +1890,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
                                 allowVariance: true,
                                 invokedAsExtensionMethod: false);
                         }
+
                         SourceMemberContainerTypeSymbol.CheckRefReadonlyInMismatch(
                             implementedMethod, implementingMethod, diagnostics,
                             static (diagnostics, implementedMethod, implementingMethod, implementingParameter, _, arg) =>
@@ -1903,6 +1902,14 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
                             },
                             implementingType,
                             invokedAsExtensionMethod: false);
+
+                        SourceMemberContainerTypeSymbol.CheckCallerUnsafeMismatch(
+                            implementedMethod,
+                            implementingMethod,
+                            isExplicit ? ErrorCode.ERR_CallerUnsafeExplicitlyImplementingSafe : ErrorCode.ERR_CallerUnsafeImplicitlyImplementingSafe,
+                            (implementedMethod, implementingType, implementingMethod),
+                            static arg => GetImplicitImplementationDiagnosticLocation(arg.implementedMethod, arg.implementingType, arg.implementingMethod),
+                            diagnostics);
 
                         if (implementingMethod.HasUnscopedRefAttributeOnMethodOrProperty())
                         {
@@ -2519,6 +2526,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
         TypeKind ITypeSymbolInternal.TypeKind => this.TypeKind;
 
         SpecialType ITypeSymbolInternal.SpecialType => this.SpecialType;
+
+        ExtendedSpecialType ITypeSymbolInternal.ExtendedSpecialType => this.ExtendedSpecialType;
 
         bool ITypeSymbolInternal.IsReferenceType => this.IsReferenceType;
 

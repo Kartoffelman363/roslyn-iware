@@ -88,6 +88,11 @@ namespace Microsoft.CodeAnalysis.Emit
         public abstract bool FieldRvaSupported { get; }
 
         /// <summary>
+        /// True if MethodImpl table is supported by the runtime.
+        /// </summary>
+        public abstract bool MethodImplSupported { get; }
+
+        /// <summary>
         /// Previous EnC generation baseline, or null if this is not EnC delta.
         /// </summary>
         public abstract EmitBaseline? PreviousGeneration { get; }
@@ -188,7 +193,7 @@ namespace Microsoft.CodeAnalysis.Emit
         /// Public types defined in other modules making up this assembly and to which other assemblies may refer to via this assembly
         /// followed by types forwarded to another assembly.
         /// </summary>
-        public abstract ImmutableArray<Cci.ExportedType> GetExportedTypes(DiagnosticBag diagnostics);
+        public abstract ImmutableArray<Cci.ExportedType> GetExportedTypes(EmitContext context);
 
         /// <summary>
         /// Used to distinguish which style to pick while writing native PDB information.
@@ -282,11 +287,6 @@ namespace Microsoft.CodeAnalysis.Emit
                 if (privateImpl != null)
                 {
                     yield return privateImpl;
-
-                    foreach (var typeDef in privateImpl.GetAdditionalTopLevelTypes())
-                    {
-                        yield return typeDef;
-                    }
                 }
             }
         }
@@ -631,7 +631,7 @@ namespace Microsoft.CodeAnalysis.Emit
         {
             if (PreviousGeneration != null)
             {
-                var symbolChanges = EncSymbolChanges!;
+                var symbolChanges = EncSymbolChanges;
                 if (symbolChanges.IsReplacedDef(typeDef))
                 {
                     // Type emitted with Replace semantics in this delta, it's name should have the current generation ordinal suffix.

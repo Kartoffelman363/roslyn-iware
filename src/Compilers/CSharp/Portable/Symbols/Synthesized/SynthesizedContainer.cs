@@ -47,7 +47,11 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
 
         internal sealed override bool IsInterface => this.TypeKind == TypeKind.Interface;
 
-        internal sealed override ParameterSymbol ExtensionParameter => null;
+#nullable enable
+        internal sealed override ParameterSymbol? ExtensionParameter => null;
+        internal sealed override string? ExtensionGroupingName => null;
+        internal sealed override string? ExtensionMarkerName => null;
+#nullable disable
 
         internal override void AddSynthesizedAttributes(PEModuleBuilder moduleBuilder, ref ArrayBuilder<CSharpAttributeData> attributes)
         {
@@ -97,6 +101,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
         internal override bool HasCodeAnalysisEmbeddedAttribute => false;
 
         internal override bool HasCompilerLoweringPreserveAttribute => false;
+
+        internal override bool IsUnionTypeCore => false;
 
         internal sealed override bool IsInterpolatedStringHandlerType => false;
 
@@ -149,12 +155,6 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
 
         public sealed override bool IsRefLikeType => false;
 
-        internal override string ExtensionGroupingName
-            => throw ExceptionUtilities.Unreachable();
-
-        internal override string ExtensionMarkerName
-            => throw ExceptionUtilities.Unreachable();
-
         public sealed override bool IsReadOnly => false;
 
         internal override ImmutableArray<NamedTypeSymbol> InterfacesNoUseSiteDiagnostics(ConsList<TypeSymbol> basesBeingResolved) => ImmutableArray<NamedTypeSymbol>.Empty;
@@ -167,7 +167,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
 
         internal override ImmutableArray<NamedTypeSymbol> GetDeclaredInterfaces(ConsList<TypeSymbol> basesBeingResolved) => InterfacesNoUseSiteDiagnostics(basesBeingResolved);
 
-        public override bool MightContainExtensionMethods => false;
+        public override bool MightContainExtensions => false;
 
         public override int Arity => TypeParameters.Length;
 

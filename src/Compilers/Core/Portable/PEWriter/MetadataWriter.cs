@@ -1453,7 +1453,7 @@ namespace Microsoft.Cci
 
         protected static Location GetSymbolLocation(ISymbolInternal symbolOpt)
         {
-            return symbolOpt != null && !symbolOpt.Locations.IsDefaultOrEmpty ? symbolOpt.Locations[0] : Location.None;
+            return symbolOpt?.GetFirstLocationOrNone() ?? Location.None;
         }
 
         internal TypeAttributes GetTypeAttributes(ITypeDefinition typeDef)
@@ -1473,6 +1473,13 @@ namespace Microsoft.Cci
 
                 case LayoutKind.Explicit:
                     result |= TypeAttributes.ExplicitLayout;
+                    break;
+
+                default:
+                    if (typeDef.Layout == LayoutKind.Extended)
+                    {
+                        result |= TypeAttributes.ExtendedLayout;
+                    }
                     break;
             }
 
@@ -2221,7 +2228,7 @@ namespace Microsoft.Cci
                 return;
             }
 
-            var exportedTypes = module.GetExportedTypes(Context.Diagnostics);
+            var exportedTypes = module.GetExportedTypes(Context);
             if (exportedTypes.Length == 0)
             {
                 return;
@@ -2592,9 +2599,21 @@ namespace Microsoft.Cci
 
         private void PopulateMethodImplTableRows()
         {
+            if (methodImplList.Count == 0)
+            {
+                return;
+            }
+
+            if (!Module.MethodImplSupported)
+            {
+                // .NET Framework incorrectly handles MethodImpl table in the second generation, which causes AV.
+                // https://devdiv.visualstudio.com/DefaultCollection/DevDiv/_workitems/edit/2631743
+                Context.Diagnostics.Add(messageProvider.CreateDiagnostic(messageProvider.ERR_EncUpdateRequiresEmittingExplicitInterfaceImplementationNotSupportedByTheRuntime, NoLocation.Singleton));
+            }
+
             metadata.SetCapacity(TableIndex.MethodImpl, methodImplList.Count);
 
-            foreach (MethodImplementation methodImplementation in this.methodImplList)
+            foreach (MethodImplementation methodImplementation in methodImplList)
             {
                 metadata.AddMethodImplementation(
                     type: GetTypeDefinitionHandle(methodImplementation.ContainingType),
@@ -3442,14 +3461,9 @@ namespace Microsoft.Cci
         {
             Debug.Assert(fieldReference.RefCustomModifiers.Length == 0 || fieldReference.IsByReference);
 
-            // https://github.com/dotnet/roslyn/issues/61385: Use System.Reflection.Metadata.Ecma335.FieldTypeEncoder
-            // instead, since that type supports ref fields directly.
-            var typeEncoder = new BlobEncoder(builder).FieldSignature();
-            SerializeCustomModifiers(new CustomModifiersEncoder(builder), fieldReference.RefCustomModifiers);
-            if (fieldReference.IsByReference)
-            {
-                typeEncoder.Builder.WriteByte((byte)SignatureTypeCode.ByReference);
-            }
+            var fieldTypeEncoder = new BlobEncoder(builder).Field();
+            SerializeCustomModifiers(fieldTypeEncoder.CustomModifiers(), fieldReference.RefCustomModifiers);
+            var typeEncoder = fieldTypeEncoder.Type(fieldReference.IsByReference);
             SerializeTypeReference(typeEncoder, fieldReference.GetType(Context));
         }
 
@@ -3836,9 +3850,7 @@ namespace Microsoft.Cci
             {
                 if (module.IsPlatformType(typeReference, PlatformType.SystemTypedReference))
                 {
-                    // We should use `SignatureTypeEncoder.TypedReference()` once such a method is available
-                    // Tracked by https://github.com/dotnet/runtime/issues/80812
-                    encoder.Builder.WriteByte((byte)SignatureTypeCode.TypedReference);
+                    encoder.TypedReference();
                     return;
                 }
 

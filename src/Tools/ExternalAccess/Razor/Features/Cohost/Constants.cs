@@ -4,6 +4,7 @@
 
 using System;
 using Microsoft.CodeAnalysis.LanguageServer;
+using Microsoft.CodeAnalysis.RemoveUnnecessaryImports;
 
 namespace Microsoft.CodeAnalysis.ExternalAccess.Razor.Cohost;
 
@@ -14,5 +15,9 @@ internal static class Constants
     // These UI contexts are provided by Razor, so must match https://github.com/dotnet/razor/blob/main/src/Razor/src/Microsoft.VisualStudio.LanguageServices.Razor/RazorConstants.cs
     public static readonly Guid RazorCohostingUIContext = new Guid("6d5b86dc-6b8a-483b-ae30-098a3c7d6774");
 
-    public static readonly Guid RazorCapabilityPresentUIContext = new Guid("2077a158-ee71-484c-be76-350a1d49eaea");
+    internal static class DiagnosticIds
+    {
+        public const string RemoveUnnecessaryImportsFixable = RemoveUnnecessaryImportsConstants.DiagnosticFixableId;
+        public const string IDE0005_gen = RemoveUnnecessaryImportsConstants.IDE0005_gen;
+    }
 }

@@ -90,6 +90,10 @@ internal abstract partial class VisualStudioWorkspaceImpl : VisualStudioWorkspac
     /// <remarks>Should be updated with <see cref="ImmutableInterlocked"/>.</remarks>
     private ImmutableDictionary<ProjectId, Func<string?>> _projectToRuleSetFilePath = ImmutableDictionary<ProjectId, Func<string?>>.Empty;
 
+    /// <summary>
+    /// Mapping from project system name to a list of projects.
+    /// Only access when holding <see cref="_gate"/>
+    /// </summary>
     private readonly Dictionary<string, List<ProjectSystemProject>> _projectSystemNameToProjectsMap = [];
 
     /// <summary>
@@ -1559,21 +1563,24 @@ internal abstract partial class VisualStudioWorkspaceImpl : VisualStudioWorkspac
 
     internal void RemoveProjectFromMaps(CodeAnalysis.Project project)
     {
-        foreach (var (projectName, projects) in _projectSystemNameToProjectsMap)
+        using (_gate.DisposableWait())
         {
-            if (projects.RemoveAll(p => p.Id == project.Id) > 0)
+            foreach (var (projectName, projects) in _projectSystemNameToProjectsMap)
             {
-                if (projects.Count == 0)
+                if (projects.RemoveAll(p => p.Id == project.Id) > 0)
                 {
-                    _projectSystemNameToProjectsMap.Remove(projectName);
+                    if (projects.Count == 0)
+                    {
+                        _projectSystemNameToProjectsMap.Remove(projectName);
+                    }
+
+                    break;
                 }
-
-                break;
             }
-        }
 
-        _projectToHierarchyMap = _projectToHierarchyMap.Remove(project.Id);
-        _projectToGuidMap = _projectToGuidMap.Remove(project.Id);
+            _projectToHierarchyMap = _projectToHierarchyMap.Remove(project.Id);
+            _projectToGuidMap = _projectToGuidMap.Remove(project.Id);
+        }
 
         ImmutableInterlocked.TryRemove(ref _projectToRuleSetFilePath, project.Id, out _);
 
@@ -1629,5 +1636,17 @@ internal abstract partial class VisualStudioWorkspaceImpl : VisualStudioWorkspac
         // don't use the isContextActive value here specifically for this case as it may not reflect the desired
         // value after the main thread switch.
         uiContext.IsActive = this.CurrentSolution.Projects.Any(p => p.Language == language);
+    }
+
+    internal void PreloadProjectSystemComponents(string languageName)
+    {
+        // Ensure we have any listeners for WellKnownEventListeners.Workspace warmed up, since these are otherwise created
+        // the first time we make a change to the CurrentSolution
+        base.EnsureEventListeners();
+
+        // Load up the command line parser and warm it up. This generally ensures we have our language specific binaries loaded
+        // and we have the command line parser ready to go, since those tend to be more expensive things to JIT.
+        var commandLineParserService = Services.GetRequiredLanguageService<ICommandLineParserService>(languageName);
+        commandLineParserService.Parse([], null, isInteractive: false, sdkDirectory: null);
     }
 }

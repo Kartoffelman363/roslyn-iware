@@ -6,6 +6,7 @@ using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.Copilot;
+using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Shared.Extensions;
 using Microsoft.CodeAnalysis.Text;
 
@@ -21,15 +22,18 @@ internal sealed partial class RemoteCopilotProposalAdjusterService(
             => new RemoteCopilotProposalAdjusterService(arguments);
     }
 
-    public ValueTask<ImmutableArray<TextChange>> TryAdjustProposalAsync(Checksum solutionChecksum, DocumentId documentId, ImmutableArray<TextChange> textChanges, CancellationToken cancellationToken)
+    public ValueTask<ProposalAdjustmentResult> TryAdjustProposalAsync(
+        ImmutableHashSet<string> allowableAdjustments,
+        Checksum solutionChecksum, DocumentId documentId, ImmutableArray<TextChange> textChanges,
+        LineFormattingOptions? lineFormattingOptions, CancellationToken cancellationToken)
     {
         return RunServiceAsync(solutionChecksum, async solution =>
         {
             var document = await solution.GetRequiredDocumentAsync(
                 documentId, includeSourceGenerated: true, cancellationToken).ConfigureAwait(false);
 
-            var service = solution.Services.GetRequiredService<ICopilotProposalAdjusterService>();
-            return await service.TryAdjustProposalAsync(document, textChanges, cancellationToken).ConfigureAwait(false);
+            var service = document.GetRequiredLanguageService<ICopilotProposalAdjusterService>();
+            return await service.TryAdjustProposalAsync(allowableAdjustments, document, textChanges, lineFormattingOptions, cancellationToken).ConfigureAwait(false);
         }, cancellationToken);
     }
 }

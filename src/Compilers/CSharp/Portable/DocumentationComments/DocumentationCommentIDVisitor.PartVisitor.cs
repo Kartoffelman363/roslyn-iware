@@ -4,17 +4,14 @@
 
 #nullable disable
 
+using System;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis.Collections;
 using Microsoft.CodeAnalysis.CSharp.Symbols;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.PooledObjects;
-using Microsoft.CodeAnalysis.Text;
-using Roslyn.Utilities;
-using System;
 
 namespace Microsoft.CodeAnalysis.CSharp
 {
@@ -31,6 +28,8 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             // Select callers within this type use this one.
             private static readonly PartVisitor s_parameterOrReturnTypeInstance = new PartVisitor(inParameterOrReturnType: true);
+
+            private static readonly char[] s_escapedMetadataNameChars = [':', '.', '<', '>'];
 
             private readonly bool _inParameterOrReturnType;
 
@@ -105,7 +104,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 if (symbol.Arity != 0)
                 {
                     builder.Append("``");
-                    builder.Append(symbol.Arity);
+                    builder.Append(symbol.Arity.ToString(System.Globalization.CultureInfo.InvariantCulture));
                 }
 
                 if (symbol.Parameters.Any() || symbol.IsVararg)
@@ -168,7 +167,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                     builder.Append('`');
                 }
 
-                builder.Append(symbol.Ordinal + ordinalOffset);
+                builder.Append((symbol.Ordinal + ordinalOffset).ToString(System.Globalization.CultureInfo.InvariantCulture));
 
                 return null;
             }
@@ -190,11 +189,8 @@ namespace Microsoft.CodeAnalysis.CSharp
                     // (and return type, for conversions) as constructed with its own type parameters.
                     if (!_inParameterOrReturnType && TypeSymbol.Equals(symbol, symbol.ConstructedFrom, TypeCompareKind.AllIgnoreOptions))
                     {
-                        if (!symbol.IsExtension)
-                        {
-                            builder.Append('`');
-                            builder.Append(symbol.Arity);
-                        }
+                        builder.Append('`');
+                        builder.Append(symbol.Arity.ToString(System.Globalization.CultureInfo.InvariantCulture));
                     }
                     else
                     {
@@ -276,6 +272,11 @@ namespace Microsoft.CodeAnalysis.CSharp
             private static string GetEscapedMetadataName(Symbol symbol)
             {
                 string metadataName = symbol.MetadataName;
+
+                if (metadataName.IndexOfAny(s_escapedMetadataNameChars) == -1)
+                {
+                    return metadataName;
+                }
 
                 int colonColonIndex = metadataName.IndexOf("::", StringComparison.Ordinal);
                 int startIndex = colonColonIndex < 0 ? 0 : colonColonIndex + 2;

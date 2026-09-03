@@ -40,6 +40,8 @@
     <PackageReference Include="Moq" />
     <PackageReference Include="Microsoft.Build" />
     <PackageReference Include="Microsoft.Build.Tasks.Core" />
+    <PackageReference Include="Basic.CompilerLog.Util" />
+    <PackageReference Include="MessagePack" VersionOverride="3.1.4" />
   </ItemGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
@@ -69,6 +71,7 @@
   <Target Name="CopyAssetsForIntegrationTests" Condition="'@(CommandLineCompilerReference)' != ''" AfterTargets="ResolveProjectReferences" BeforeTargets="AssignTargetPaths">
     <PropertyGroup>
       <_CommandLineCompilerReferenceOutputPath>@(CommandLineCompilerReference->'%(RootDir)%(Directory)*.*')</_CommandLineCompilerReferenceOutputPath>
+      <_LinkPrefix Condition="'$(TargetFramework)' != 'net472'">bincore\</_LinkPrefix>
     </PropertyGroup>
     <ItemGroup>
       <_CommandLineCompilerReferenceContent Include="$(_CommandLineCompilerReferenceOutputPath)" />
@@ -78,7 +81,7 @@
       <Output TaskParameter="Filtered" ItemName="_CommandLineCompilerReferenceDeduplicated" />
     </RemoveDuplicates>
     <ItemGroup>
-      <Content Include="%(_CommandLineCompilerReferenceDeduplicated.Original)" CopyToOutputDirectory="PreserveNewest" />
+      <Content Include="%(_CommandLineCompilerReferenceDeduplicated.Original)" Link="$(_LinkPrefix)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
   </Target>
 </Project>

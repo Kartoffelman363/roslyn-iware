@@ -134,13 +134,20 @@ namespace Microsoft.CodeAnalysis.CSharp
             Binder binder)
         {
             if (!originalMethods.IsEmpty)
+            {
                 resultKind = resultKind.WorseResultKind(LookupResultKind.OverloadResolutionFailure);
+            }
+            else
+            {
+                Debug.Assert(method.OriginalDefinition is ErrorMethodSymbol);
+            }
 
+            Debug.Assert(resultKind is not LookupResultKind.Viable);
             Debug.Assert(arguments.IsDefaultOrEmpty || (object)receiverOpt != (object)arguments[0]);
 
             return new BoundCall(
                 syntax: node,
-                receiverOpt: binder.BindToTypeForErrorRecovery(receiverOpt),
+                receiverOpt: binder.AdjustBadExpressionChild(binder.BindToTypeForErrorRecovery(receiverOpt)),
                 initialBindingReceiverIsSubjectToCloning: ThreeState.False,
                 method: method,
                 arguments: arguments.SelectAsArray((e, binder) => binder.BindToTypeForErrorRecovery(e), binder),
@@ -337,6 +344,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 @checked: false,
                 explicitCastInCode: false,
                 conversionGroupOpt: null,
+                inConversionGroupFlags: InConversionGroupFlags.Unspecified,
                 constantValueOpt: constantValueOpt,
                 type: type)
             { WasCompilerGenerated = true };
@@ -354,6 +362,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             bool @checked,
             bool explicitCastInCode,
             ConversionGroup? conversionGroupOpt,
+            InConversionGroupFlags inConversionGroupFlags,
             ConstantValue? constantValueOpt,
             TypeSymbol type,
             bool hasErrors = false)
@@ -365,6 +374,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 @checked,
                 explicitCastInCode: explicitCastInCode,
                 conversionGroupOpt,
+                inConversionGroupFlags,
                 constantValueOpt,
                 type,
                 hasErrors || !conversion.IsValid)
@@ -380,6 +390,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             bool @checked,
             bool explicitCastInCode,
             ConversionGroup? conversionGroupOpt,
+            InConversionGroupFlags inConversionGroupFlags,
             ConstantValue? constantValueOpt,
             TypeSymbol type,
             bool hasErrors = false)
@@ -392,6 +403,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 explicitCastInCode: explicitCastInCode,
                 constantValueOpt: constantValueOpt,
                 conversionGroupOpt,
+                inConversionGroupFlags,
                 type: type,
                 hasErrors: hasErrors || !conversion.IsValid)
         { }
