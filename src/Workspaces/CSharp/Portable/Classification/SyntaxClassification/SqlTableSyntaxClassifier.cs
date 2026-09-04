@@ -15,10 +15,10 @@ using Microsoft.CodeAnalysis.Text;
 namespace Microsoft.CodeAnalysis.CSharp.Classification.Classifiers;
 
 /// <summary>
-/// Colours the tables named inside a sql block as type names, so a table that resolves to an
-/// <c>[Orm]</c> class reads like the class it is and one that resolves to nothing stays plain
-/// sql text. The block is otherwise unclassified, which is what makes the difference visible at
-/// a glance without needing to read the warning.
+/// Colours the tables and columns named inside a sql block, so a name that resolves to an
+/// <c>[Orm]</c> class or one of its members reads like the declaration it is and one that
+/// resolves to nothing stays plain sql text. The block is otherwise unclassified, which is what
+/// makes the difference visible at a glance without needing to read the warning.
 /// </summary>
 internal sealed class SqlTableSyntaxClassifier : AbstractSyntaxClassifier
 {
@@ -41,19 +41,30 @@ internal sealed class SqlTableSyntaxClassifier : AbstractSyntaxClassifier
             return;
         }
 
-        foreach (var table in SqlTableResolution.ResolveTables(block, semanticModel.Compilation))
+        foreach (var reference in SqlTableResolution.Resolve(block, semanticModel.Compilation))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            // An unresolved table is left alone rather than given an error colour: the warning on
+            // An unresolved name is left alone rather than given an error colour: the warning on
             // it already says what is wrong, and colouring it red as well would double up on a
             // name that is perfectly legitimate when the table lives outside the [Orm] classes.
-            if (table.Symbol is null || !table.Span.IntersectsWith(textSpan))
+            if (reference.Symbol is null || !reference.Span.IntersectsWith(textSpan))
             {
                 continue;
             }
 
-            result.Add(new ClassifiedSpan(table.Span, ClassificationTypeNames.ClassName));
+            result.Add(new ClassifiedSpan(
+                reference.Span,
+                reference.IsTable ? ClassificationTypeNames.ClassName : GetColumnClassification(reference.Symbol)));
         }
     }
+
+    /// <summary>
+    /// Columns are backed by either a property or a field, and colouring each as what it actually
+    /// is keeps the block consistent with how the same member reads in ordinary C# code.
+    /// </summary>
+    private static string GetColumnClassification(ISymbol symbol)
+        => symbol.Kind == SymbolKind.Field
+            ? ClassificationTypeNames.FieldName
+            : ClassificationTypeNames.PropertyName;
 }

@@ -16,15 +16,15 @@ namespace Microsoft.CodeAnalysis.CSharp.QuickInfo;
 
 /// <summary>
 /// Shows the ordinary symbol tooltip - signature, XML doc summary and all - when hovering a table
-/// named inside a sql block.
+/// or column named inside a sql block.
 /// </summary>
 /// <remarks>
-/// The semantic provider cannot do this on its own: a table name is plain sql text rather than a
-/// C# expression, so binding the token under the cursor yields no symbol. This resolves the name
+/// The semantic provider cannot do this on its own: these names are plain sql text rather than C#
+/// expressions, so binding the token under the cursor yields no symbol. This resolves the name
 /// through the [Orm] schema instead and then hands the symbol it found to the same content
 /// builder the semantic provider uses, so the tooltip is identical to the one shown when hovering
-/// the class itself. Ordered before the semantic provider, which would otherwise return nothing
-/// for this position anyway.
+/// the class or property itself. Ordered before the semantic provider, which would otherwise
+/// return nothing for this position anyway.
 /// </remarks>
 [ExportQuickInfoProvider(QuickInfoProviderNames.SqlTable, LanguageNames.CSharp), Shared]
 [ExtensionOrder(Before = QuickInfoProviderNames.Semantic)]
@@ -37,8 +37,8 @@ internal sealed class CSharpSqlTableQuickInfoProvider() : CommonQuickInfoProvide
         var cancellationToken = context.CancellationToken;
         var semanticModel = await context.Document.GetRequiredSemanticModelAsync(cancellationToken).ConfigureAwait(false);
 
-        var table = FindTable(token, semanticModel, context.Position);
-        if (table is not { Symbol: { } symbol })
+        var reference = FindReference(token, semanticModel, context.Position);
+        if (reference is not { Symbol: { } symbol })
         {
             return null;
         }
@@ -46,7 +46,7 @@ internal sealed class CSharpSqlTableQuickInfoProvider() : CommonQuickInfoProvide
         return await QuickInfoUtilities.CreateQuickInfoItemAsync(
             context.Document.Project.Solution.Services,
             semanticModel,
-            table.Value.Span,
+            reference.Value.Span,
             [symbol],
             context.Options,
             cancellationToken).ConfigureAwait(false);
@@ -54,8 +54,8 @@ internal sealed class CSharpSqlTableQuickInfoProvider() : CommonQuickInfoProvide
 
     protected override async Task<QuickInfoItem?> BuildQuickInfoAsync(CommonQuickInfoContext context, SyntaxToken token)
     {
-        var table = FindTable(token, context.SemanticModel, context.Position);
-        if (table is not { Symbol: { } symbol })
+        var reference = FindReference(token, context.SemanticModel, context.Position);
+        if (reference is not { Symbol: { } symbol })
         {
             return null;
         }
@@ -63,13 +63,13 @@ internal sealed class CSharpSqlTableQuickInfoProvider() : CommonQuickInfoProvide
         return await QuickInfoUtilities.CreateQuickInfoItemAsync(
             context.Services,
             context.SemanticModel,
-            table.Value.Span,
+            reference.Value.Span,
             [symbol],
             context.Options,
             context.CancellationToken).ConfigureAwait(false);
     }
 
-    private static ResolvedSqlTable? FindTable(SyntaxToken token, SemanticModel semanticModel, int position)
+    private static ResolvedSqlReference? FindReference(SyntaxToken token, SemanticModel semanticModel, int position)
     {
         var block = token.Parent?.FirstAncestorOrSelf<SqlTextBlockSyntax>();
         if (block is null)
@@ -77,6 +77,6 @@ internal sealed class CSharpSqlTableQuickInfoProvider() : CommonQuickInfoProvide
             return null;
         }
 
-        return SqlTableResolution.FindTableAt(block, semanticModel.Compilation, position);
+        return SqlTableResolution.FindReferenceAt(block, semanticModel.Compilation, position);
     }
 }

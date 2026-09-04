@@ -28,23 +28,23 @@ internal sealed class CSharpGoToDefinitionSymbolService() : AbstractGoToDefiniti
         => Task.FromResult(symbol);
 
     /// <summary>
-    /// Adds go-to-definition on the tables named inside a sql block, which the ordinary path
-    /// cannot resolve: a table name is plain sql text, not a C# expression, so there is no bound
-    /// node under the caret to ask for a symbol. Everywhere else this defers to the base.
+    /// Adds go-to-definition on the tables and columns named inside a sql block, which the
+    /// ordinary path cannot resolve: those are plain sql text, not C# expressions, so there is no
+    /// bound node under the caret to ask for a symbol. Everywhere else this defers to the base.
     /// </summary>
     public override async Task<(ISymbol? symbol, Project project, TextSpan boundSpan)> GetSymbolProjectAndBoundSpanAsync(
         Document document, SemanticModel semanticModel, int position, CancellationToken cancellationToken)
     {
-        var table = await TryGetSqlTableAsync(document, semanticModel, position, cancellationToken).ConfigureAwait(false);
-        if (table is { Symbol: { } tableSymbol })
+        var reference = await TryGetSqlReferenceAsync(document, semanticModel, position, cancellationToken).ConfigureAwait(false);
+        if (reference is { Symbol: { } referenceSymbol })
         {
-            return (tableSymbol, document.Project, table.Value.Span);
+            return (referenceSymbol, document.Project, reference.Value.Span);
         }
 
         return await base.GetSymbolProjectAndBoundSpanAsync(document, semanticModel, position, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task<ResolvedSqlTable?> TryGetSqlTableAsync(
+    private static async Task<ResolvedSqlReference?> TryGetSqlReferenceAsync(
         Document document, SemanticModel semanticModel, int position, CancellationToken cancellationToken)
     {
         var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
@@ -54,15 +54,15 @@ internal sealed class CSharpGoToDefinitionSymbolService() : AbstractGoToDefiniti
         }
 
         // FindToken(position) lands on the token to the right of the caret, so a caret sitting
-        // immediately after a table name would miss it; walking up from the token covers the
-        // common case and FindTableAt's span check settles the boundary either way.
+        // immediately after a name would miss it; walking up from the token covers the common
+        // case and FindReferenceAt's span check settles the boundary either way.
         var block = root.FindToken(position).Parent?.FirstAncestorOrSelf<SqlTextBlockSyntax>();
         if (block is null || !block.Span.Contains(position))
         {
             return null;
         }
 
-        return SqlTableResolution.FindTableAt(block, semanticModel.Compilation, position);
+        return SqlTableResolution.FindReferenceAt(block, semanticModel.Compilation, position);
     }
 
     protected override int? GetTargetPositionIfControlFlow(SemanticModel semanticModel, SyntaxToken token)

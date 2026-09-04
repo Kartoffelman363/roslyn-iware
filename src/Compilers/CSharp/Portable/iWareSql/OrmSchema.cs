@@ -18,12 +18,20 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
         public string? DbType { get; }
         public string? Domain { get; }
 
-        internal OrmColumn(string propertyName, string columnName, string? dbType, string? domain)
+        /// <summary>
+        /// The property or field this column was built from, so a column named in a sql block can
+        /// be navigated to the member backing it. Null only for columns not produced by walking a
+        /// compilation. See <see cref="OrmTable.Symbol"/>.
+        /// </summary>
+        public ISymbol? Symbol { get; }
+
+        internal OrmColumn(string propertyName, string columnName, string? dbType, string? domain, ISymbol? symbol = null)
         {
             PropertyName = propertyName;
             ColumnName = columnName;
             DbType = dbType;
             Domain = domain;
+            Symbol = symbol;
         }
     }
 
@@ -31,6 +39,32 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
     {
         public string TableName { get; }
         public ImmutableArray<OrmColumn> Columns { get; }
+
+        /// <summary>
+        /// The column written as <paramref name="columnName"/> in sql. Matches the database column
+        /// name first and the property name second - they differ only when [DbField(Label=...)]
+        /// renames one - and is case-insensitive because sql identifiers are.
+        /// </summary>
+        public OrmColumn? FindColumn(string columnName)
+        {
+            foreach (var column in Columns)
+            {
+                if (string.Equals(column.ColumnName, columnName, System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return column;
+                }
+            }
+
+            foreach (var column in Columns)
+            {
+                if (string.Equals(column.PropertyName, columnName, System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return column;
+                }
+            }
+
+            return null;
+        }
 
         /// <summary>
         /// The <c>[Orm]</c>-marked class this table was built from. Carried so that features
@@ -187,7 +221,7 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                 var dbType = GetNamedArgumentString(dbField, "dbType");
                 var domain = GetNamedArgumentValueAsString(dbField, "domain");
 
-                columns.Add(new OrmColumn(propertyName, columnName, dbType, domain));
+                columns.Add(new OrmColumn(propertyName, columnName, dbType, domain, member));
             }
 
             tables.Add(new OrmTable(tableName, columns.ToImmutableArray(), type));

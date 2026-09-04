@@ -1,7 +1,8 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using Microsoft.SqlServer.TransactSql.ScriptDom;
@@ -12,8 +13,8 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
     /// <summary>
     /// One table named in a sql block, together with where its name sits in the text that was
     /// handed to ScriptDom. Offsets are into the placeholder-substituted sql text produced by
-    /// <see cref="ParseSql.getNamesFromSqlText"/>, which is width-preserving, so they map onto
-    /// the original source through <see cref="SqlTextMap"/>.
+    /// <see cref="SqlTextMap.Create"/>, which is width-preserving, so they map onto the original
+    /// source through <see cref="SqlTextMap"/>.
     /// </summary>
     public readonly struct SqlTableReference
     {
@@ -31,20 +32,124 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
     }
 
     /// <summary>
-    /// Collects the tables referenced by an already-parsed sql fragment.
+    /// One column named in a sql block, with the tables it could belong to.
+    /// </summary>
+    public readonly struct SqlColumnReference
+    {
+        public string ColumnName { get; }
+
+        /// <summary>
+        /// The tables this column may resolve against: exactly one when the column was written
+        /// with a qualifier (the "u" in "u.id" binds it to one table), and every table in scope
+        /// when it was written bare ("id"), leaving the caller to pick the one that actually
+        /// declares it. Empty when the qualifier names something with no [Orm] class behind it,
+        /// such as a derived table, in which case the column is skipped rather than guessed at.
+        /// </summary>
+        public ImmutableArray<string> CandidateTables { get; }
+        public int Offset { get; }
+        public int Length { get; }
+
+        public SqlColumnReference(string columnName, ImmutableArray<string> candidateTables, int offset, int length)
+        {
+            ColumnName = columnName;
+            CandidateTables = candidateTables;
+            Offset = offset;
+            Length = length;
+        }
+    }
+
+    /// <summary>
+    /// Everything a sql block names that can be resolved against the [Orm] classes.
+    /// </summary>
+    public readonly struct SqlReferences
+    {
+        public ImmutableArray<SqlTableReference> Tables { get; }
+        public ImmutableArray<SqlColumnReference> Columns { get; }
+
+        public SqlReferences(ImmutableArray<SqlTableReference> tables, ImmutableArray<SqlColumnReference> columns)
+        {
+            Tables = tables;
+            Columns = columns;
+        }
+
+        public static SqlReferences Empty { get; } =
+            new SqlReferences(ImmutableArray<SqlTableReference>.Empty, ImmutableArray<SqlColumnReference>.Empty);
+
+        public bool IsEmpty => Tables.IsEmpty && Columns.IsEmpty;
+    }
+
+    /// <summary>
+    /// Collects the tables and columns referenced by an already-parsed sql fragment.
     /// </summary>
     /// <remarks>
-    /// This deliberately takes a parsed <see cref="TSqlFragment"/> rather than the text: the only
-    /// caller (<see cref="VerifySql"/>) already parses the block to report syntax errors, and
-    /// parsing is much the most expensive thing either of them does.
+    /// This deliberately takes a parsed <see cref="TSqlFragment"/> rather than the text: the
+    /// callers already parse the block, and parsing is much the most expensive thing any of them
+    /// does.
     /// </remarks>
     public static class SqlTableReferences
     {
-        public static ImmutableArray<SqlTableReference> Collect(TSqlFragment fragment)
+        public static SqlReferences Collect(TSqlFragment fragment)
         {
             var visitor = new Visitor();
             fragment.Accept(visitor);
-            return visitor.GetTables();
+            return visitor.GetReferences();
+        }
+
+        /// <summary>
+        /// The tables visible to one query, chained to the scope of the query enclosing it so a
+        /// correlated subquery can still see the outer aliases. Maps the name a column may be
+        /// qualified by - the alias when there is one, the table name when there is not - onto the
+        /// table it stands for, or onto null when it stands for something with no [Orm] class,
+        /// such as a derived table.
+        /// </summary>
+        private sealed class Scope
+        {
+            private readonly Dictionary<string, string?> _byQualifier =
+                new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
+            public Scope(Scope? parent)
+            {
+                Parent = parent;
+            }
+
+            public Scope? Parent { get; }
+
+            public void Add(string qualifier, string? tableName)
+                => _byQualifier[qualifier] = tableName;
+
+            public bool TryResolve(string qualifier, out string? tableName)
+            {
+                for (var scope = this; scope is not null; scope = scope.Parent)
+                {
+                    if (scope._byQualifier.TryGetValue(qualifier, out tableName))
+                    {
+                        return true;
+                    }
+                }
+
+                tableName = null;
+                return false;
+            }
+
+            /// <summary>Every table in scope, nearest first, for resolving an unqualified column.</summary>
+            public ImmutableArray<string> AllTables()
+            {
+                var builder = ImmutableArray.CreateBuilder<string>();
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                for (var scope = this; scope is not null; scope = scope.Parent)
+                {
+                    foreach (var tableName in scope._byQualifier.Values)
+                    {
+                        if (tableName is not null && seen.Add(tableName))
+                        {
+                            builder.Add(tableName);
+                        }
+                    }
+                }
+
+                return builder.ToImmutable();
+            }
         }
 
         private sealed class Visitor : TSqlFragmentVisitor
@@ -52,13 +157,17 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             private readonly ImmutableArray<SqlTableReference>.Builder _tables =
                 ImmutableArray.CreateBuilder<SqlTableReference>();
 
+            private readonly ImmutableArray<SqlColumnReference>.Builder _columns =
+                ImmutableArray.CreateBuilder<SqlColumnReference>();
+
             // A CTE introduces a name that is a table for the rest of the statement but has no
             // [Orm] class behind it, so those names must not be reported as unknown. Names are
             // collected across the whole fragment rather than scoped to the statement that
             // declares them - over-permissive, but only ever suppresses a diagnostic, and the
             // alternative is tracking WITH-clause scope through nested queries.
-            private readonly HashSet<string> _cteNames =
-                new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+            private readonly HashSet<string> _cteNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            private Scope _scope = new Scope(parent: null);
 
             public override void Visit(CommonTableExpression node)
             {
@@ -68,6 +177,73 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                 }
 
                 base.Visit(node);
+            }
+
+            /// <summary>
+            /// Each query specification is its own naming scope, so "u" can mean one table in the
+            /// outer query and a different one inside a subquery. The scope is pushed before the
+            /// query's clauses are walked and popped afterwards, which resolves every column
+            /// underneath it against the right set of tables.
+            /// </summary>
+            public override void ExplicitVisit(QuerySpecification node)
+            {
+                var scope = new Scope(_scope);
+
+                if (node.FromClause is { } fromClause)
+                {
+                    foreach (var tableReference in fromClause.TableReferences)
+                    {
+                        AddToScope(tableReference, scope);
+                    }
+                }
+
+                var saved = _scope;
+                _scope = scope;
+                base.ExplicitVisit(node);
+                _scope = saved;
+            }
+
+            /// <summary>
+            /// Registers what each table reference in a FROM clause can be qualified by. Only the
+            /// shape of the clause is walked here; the navigable table entries themselves are
+            /// added by <see cref="Visit(NamedTableReference)"/> during the ordinary traversal.
+            /// </summary>
+            private static void AddToScope(TableReference tableReference, Scope scope)
+            {
+                switch (tableReference)
+                {
+                    case NamedTableReference named:
+                        var tableName = named.SchemaObject?.BaseIdentifier?.Value;
+                        if (tableName is { Length: > 0 })
+                        {
+                            // An aliased table can only be qualified by its alias, so the table
+                            // name is deliberately not registered as well when one is present.
+                            scope.Add(named.Alias?.Value ?? tableName, tableName);
+                        }
+
+                        break;
+
+                    case QualifiedJoin qualified:
+                        AddToScope(qualified.FirstTableReference, scope);
+                        AddToScope(qualified.SecondTableReference, scope);
+                        break;
+
+                    case UnqualifiedJoin unqualified:
+                        AddToScope(unqualified.FirstTableReference, scope);
+                        AddToScope(unqualified.SecondTableReference, scope);
+                        break;
+
+                    case JoinParenthesisTableReference parenthesis:
+                        AddToScope(parenthesis.Join, scope);
+                        break;
+
+                    case TableReferenceWithAlias { Alias.Value: { Length: > 0 } alias }:
+                        // Derived tables, table-valued functions and table variables all introduce
+                        // a name that is not an [Orm] class. Registering it as resolving to
+                        // nothing stops its columns being looked up against a same-named table.
+                        scope.Add(alias, null);
+                        break;
+                }
             }
 
             public override void Visit(NamedTableReference node)
@@ -89,23 +265,79 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                 base.Visit(node);
             }
 
-            public ImmutableArray<SqlTableReference> GetTables()
+            public override void Visit(ColumnReferenceExpression node)
             {
-                if (_cteNames.Count == 0)
+                var identifiers = node.MultiPartIdentifier?.Identifiers;
+
+                // "SELECT *" carries no identifiers at all, and there is nothing to resolve.
+                if (identifiers is not { Count: > 0 })
                 {
-                    return _tables.ToImmutable();
+                    base.Visit(node);
+                    return;
                 }
 
-                var filtered = ImmutableArray.CreateBuilder<SqlTableReference>(_tables.Count);
-                foreach (var table in _tables)
+                var columnIdentifier = identifiers[identifiers.Count - 1];
+                if (columnIdentifier?.Value is not { Length: > 0 } columnName)
                 {
-                    if (!_cteNames.Contains(table.Name))
+                    base.Visit(node);
+                    return;
+                }
+
+                ImmutableArray<string> candidates;
+                if (identifiers.Count >= 2)
+                {
+                    // Qualified: "u.id", or "dbo.users.id" where the qualifier is still the
+                    // identifier immediately before the column.
+                    var qualifier = identifiers[identifiers.Count - 2]?.Value;
+                    if (qualifier is not { Length: > 0 })
                     {
-                        filtered.Add(table);
+                        base.Visit(node);
+                        return;
                     }
+
+                    // A qualifier resolving to null is a derived table; one that does not resolve
+                    // at all is most likely a CTE or a table this compilation cannot see. Either
+                    // way there is nothing to bind the column to, so it is left alone.
+                    candidates = _scope.TryResolve(qualifier, out var resolved) && resolved is not null
+                        ? ImmutableArray.Create(resolved)
+                        : ImmutableArray<string>.Empty;
+                }
+                else
+                {
+                    candidates = _scope.AllTables();
                 }
 
-                return filtered.ToImmutable();
+                if (!candidates.IsEmpty)
+                {
+                    _columns.Add(new SqlColumnReference(
+                        columnName,
+                        candidates,
+                        columnIdentifier.StartOffset,
+                        columnIdentifier.FragmentLength));
+                }
+
+                base.Visit(node);
+            }
+
+            public SqlReferences GetReferences()
+            {
+                var tables = _tables.ToImmutable();
+
+                if (_cteNames.Count > 0)
+                {
+                    var filtered = ImmutableArray.CreateBuilder<SqlTableReference>(_tables.Count);
+                    foreach (var table in tables)
+                    {
+                        if (!_cteNames.Contains(table.Name))
+                        {
+                            filtered.Add(table);
+                        }
+                    }
+
+                    tables = filtered.ToImmutable();
+                }
+
+                return new SqlReferences(tables, _columns.ToImmutable());
             }
         }
     }

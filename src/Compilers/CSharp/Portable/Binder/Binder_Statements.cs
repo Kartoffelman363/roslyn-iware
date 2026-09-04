@@ -3318,7 +3318,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 fileDir,
                 sqlText,
                 sqlTextMap,
-                OrmSchemaProvider.GetSchema(Compilation),
+                Compilation,
                 node,
                 diagnostics);
 

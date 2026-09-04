@@ -1,4 +1,4 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
@@ -13,94 +13,170 @@ using Microsoft.SqlServer.TransactSql.ScriptDom;
 namespace Microsoft.CodeAnalysis.CSharp.iWareSql
 {
     /// <summary>
-    /// A table named inside a sql block, located in the source file and resolved against the
-    /// <c>[Orm]</c> classes the compilation can see.
+    /// A name written inside a sql block - a table or one of its columns - located in the source
+    /// file and resolved against the <c>[Orm]</c> classes the compilation can see.
     /// </summary>
-    public readonly struct ResolvedSqlTable
+    public readonly struct ResolvedSqlReference
     {
         public string Name { get; }
         public TextSpan Span { get; }
 
-        /// <summary>The <c>[Orm]</c> class backing this table, or null if no such class exists.</summary>
-        public INamedTypeSymbol? Symbol { get; }
+        /// <summary>
+        /// The declaration behind this name: the <c>[Orm]</c> class for a table, the property or
+        /// field for a column. Null when nothing declares it.
+        /// </summary>
+        public ISymbol? Symbol { get; }
 
-        public ResolvedSqlTable(string name, TextSpan span, INamedTypeSymbol? symbol)
+        /// <summary>True for a table name, false for a column name.</summary>
+        public bool IsTable { get; }
+
+        /// <summary>
+        /// Whether to report this name as undeclared. False for a column whose table is itself
+        /// unknown - the warning on the table already says what is wrong - and for a column that
+        /// matched more than one table in scope, which is sql's problem to complain about rather
+        /// than ours.
+        /// </summary>
+        public bool ReportIfUnresolved { get; }
+
+        public ResolvedSqlReference(string name, TextSpan span, ISymbol? symbol, bool isTable, bool reportIfUnresolved)
         {
             Name = name;
             Span = span;
             Symbol = symbol;
+            IsTable = isTable;
+            ReportIfUnresolved = reportIfUnresolved;
         }
     }
 
     /// <summary>
-    /// Resolves the tables written inside a sql block to their declarations, for the IDE features
-    /// that need to point at one: go-to-definition and classification.
+    /// Resolves the tables and columns written inside a sql block to their declarations, for the
+    /// compiler's diagnostics and for the IDE features that need to point at one: go-to-definition,
+    /// hover and classification.
     /// </summary>
-    /// <remarks>
-    /// This deliberately mirrors what the compiler does in VerifySql rather than sharing a code
-    /// path with it - the compiler reports diagnostics into a binding pass, the IDE answers
-    /// questions about a caret position - but both render the block through
-    /// <see cref="SqlTextMap.Create"/> and read tables out with
-    /// <see cref="SqlTableReferences.Collect"/>, so they agree on every span.
-    /// </remarks>
     public static class SqlTableResolution
     {
-        // Extracting tables depends only on the block's text, so it survives the edits that do not
+        // Extracting names depends only on the block's text, so it survives the edits that do not
         // touch the sql. Resolving them against the schema does not, and is redone every call.
-        private static readonly ConcurrentDictionary<string, ImmutableArray<SqlTableReference>> s_tableCache = new();
+        private static readonly ConcurrentDictionary<string, SqlReferences> s_referenceCache = new();
 
         private const int MaxCacheEntries = 500;
 
-        public static ImmutableArray<ResolvedSqlTable> ResolveTables(SqlTextBlockSyntax block, Compilation compilation)
+        /// <summary>
+        /// Every table and column the block names, in source order of the underlying sql.
+        /// </summary>
+        public static ImmutableArray<ResolvedSqlReference> Resolve(SqlTextBlockSyntax block, Compilation compilation)
         {
             var map = SqlTextMap.Create(block.Segments, out var sqlText);
+            return Resolve(GetReferences(sqlText), map, compilation);
+        }
 
-            var tables = GetTables(sqlText);
-            if (tables.IsEmpty)
+        /// <summary>
+        /// Resolves references already extracted from <paramref name="map"/>'s sql text. Used by
+        /// the compiler, which has both to hand from verifying the block and should not parse it
+        /// a second time.
+        /// </summary>
+        public static ImmutableArray<ResolvedSqlReference> Resolve(
+            SqlReferences references,
+            SqlTextMap map,
+            Compilation compilation)
+        {
+            if (references.IsEmpty)
             {
-                return ImmutableArray<ResolvedSqlTable>.Empty;
+                return ImmutableArray<ResolvedSqlReference>.Empty;
             }
 
             var schema = OrmSchemaProvider.GetSchema(compilation);
-            var builder = ImmutableArray.CreateBuilder<ResolvedSqlTable>(tables.Length);
+            var builder = ImmutableArray.CreateBuilder<ResolvedSqlReference>(
+                references.Tables.Length + references.Columns.Length);
 
-            foreach (var table in tables)
+            foreach (var table in references.Tables)
             {
-                builder.Add(new ResolvedSqlTable(
+                builder.Add(new ResolvedSqlReference(
                     table.Name,
                     map.MapToSource(table.Offset, table.Length),
-                    schema.FindTable(table.Name)?.Symbol));
+                    schema.FindTable(table.Name)?.Symbol,
+                    isTable: true,
+                    reportIfUnresolved: true));
+            }
+
+            foreach (var column in references.Columns)
+            {
+                builder.Add(ResolveColumn(column, map, schema));
             }
 
             return builder.ToImmutable();
         }
 
-        /// <summary>
-        /// The table whose name covers <paramref name="position"/>, or null if the caret is not on
-        /// one. The end of the span counts as being on the table so that go-to-definition works
-        /// with the caret just past the final character, as it does for ordinary identifiers.
-        /// </summary>
-        public static ResolvedSqlTable? FindTableAt(SqlTextBlockSyntax block, Compilation compilation, int position)
+        private static ResolvedSqlReference ResolveColumn(SqlColumnReference column, SqlTextMap map, OrmSchema schema)
         {
-            foreach (var table in ResolveTables(block, compilation))
+            var span = map.MapToSource(column.Offset, column.Length);
+
+            ISymbol? symbol = null;
+            var matches = 0;
+            var anyTableKnown = false;
+
+            foreach (var candidateName in column.CandidateTables)
             {
-                if (table.Span.IntersectsWith(position))
+                if (schema.FindTable(candidateName) is not { } table)
                 {
-                    return table;
+                    continue;
+                }
+
+                anyTableKnown = true;
+
+                if (table.FindColumn(column.ColumnName) is { } ormColumn)
+                {
+                    matches++;
+                    symbol ??= ormColumn.Symbol;
+                }
+            }
+
+            // A bare column matching two tables in scope is ambiguous. Picking one would be a coin
+            // flip and would send go-to-definition to the wrong class, so nothing is resolved.
+            if (matches > 1)
+            {
+                return new ResolvedSqlReference(column.ColumnName, span, symbol: null, isTable: false, reportIfUnresolved: false);
+            }
+
+            return new ResolvedSqlReference(
+                column.ColumnName,
+                span,
+                matches == 1 ? symbol : null,
+                isTable: false,
+                // Only worth reporting when the table exists: when it does not, the table's own
+                // warning already covers the problem and one per column on top is just noise.
+                reportIfUnresolved: anyTableKnown);
+        }
+
+        /// <summary>
+        /// The table or column whose name covers <paramref name="position"/>, or null if the caret
+        /// is not on one. Only names that resolved to a declaration are returned, since every
+        /// caller wants a symbol to act on.
+        /// </summary>
+        public static ResolvedSqlReference? FindReferenceAt(SqlTextBlockSyntax block, Compilation compilation, int position)
+        {
+            foreach (var reference in Resolve(block, compilation))
+            {
+                if (reference.Symbol is not null && reference.Span.IntersectsWith(position))
+                {
+                    return reference;
                 }
             }
 
             return null;
         }
 
-        private static ImmutableArray<SqlTableReference> GetTables(string sqlText)
+        /// <summary>
+        /// Parses the sql text and extracts what it names, caching on the text itself.
+        /// </summary>
+        public static SqlReferences GetReferences(string sqlText)
         {
-            if (s_tableCache.TryGetValue(sqlText, out var cached))
+            if (s_referenceCache.TryGetValue(sqlText, out var cached))
             {
                 return cached;
             }
 
-            var tables = ImmutableArray<SqlTableReference>.Empty;
+            var references = SqlReferences.Empty;
 
             TSqlParser parser = new TSql180Parser(initialQuotedIdentifiers: true);
             using (var reader = new StringReader(sqlText))
@@ -112,19 +188,19 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                 // navigating to.
                 if (errors.Count == 0 && fragment is not null)
                 {
-                    tables = SqlTableReferences.Collect(fragment);
+                    references = SqlTableReferences.Collect(fragment);
                 }
             }
 
             // Unbounded growth would pin every version of every block the user has typed. The
             // cache is a pure optimisation, so dropping all of it is always safe.
-            if (s_tableCache.Count >= MaxCacheEntries)
+            if (s_referenceCache.Count >= MaxCacheEntries)
             {
-                s_tableCache.Clear();
+                s_referenceCache.Clear();
             }
 
-            s_tableCache.TryAdd(sqlText, tables);
-            return tables;
+            s_referenceCache.TryAdd(sqlText, references);
+            return references;
         }
     }
 }
