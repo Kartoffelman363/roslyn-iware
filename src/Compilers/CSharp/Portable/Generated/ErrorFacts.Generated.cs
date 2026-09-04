@@ -348,6 +348,8 @@
                 case ErrorCode.WRN_RedundantPattern:
                 case ErrorCode.WRN_RequiresUnsafeAttributeLegacyRules:
                 case ErrorCode.WRN_UnsafeMeaningless:
+                case ErrorCode.WRN_SQL_SymbolWarn:
+                case ErrorCode.WRN_SQL_VerificationWarn:
                     return true;
                 default:
                     return false;
