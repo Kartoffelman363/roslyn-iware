@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.SqlServer.TransactSql.ScriptDom;
 using Roslyn.Utilities;
 
@@ -291,7 +290,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
         public List<SqlSelectSyntaxInfo> FlattenQueries()
         {
             // No subqueries return itself
-            if (Subqueries.IsNullOrEmpty())
+            if (Subqueries.IsEmpty())
             {
                 return [this];
             }

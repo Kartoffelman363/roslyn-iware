@@ -92,11 +92,11 @@
     <InternalsVisibleTo Include="Roslyn.Test.PdbUtilities" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Data.SqlClient" />
+    <PackageReference Include="Microsoft.Data.SqlClient" PrivateAssets="compile" />
     <!-- DbConnection/Resolver live in the iWare.Database package rather than in this
          repo: VerifySql.cs consumes them at compile time, and emitted sql statements
          bind against the same package at run time (LocalRewriter_SqlStatement.cs). -->
-    <PackageReference Include="iWare.Database" />
+    <PackageReference Include="iWare.Database" PrivateAssets="compile" />
   </ItemGroup>
 
   <Import Project="..\CSharpAnalyzerDriver\CSharpAnalyzerDriver.projitems" Label="Shared" />
