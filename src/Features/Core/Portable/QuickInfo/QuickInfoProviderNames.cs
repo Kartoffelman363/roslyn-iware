@@ -14,4 +14,5 @@ internal static class QuickInfoProviderNames
     public const string Syntactic = nameof(Syntactic);
     public const string DiagnosticAnalyzer = nameof(DiagnosticAnalyzer);
     public const string EmbeddedLanguages = nameof(EmbeddedLanguages);
+    public const string SqlTable = nameof(SqlTable);
 }
