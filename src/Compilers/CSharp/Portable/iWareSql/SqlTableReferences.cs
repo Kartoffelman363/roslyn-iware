@@ -59,23 +59,55 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
     }
 
     /// <summary>
+    /// One occurrence of an alias standing for a table - both where it is introduced
+    /// (the "u" in "FROM users u") and where it is used to qualify a column (the "u" in "u.id").
+    /// </summary>
+    /// <remarks>
+    /// Unlike a <see cref="SqlTableReference"/> the text at this span is not the table's name, so
+    /// it carries the name it stands for instead. An alias is never reported as undeclared: it
+    /// resolves by construction, and when the table behind it has no [Orm] class that table's own
+    /// occurrence already carries the warning.
+    /// </remarks>
+    public readonly struct SqlAliasReference
+    {
+        /// <summary>The table the alias stands for, not the alias text itself.</summary>
+        public string TableName { get; }
+        public int Offset { get; }
+        public int Length { get; }
+
+        public SqlAliasReference(string tableName, int offset, int length)
+        {
+            TableName = tableName;
+            Offset = offset;
+            Length = length;
+        }
+    }
+
+    /// <summary>
     /// Everything a sql block names that can be resolved against the [Orm] classes.
     /// </summary>
     public readonly struct SqlReferences
     {
         public ImmutableArray<SqlTableReference> Tables { get; }
         public ImmutableArray<SqlColumnReference> Columns { get; }
+        public ImmutableArray<SqlAliasReference> Aliases { get; }
 
-        public SqlReferences(ImmutableArray<SqlTableReference> tables, ImmutableArray<SqlColumnReference> columns)
+        public SqlReferences(
+            ImmutableArray<SqlTableReference> tables,
+            ImmutableArray<SqlColumnReference> columns,
+            ImmutableArray<SqlAliasReference> aliases)
         {
             Tables = tables;
             Columns = columns;
+            Aliases = aliases;
         }
 
-        public static SqlReferences Empty { get; } =
-            new SqlReferences(ImmutableArray<SqlTableReference>.Empty, ImmutableArray<SqlColumnReference>.Empty);
+        public static SqlReferences Empty { get; } = new SqlReferences(
+            ImmutableArray<SqlTableReference>.Empty,
+            ImmutableArray<SqlColumnReference>.Empty,
+            ImmutableArray<SqlAliasReference>.Empty);
 
-        public bool IsEmpty => Tables.IsEmpty && Columns.IsEmpty;
+        public bool IsEmpty => Tables.IsEmpty && Columns.IsEmpty && Aliases.IsEmpty;
     }
 
     /// <summary>
@@ -159,6 +191,9 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
 
             private readonly ImmutableArray<SqlColumnReference>.Builder _columns =
                 ImmutableArray.CreateBuilder<SqlColumnReference>();
+
+            private readonly ImmutableArray<SqlAliasReference>.Builder _aliases =
+                ImmutableArray.CreateBuilder<SqlAliasReference>();
 
             // A CTE introduces a name that is a table for the rest of the statement but has no
             // [Orm] class behind it, so those names must not be reported as unknown. Names are
@@ -259,6 +294,13 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                     if (name[0] != '#')
                     {
                         _tables.Add(new SqlTableReference(name, identifier.StartOffset, identifier.FragmentLength));
+
+                        // The alias where it is introduced ("FROM users u"), so that the "u" there
+                        // points at the same class its uses do.
+                        if (node.Alias is { Value.Length: > 0 } alias)
+                        {
+                            _aliases.Add(new SqlAliasReference(name, alias.StartOffset, alias.FragmentLength));
+                        }
                     }
                 }
 
@@ -288,8 +330,8 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                 {
                     // Qualified: "u.id", or "dbo.users.id" where the qualifier is still the
                     // identifier immediately before the column.
-                    var qualifier = identifiers[identifiers.Count - 2]?.Value;
-                    if (qualifier is not { Length: > 0 })
+                    var qualifierIdentifier = identifiers[identifiers.Count - 2];
+                    if (qualifierIdentifier?.Value is not { Length: > 0 } qualifier)
                     {
                         base.Visit(node);
                         return;
@@ -298,9 +340,21 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                     // A qualifier resolving to null is a derived table; one that does not resolve
                     // at all is most likely a CTE or a table this compilation cannot see. Either
                     // way there is nothing to bind the column to, so it is left alone.
-                    candidates = _scope.TryResolve(qualifier, out var resolved) && resolved is not null
-                        ? ImmutableArray.Create(resolved)
-                        : ImmutableArray<string>.Empty;
+                    if (_scope.TryResolve(qualifier, out var resolved) && resolved is not null)
+                    {
+                        candidates = ImmutableArray.Create(resolved);
+
+                        // The qualifier itself names the table, so it gets an entry of its own and
+                        // becomes navigable in the same way the column beside it is.
+                        _aliases.Add(new SqlAliasReference(
+                            resolved,
+                            qualifierIdentifier.StartOffset,
+                            qualifierIdentifier.FragmentLength));
+                    }
+                    else
+                    {
+                        candidates = ImmutableArray<string>.Empty;
+                    }
                 }
                 else
                 {
@@ -337,7 +391,9 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                     tables = filtered.ToImmutable();
                 }
 
-                return new SqlReferences(tables, _columns.ToImmutable());
+                // Aliases need no equivalent filtering: one standing for a CTE simply resolves to
+                // no [Orm] class, and nothing is reported for an alias either way.
+                return new SqlReferences(tables, _columns.ToImmutable(), _aliases.ToImmutable());
             }
         }
     }

@@ -87,7 +87,7 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
 
             var schema = OrmSchemaProvider.GetSchema(compilation);
             var builder = ImmutableArray.CreateBuilder<ResolvedSqlReference>(
-                references.Tables.Length + references.Columns.Length);
+                references.Tables.Length + references.Columns.Length + references.Aliases.Length);
 
             foreach (var table in references.Tables)
             {
@@ -97,6 +97,18 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                     schema.FindTable(table.Name)?.Symbol,
                     isTable: true,
                     reportIfUnresolved: true));
+            }
+
+            foreach (var alias in references.Aliases)
+            {
+                // Reported as a table: an alias is another way of writing one, so it navigates and
+                // colours identically. Never warned about - see SqlAliasReference.
+                builder.Add(new ResolvedSqlReference(
+                    alias.TableName,
+                    map.MapToSource(alias.Offset, alias.Length),
+                    schema.FindTable(alias.TableName)?.Symbol,
+                    isTable: true,
+                    reportIfUnresolved: false));
             }
 
             foreach (var column in references.Columns)
