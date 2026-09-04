@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -24,6 +25,16 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             public ErrorCode? _errCode = null;
             public string? _errMsg = null;
 
+            /// <summary>
+            /// Tables named by the block, with offsets into the sql text. Cached alongside the
+            /// syntax diagnosis because extracting them is part of the same ScriptDom parse and,
+            /// like that parse, depends only on the text. Whether each one *exists* depends on the
+            /// [Orm] classes in the compilation, which changes as the user edits, so that check is
+            /// deliberately left out of the cache and redone on every call - it is only a
+            /// dictionary lookup per table.
+            /// </summary>
+            public ImmutableArray<SqlTableReference> _tables = ImmutableArray<SqlTableReference>.Empty;
+
             public void Highlight(BindingDiagnosticBag diagnostics, SqlTextBlockSyntax? location)
             {
                 if (_hasHighlight && location != null)
@@ -34,11 +45,41 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                     _errMsg ?? "");
                 }
             }
+
+            public void HighlightUnknownTables(
+                BindingDiagnosticBag diagnostics,
+                OrmSchema schema,
+                SqlTextMap sqlTextMap,
+                SqlTextBlockSyntax? location)
+            {
+                if (location is null || _tables.IsEmpty)
+                {
+                    return;
+                }
+
+                foreach (var table in _tables)
+                {
+                    if (schema.FindTable(table.Name) is not null)
+                    {
+                        continue;
+                    }
+
+                    // A warning rather than an error: the schema is only as complete as the [Orm]
+                    // classes the compilation can see, and a query against a view or a table owned
+                    // by another system is legitimate even with nothing to navigate to.
+                    diagnostics.Add(
+                        ErrorCode.WRN_SQL_SymbolWarn,
+                        Location.Create(location.SyntaxTree, sqlTextMap.MapToSource(table.Offset, table.Length)),
+                        $"No [Orm] class defines a table named '{table.Name}'");
+                }
+            }
         }
 
         public static bool Verify(
             string fileDir,
             string sqlText,
+            SqlTextMap sqlTextMap,
+            OrmSchema schema,
             SqlStatementSyntax node,
             BindingDiagnosticBag diagnostics)
         {
@@ -138,13 +179,21 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             TSqlParser parser = new TSql180Parser(initialQuotedIdentifiers: true);
             using (var reader = new StringReader(sqlText))
             {
-                parser.Parse(reader, out var errors);
+                var fragment = parser.Parse(reader, out var errors);
                 var hasErrors = errors.Count > 0;
                 diagnosis._hasHighlight = hasErrors;
                 if (hasErrors)
                 {
                     diagnosis._errCode = ErrorCode.ERR_SQL_VerificationError;
                     diagnosis._errMsg = string.Join(Environment.NewLine, errors.Select(e => $"Line {e.Line}, Column {e.Column}: {e.Message}"));
+                }
+                else if (fragment is not null)
+                {
+                    // Only harvest tables from a clean parse. While the user is still typing the
+                    // block the tree is full of holes, and reporting "no such table" against
+                    // whatever half-written name ScriptDom managed to recover would mean a
+                    // warning that appears and disappears on almost every keystroke.
+                    diagnosis._tables = SqlTableReferences.Collect(fragment);
                 }
             }
 
@@ -158,6 +207,7 @@ end:
                 s_sqlVerificationCache.Clear();
             }
             diagnosis.Highlight(diagnostics, sqlCodeLocation);
+            diagnosis.HighlightUnknownTables(diagnostics, schema, sqlTextMap, sqlCodeLocation);
             return diagnosis._retVal;
         }
     }

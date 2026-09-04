@@ -36,6 +36,7 @@ internal sealed class CSharpSyntaxClassificationServiceFactory() : ILanguageServ
                 new DiscardSyntaxClassifier(),
                 new FunctionPointerUnmanagedCallingConventionClassifier(),
                 new DocCommentCodeBlockClassifier(solutionServices),
+                new SqlTableSyntaxClassifier(),
             ];
 
         public override ImmutableArray<ISyntaxClassifier> GetDefaultSyntaxClassifiers()

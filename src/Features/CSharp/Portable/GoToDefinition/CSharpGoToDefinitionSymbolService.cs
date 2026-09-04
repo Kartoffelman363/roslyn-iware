@@ -9,11 +9,13 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.CSharp.Extensions;
+using Microsoft.CodeAnalysis.CSharp.iWareSql;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.GoToDefinition;
 using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.CodeAnalysis.Operations;
 using Microsoft.CodeAnalysis.Shared.Extensions;
+using Microsoft.CodeAnalysis.Text;
 
 namespace Microsoft.CodeAnalysis.CSharp.GoToDefinition;
 
@@ -24,6 +26,44 @@ internal sealed class CSharpGoToDefinitionSymbolService() : AbstractGoToDefiniti
 {
     protected override Task<ISymbol> FindRelatedExplicitlyDeclaredSymbolAsync(Project project, ISymbol symbol, CancellationToken cancellationToken)
         => Task.FromResult(symbol);
+
+    /// <summary>
+    /// Adds go-to-definition on the tables named inside a sql block, which the ordinary path
+    /// cannot resolve: a table name is plain sql text, not a C# expression, so there is no bound
+    /// node under the caret to ask for a symbol. Everywhere else this defers to the base.
+    /// </summary>
+    public override async Task<(ISymbol? symbol, Project project, TextSpan boundSpan)> GetSymbolProjectAndBoundSpanAsync(
+        Document document, SemanticModel semanticModel, int position, CancellationToken cancellationToken)
+    {
+        var table = await TryGetSqlTableAsync(document, semanticModel, position, cancellationToken).ConfigureAwait(false);
+        if (table is { Symbol: { } tableSymbol })
+        {
+            return (tableSymbol, document.Project, table.Value.Span);
+        }
+
+        return await base.GetSymbolProjectAndBoundSpanAsync(document, semanticModel, position, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<ResolvedSqlTable?> TryGetSqlTableAsync(
+        Document document, SemanticModel semanticModel, int position, CancellationToken cancellationToken)
+    {
+        var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
+        if (root is null)
+        {
+            return null;
+        }
+
+        // FindToken(position) lands on the token to the right of the caret, so a caret sitting
+        // immediately after a table name would miss it; walking up from the token covers the
+        // common case and FindTableAt's span check settles the boundary either way.
+        var block = root.FindToken(position).Parent?.FirstAncestorOrSelf<SqlTextBlockSyntax>();
+        if (block is null || !block.Span.Contains(position))
+        {
+            return null;
+        }
+
+        return SqlTableResolution.FindTableAt(block, semanticModel.Compilation, position);
+    }
 
     protected override int? GetTargetPositionIfControlFlow(SemanticModel semanticModel, SyntaxToken token)
     {

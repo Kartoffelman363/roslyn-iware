@@ -3289,7 +3289,8 @@ namespace Microsoft.CodeAnalysis.CSharp
                 out var outputNames,
                 out var inputNames,
                 sqlTextSegments.Segments,
-                out var sqlText);
+                out var sqlText,
+                out var sqlTextMap);
 
             // Each output binding is assigned into once per result row, so bind it as an
             // assignment target. BindValueKind.Assignable gives the ordinary C# diagnostics for
@@ -3316,6 +3317,8 @@ namespace Microsoft.CodeAnalysis.CSharp
             VerifySql.Verify(
                 fileDir,
                 sqlText,
+                sqlTextMap,
+                OrmSchemaProvider.GetSchema(Compilation),
                 node,
                 diagnostics);
 

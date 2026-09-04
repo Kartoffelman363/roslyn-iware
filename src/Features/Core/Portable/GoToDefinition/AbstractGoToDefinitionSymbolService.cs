@@ -19,7 +19,7 @@ internal abstract class AbstractGoToDefinitionSymbolService : IGoToDefinitionSym
 
     protected abstract int? GetTargetPositionIfControlFlow(SemanticModel semanticModel, SyntaxToken token);
 
-    public async Task<(ISymbol? symbol, Project project, TextSpan boundSpan)> GetSymbolProjectAndBoundSpanAsync(
+    public virtual async Task<(ISymbol? symbol, Project project, TextSpan boundSpan)> GetSymbolProjectAndBoundSpanAsync(
         Document document, SemanticModel semanticModel, int position, CancellationToken cancellationToken)
     {
         var project = document.Project;

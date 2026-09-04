@@ -32,10 +32,19 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
         public string TableName { get; }
         public ImmutableArray<OrmColumn> Columns { get; }
 
-        internal OrmTable(string tableName, ImmutableArray<OrmColumn> columns)
+        /// <summary>
+        /// The <c>[Orm]</c>-marked class this table was built from. Carried so that features
+        /// which resolve a table name back to source - go-to-definition on a table inside a
+        /// sql block, for instance - have a symbol to navigate to. Null only for tables that
+        /// were not produced by walking a compilation.
+        /// </summary>
+        public INamedTypeSymbol? Symbol { get; }
+
+        internal OrmTable(string tableName, ImmutableArray<OrmColumn> columns, INamedTypeSymbol? symbol = null)
         {
             TableName = tableName;
             Columns = columns;
+            Symbol = symbol;
         }
     }
 
@@ -181,7 +190,7 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                 columns.Add(new OrmColumn(propertyName, columnName, dbType, domain));
             }
 
-            tables.Add(new OrmTable(tableName, columns.ToImmutableArray()));
+            tables.Add(new OrmTable(tableName, columns.ToImmutableArray(), type));
         }
 
         // Matched by simple name only (not full namespace) since OrmAttribute/DbFieldAttribute

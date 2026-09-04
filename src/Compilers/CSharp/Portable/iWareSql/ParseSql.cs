@@ -4,7 +4,6 @@
 
 using System.Collections.Immutable;
 using System.Globalization;
-using System.Text;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 //#pragma warning disable RS0016 // Add public types and members to the declared API
@@ -44,65 +43,40 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             out ImmutableArray<string> sqlOutputNames,
             out ImmutableArray<string> sqlInputNames,
             SyntaxList<SqlSegmentSyntax> sqlSegments,
-            out string sqlText)
+            out string sqlText,
+            out SqlTextMap sqlTextMap)
         {
             var sqlOutputBuilder = ImmutableArray.CreateBuilder<SqlOutputIdentifierSegmentSyntax>();
             var sqlInputBuilder = ImmutableArray.CreateBuilder<SqlInputIdentifierSegmentSyntax>();
             var sqlOutputNameBuilder = ImmutableArray.CreateBuilder<string>();
             var sqlInputNameBuilder = ImmutableArray.CreateBuilder<string>();
-            var stringBuilder = new StringBuilder();
 
             foreach (var sqlSegment in sqlSegments)
             {
                 switch (sqlSegment)
                 {
                     case SqlInputIdentifierSegmentSyntax sqlInputSegment:
-                        {
-                            var name = InputParameterName(sqlInputBuilder.Count);
-                            sqlInputBuilder.Add(sqlInputSegment);
-                            sqlInputNameBuilder.Add(name);
-                            appendPlaceholder(sqlSegment, name);
-                            break;
-                        }
+                        sqlInputNameBuilder.Add(InputParameterName(sqlInputBuilder.Count));
+                        sqlInputBuilder.Add(sqlInputSegment);
+                        break;
 
                     case SqlOutputIdentifierSegmentSyntax sqlOutputSegment:
-                        {
-                            var name = OutputAliasName(sqlOutputBuilder.Count);
-                            sqlOutputBuilder.Add(sqlOutputSegment);
-                            sqlOutputNameBuilder.Add(name);
-                            appendPlaceholder(sqlSegment, "[" + name + "]");
-                            break;
-                        }
-
-                    default:
-                        stringBuilder.Append(sqlSegment.ToFullString());
+                        sqlOutputNameBuilder.Add(OutputAliasName(sqlOutputBuilder.Count));
+                        sqlOutputBuilder.Add(sqlOutputSegment);
                         break;
                 }
             }
 
-            sqlText = stringBuilder.ToString();
+            // The text itself, and the placeholders standing in for the bindings collected above,
+            // are produced by SqlTextMap so that the IDE renders a block exactly the way the
+            // compiler does - the numbering here walks the segments in the same order, so the
+            // n-th name in these arrays is the n-th placeholder in the text.
+            sqlTextMap = SqlTextMap.Create(sqlSegments, out sqlText);
+
             sqlOutputs = sqlOutputBuilder.ToImmutableArray();
             sqlInputs = sqlInputBuilder.ToImmutableArray();
             sqlOutputNames = sqlOutputNameBuilder.ToImmutableArray();
             sqlInputNames = sqlInputNameBuilder.ToImmutableArray();
-
-            void appendPlaceholder(SqlSegmentSyntax segment, string replacement)
-            {
-                // Keep the segment's surrounding trivia so the SQL retains its original spacing,
-                // and pad the placeholder out to the width of the source text it stands in for.
-                // Holding the length steady means character offsets in errors the server reports
-                // against sqlText still line up with the same position in the source file.
-                stringBuilder.Append(segment.GetLeadingTrivia().ToFullString());
-                stringBuilder.Append(replacement);
-
-                var replacedWidth = segment.ToString().Length;
-                if (replacement.Length < replacedWidth)
-                {
-                    stringBuilder.Append(' ', replacedWidth - replacement.Length);
-                }
-
-                stringBuilder.Append(segment.GetTrailingTrivia().ToFullString());
-            }
         }
     }
 }
