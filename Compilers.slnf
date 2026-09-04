@@ -1,4 +1,4 @@
-{
+﻿{
   "solution": {
     "path": "Roslyn.slnx",
     "projects": [
@@ -11,6 +11,7 @@
       "src\\Compilers\\CSharp\\Test\\Emit\\Microsoft.CodeAnalysis.CSharp.Emit.UnitTests.csproj",
       "src\\Compilers\\CSharp\\Test\\EndToEnd\\Microsoft.CodeAnalysis.CSharp.EndToEnd.UnitTests.csproj",
       "src\\Compilers\\CSharp\\Test\\IOperation\\Microsoft.CodeAnalysis.CSharp.IOperation.UnitTests.csproj",
+      "src\\Compilers\\CSharp\\Test\\IWareSql\\Microsoft.CodeAnalysis.CSharp.IWareSql.UnitTests.csproj",
       "src\\Compilers\\CSharp\\Test\\Semantic\\Microsoft.CodeAnalysis.CSharp.Semantic.UnitTests.csproj",
       "src\\Compilers\\CSharp\\Test\\Symbol\\Microsoft.CodeAnalysis.CSharp.Symbol.UnitTests.csproj",
       "src\\Compilers\\CSharp\\Test\\Syntax\\Microsoft.CodeAnalysis.CSharp.Syntax.UnitTests.csproj",

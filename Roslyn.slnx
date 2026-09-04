@@ -1,4 +1,4 @@
-<Solution>
+﻿<Solution>
   <Folder Name="/Analyzers/" />
   <Folder Name="/Analyzers/BannedApiAnalyzers/">
     <Project Path="src/RoslynAnalyzers/Microsoft.CodeAnalysis.BannedApiAnalyzers/Core/Microsoft.CodeAnalysis.BannedApiAnalyzers.csproj" />
@@ -105,6 +105,7 @@
     <Project Path="src/Compilers/CSharp/Test/Emit3/Microsoft.CodeAnalysis.CSharp.Emit3.UnitTests.csproj" />
     <Project Path="src/Compilers/CSharp/Test/EndToEnd/Microsoft.CodeAnalysis.CSharp.EndToEnd.UnitTests.csproj" />
     <Project Path="src/Compilers/CSharp/Test/IOperation/Microsoft.CodeAnalysis.CSharp.IOperation.UnitTests.csproj" />
+    <Project Path="src/Compilers/CSharp/Test/IWareSql/Microsoft.CodeAnalysis.CSharp.IWareSql.UnitTests.csproj" />
     <Project Path="src/Compilers/CSharp/Test/Semantic/Microsoft.CodeAnalysis.CSharp.Semantic.UnitTests.csproj" />
     <Project Path="src/Compilers/CSharp/Test/Symbol/Microsoft.CodeAnalysis.CSharp.Symbol.UnitTests.csproj" />
     <Project Path="src/Compilers/CSharp/Test/Syntax/Microsoft.CodeAnalysis.CSharp.Syntax.UnitTests.csproj" />

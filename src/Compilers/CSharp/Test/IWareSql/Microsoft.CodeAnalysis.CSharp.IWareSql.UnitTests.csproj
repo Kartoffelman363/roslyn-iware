@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Licensed to the .NET Foundation under one or more agreements. The .NET Foundation licenses this file to you under the MIT license. See the LICENSE file in the project root for more information. -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Microsoft.CodeAnalysis.CSharp.IWareSql.UnitTests</RootNamespace>
+    <!--
+      Core only. The execution tests load an emitted assembly that binds against iWare.Database,
+      which does not target the desktop framework, and there is nothing framework-specific about
+      the compile-time tests that would justify running them twice.
+    -->
+    <TargetFrameworks>$(NetRoslyn)</TargetFrameworks>
+  </PropertyGroup>
+  <ItemGroup Label="Project References">
+    <ProjectReference Include="..\..\..\Test\Core\Microsoft.CodeAnalysis.Test.Utilities.csproj" />
+    <ProjectReference Include="..\..\..\Core\Portable\Microsoft.CodeAnalysis.csproj" />
+    <ProjectReference Include="..\..\..\Test\Resources\Core\Microsoft.CodeAnalysis.Compiler.Test.Resources.csproj" />
+    <ProjectReference Include="..\..\..\Test\Utilities\CSharp\Microsoft.CodeAnalysis.CSharp.Test.Utilities.csproj" />
+    <ProjectReference Include="..\..\..\VisualBasic\Portable\Microsoft.CodeAnalysis.VisualBasic.vbproj" />
+    <ProjectReference Include="..\..\Portable\Microsoft.CodeAnalysis.CSharp.csproj" />
+    <ProjectReference Include="..\..\..\..\Test\PdbUtilities\Roslyn.Test.PdbUtilities.csproj" />
+  </ItemGroup>
+  <ItemGroup Label="iWare runtime">
+    <!--
+      These are what a sql block binds against once lowered, so they have to sit next to the test
+      assembly for the emitted code to load and run - see SqlExecutionTests.
+    -->
+    <PackageReference Include="iWare.Database" />
+    <PackageReference Include="iWare.Domain.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
+    <!--
+      The connection string lives here and is read at run time from beside the executing assembly,
+      exactly as it is beside example_simple's executable. "Always" rather than "PreserveNewest" so
+      that editing the connection string is picked up without a rebuild of the project.
+    -->
+    <Content Include="iWareDatabase.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
+  </ItemGroup>
+</Project>

@@ -1,4 +1,4 @@
-<Project>
+﻿<Project>
   <PropertyGroup>
     <!-- Versions used by several individual references below -->
     <MicrosoftCodeAnalysisTestingVersion>1.1.3-beta1.26059.1</MicrosoftCodeAnalysisTestingVersion>
@@ -287,6 +287,7 @@
 	<PackageVersion Include="Microsoft.Data.SqlClient" Version="$(MicrosoftDataSqlClientVersion)" />
 	<PackageVersion Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="$(MicrosoftSqlServerTransactSqlScriptDomVersion)" />
 	<PackageVersion Include="iWare.Database" Version="$(iWareDatabaseVersion)" />
+	<PackageVersion Include="iWare.Domain.Abstractions" Version="$(iWareDatabaseVersion)" />
     <!-- fix of vulnerability in 6.0.0 coming via Microsoft.TeamFoundationServer.Client -->
     <PackageVersion Include="System.Security.Cryptography.Xml" Version="8.0.0" />
     <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="8.0.0" />

@@ -1,0 +1,5 @@
+﻿{
+  "CompanyName": "iWare",
+  "TID": "1",
+  "ConnectionString": "Data Source=127.0.0.1\\sql1,1433; Initial Catalog=iwsqltest; User ID=sa; Password=asdfg12345!; Connect Timeout=5; TrustServerCertificate=True; MultipleActiveResultSets=True"
+}
