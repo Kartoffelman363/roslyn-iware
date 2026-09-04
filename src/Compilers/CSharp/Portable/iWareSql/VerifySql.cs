@@ -4,11 +4,12 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.Data.SqlClient;
-using static iWare.Database.DbConnection;
+using Microsoft.SqlServer.TransactSql.ScriptDom;
 
 namespace Microsoft.CodeAnalysis.CSharp.iWareSql
 {
@@ -67,6 +68,8 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                 return false;
             }
             */
+
+            /*
             string? configPath;
             try
             {
@@ -130,6 +133,21 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                 diagnosis._errMsg = e.Message;
                 goto end;
             }
+            */
+
+            TSqlParser parser = new TSql180Parser(initialQuotedIdentifiers: true);
+            using (var reader = new StringReader(sqlText))
+            {
+                parser.Parse(reader, out var errors);
+                var hasErrors = errors.Count > 0;
+                diagnosis._hasHighlight = hasErrors;
+                if (hasErrors)
+                {
+                    diagnosis._errCode = ErrorCode.ERR_SQL_VerificationError;
+                    diagnosis._errMsg = string.Join(Environment.NewLine, errors.Select(e => $"Line {e.Line}, Column {e.Column}: {e.Message}"));
+                }
+            }
+
 end:
             try
             {
