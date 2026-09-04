@@ -2442,6 +2442,21 @@
         <target state="translated">Il runtime di destinazione non supporta convenzioni di chiamata predefinite estendibili o dell'ambiente di runtime.</target>
         <note />
       </trans-unit>
+      <trans-unit id="ERR_SQL_SymbolError">
+        <source>SQL input symbols error: '{0}'</source>
+        <target state="new">SQL input symbols error: '{0}'</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="ERR_SQL_VerificationError">
+        <source>SQL Verification error: '{0}'</source>
+        <target state="new">SQL Verification error: '{0}'</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="ERR_SQL_VerifierMissingError">
+        <source>SQL verifier component is missing</source>
+        <target state="new">SQL verifier component is missing</target>
+        <note />
+      </trans-unit>
       <trans-unit id="ERR_ScopedAfterInOutRefReadonly">
         <source>The 'scoped' modifier cannot come after an 'in', 'out', 'ref' or 'readonly' modifier.</source>
         <target state="translated">Il modificatore 'scoped' non può seguire un modificatore 'in', 'out', 'ref' o 'readonly'.</target>
@@ -3945,6 +3960,16 @@
       <trans-unit id="WRN_ReturnNotNullIfNotNull_Title">
         <source>Return value must be non-null because parameter is non-null.</source>
         <target state="translated">Il valore restituito deve essere non Null perché il parametro è non Null.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="WRN_SQL_SymbolWarn">
+        <source>SQL output symbols warning: '{0}'</source>
+        <target state="new">SQL output symbols warning: '{0}'</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="WRN_SQL_VerificationWarn">
+        <source>SQL Verification warning: '{0}'</source>
+        <target state="new">SQL Verification warning: '{0}'</target>
         <note />
       </trans-unit>
       <trans-unit id="WRN_ScopedMismatchInParameterOfOverrideOrImplementation">

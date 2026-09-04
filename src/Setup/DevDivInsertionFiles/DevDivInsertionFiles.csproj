@@ -50,6 +50,10 @@
     <ExpectedDependency Include="Microsoft.DiaSymReader"/>
     <ExpectedDependency Include="Microsoft.CodeAnalysis.Elfie"/>
 	
+	<ExpectedDependency Include="iWare.Database"/>
+	<ExpectedDependency Include="iWare.Domain.Abstractions"/>
+	<ExpectedDependency Include="Microsoft.SqlServer.TransactSql.ScriptDom"/>
+
 	<ExpectedDependency Include="Azure.Identity"/>
 	<ExpectedDependency Include="Microsoft.Data.SqlClient"/>
 	<ExpectedDependency Include="Microsoft.Identity.Client"/>

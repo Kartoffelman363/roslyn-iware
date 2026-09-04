@@ -8171,7 +8171,6 @@ To remove the warning, you can use /reference instead (set the Embed Interop Typ
   <data name="WRN_SQL_VerificationWarn" xml:space="preserve">
     <value>SQL Verification warning: '{0}'</value>
   </data>
-</root>
   <data name="ERR_MethodImplAttributeAsyncCannotBeUsed" xml:space="preserve">
     <value>'MethodImplAttribute.Async' cannot be manually applied to methods. Mark the method 'async'.</value>
     <comment>'MethodImplAttribute.Async' and 'async' are not localizable.</comment>

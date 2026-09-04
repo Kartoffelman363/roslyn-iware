@@ -628,8 +628,6 @@ namespace My
             }
             static void Main()
             {
-				sql {
-				}
                 foreach (int i in Power(2, 8))
                 {
                     Console.Write("{0} ", i);
