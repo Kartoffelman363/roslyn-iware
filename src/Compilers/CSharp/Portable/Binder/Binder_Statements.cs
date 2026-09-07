@@ -11,6 +11,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using Microsoft.CodeAnalysis.CSharp.iWareSql;
+using Microsoft.CodeAnalysis.CSharp.SqlQueries;
 using Microsoft.CodeAnalysis.CSharp.Symbols;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -3375,12 +3376,24 @@ namespace Microsoft.CodeAnalysis.CSharp
             ref ImmutableArray<string> outputNames,
             BindingDiagnosticBag diagnostics)
         {
-            var stars = SqlTableResolution.GetReferences(sqlText).Stars;
-            if (stars.IsEmpty)
+            var root = SqlTableResolution.Parse(sqlText);
+            if (root is null)
             {
                 // The block did not parse, so there is nothing to line the segments up against.
                 // VerifySql has already reported the syntax error.
                 return sqlText;
+            }
+
+            // Every star in the block, paired with the query that wrote it - the query is what
+            // knows which sources a qualifier can name, and a star inside a subquery must resolve
+            // against that subquery's own FROM clause rather than the outermost one.
+            var stars = ArrayBuilder<(SqlSelectSyntaxInfo Query, SqlSelectSyntaxInfo.StarInfo Star)>.GetInstance();
+            foreach (var query in root.FlattenQueries())
+            {
+                foreach (var star in query.Stars)
+                {
+                    stars.Add((query, star));
+                }
             }
 
             var schema = OrmSchemaProvider.GetSchema(Compilation);
@@ -3399,22 +3412,24 @@ namespace Microsoft.CodeAnalysis.CSharp
                 // left exactly as written.
                 var starOffset = sqlTextMap.MapToSql(wildcard.AsteriskToken.SpanStart);
 
-                SqlStarReference? match = null;
-                foreach (var candidate in stars)
+                SqlSelectSyntaxInfo? starQuery = null;
+                SqlSelectSyntaxInfo.StarInfo? match = null;
+                foreach (var (query, candidate) in stars)
                 {
                     if (starOffset >= candidate.Offset && starOffset < candidate.Offset + candidate.Length)
                     {
+                        starQuery = query;
                         match = candidate;
                         break;
                     }
                 }
 
-                if (match is not { } star)
+                if (match is not { } star || starQuery is null)
                 {
                     continue;
                 }
 
-                if (!TryGetWildcardTable(star, wildcard, schema, diagnostics, out var table))
+                if (!TryGetWildcardSource(star, starQuery, wildcard, schema, diagnostics, out var source))
                 {
                     continue;
                 }
@@ -3441,10 +3456,10 @@ namespace Microsoft.CodeAnalysis.CSharp
                 var expansion = PooledStringBuilder.GetInstance();
                 foreach (var targetColumn in targetColumns)
                 {
-                    if (table.FindColumn(targetColumn.ColumnName) is not { } tableColumn)
+                    if (source.FindColumn(targetColumn.ColumnName) is not { } sourceColumn)
                     {
                         Error(diagnostics, ErrorCode.ERR_SQL_SymbolError, wildcard,
-                            $"'{targetType.Name}.{targetColumn.PropertyName}' has no matching column in table '{table.TableName}'");
+                            $"'{targetType.Name}.{targetColumn.PropertyName}' has no matching column in '{source.TableName ?? source.Qualifier}'");
                         continue;
                     }
 
@@ -3475,12 +3490,13 @@ namespace Microsoft.CodeAnalysis.CSharp
                     }
 
                     // Bracket-quoted so a column named after a reserved word still round-trips.
-                    expansion.Builder.Append('[').Append(tableColumn.ColumnName).Append("] [").Append(alias).Append(']');
+                    expansion.Builder.Append('[').Append(sourceColumn.Name).Append("] [").Append(alias).Append(']');
                 }
 
                 replacements.Add((star.Offset, star.Length, expansion.ToStringAndFree()));
             }
 
+            stars.Free();
             replacements.Sort(static (x, y) => y.Start.CompareTo(x.Start));
 
             var text = PooledStringBuilder.GetInstance();
@@ -3496,42 +3512,62 @@ namespace Microsoft.CodeAnalysis.CSharp
         }
 
         /// <summary>
-        /// The table a bound star reads from, or false with a diagnostic reported when there is
-        /// not exactly one.
+        /// The source a bound star reads from, or false with a diagnostic reported when there is
+        /// not exactly one whose columns are known.
         /// </summary>
-        private bool TryGetWildcardTable(
-            SqlStarReference star,
+        /// <remarks>
+        /// The source may be a table or a derived table: "FROM (SELECT * FROM users) u" is asked
+        /// for its own columns the same way a plain table is, so a star over it expands to the same
+        /// list. What matters is only whether the columns could be worked out.
+        /// </remarks>
+        private bool TryGetWildcardSource(
+            SqlSelectSyntaxInfo.StarInfo star,
+            SqlSelectSyntaxInfo query,
             SqlOutputWildcardSegmentSyntax wildcard,
             OrmSchema schema,
             BindingDiagnosticBag diagnostics,
-            [NotNullWhen(true)] out OrmTable? table)
+            [NotNullWhen(true)] out SqlSource? source)
         {
-            table = null;
-
-            if (star.CandidateTables.IsEmpty)
+            if (star.Qualifier is { Length: > 0 } qualifier)
             {
-                Error(diagnostics, ErrorCode.ERR_SQL_SymbolError, wildcard,
-                    star.Qualifier is { Length: > 0 } qualifier
-                        ? $"'{qualifier}' does not name a table a row can be read from"
-                        : "there is no table in scope to read a row from");
-                return false;
+                source = SqlTableResolution.FindSource(query, SqlSourceResolution.LastSegment(qualifier), schema);
+                if (source is null)
+                {
+                    Error(diagnostics, ErrorCode.ERR_SQL_SymbolError, wildcard,
+                        $"'{qualifier}' does not name anything a row can be read from");
+                    return false;
+                }
+            }
+            else
+            {
+                var sources = SqlSourceResolution.GetSources(query, schema);
+                if (sources.IsEmpty)
+                {
+                    Error(diagnostics, ErrorCode.ERR_SQL_SymbolError, wildcard,
+                        "there is nothing in scope to read a row from");
+                    source = null;
+                    return false;
+                }
+
+                if (sources.Length > 1)
+                {
+                    // A bare star across a join: which source the object should be filled from is
+                    // the user's decision, not one to guess at.
+                    Error(diagnostics, ErrorCode.ERR_SQL_SymbolError, wildcard,
+                        $"'*' is ambiguous across {string.Join(", ", sources.Select(static s => s.Qualifier))}; qualify it with the table or alias to read from");
+                    source = null;
+                    return false;
+                }
+
+                source = sources[0];
             }
 
-            if (star.CandidateTables.Length > 1)
-            {
-                // A bare star across a join: which table the object should be filled from is the
-                // user's decision, not one to guess at.
-                Error(diagnostics, ErrorCode.ERR_SQL_SymbolError, wildcard,
-                    $"'*' is ambiguous across {string.Join(", ", star.CandidateTables)}; qualify it with the table or alias to read from");
-                return false;
-            }
-
-            var tableName = star.CandidateTables[0];
-            table = schema.FindTable(tableName);
-            if (table is null)
+            if (source.Columns.IsEmpty)
             {
                 Error(diagnostics, ErrorCode.ERR_SQL_SymbolError, wildcard,
-                    $"No [Orm] class defines a table named '{tableName}', so its columns are not known");
+                    source.TableName is { } tableName
+                        ? $"No [Orm] class defines a table named '{tableName}', so its columns are not known"
+                        : $"the columns of '{source.Qualifier}' could not be determined, so a row cannot be read from it");
                 return false;
             }
 

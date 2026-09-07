@@ -5,7 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.CodeAnalysis.CSharp.Completion.iWareSql;
+using Microsoft.CodeAnalysis.CSharp.SqlQueries;
 
 namespace Microsoft.CodeAnalysis.CSharp.iWareSql
 {
@@ -57,6 +57,21 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
         {
             // Use alias if exists or name
             ColumnNames.AddRange(syntaxInfo.Columns.Select(col => col.GetAliasString() ?? col.GetNameString()).OfType<string>());
+        }
+
+        /// <summary>
+        /// Replaces the columns with an already-resolved list.
+        /// </summary>
+        /// <remarks>
+        /// The select list alone cannot describe a subquery written as "SELECT * FROM users": a
+        /// star is not a column, so nothing lands in <see cref="SqlSelectSyntaxInfo.Columns"/> and
+        /// the subquery looks like it has none. Resolving the star needs the [Orm] schema, which
+        /// only the caller has, so it hands the answer in here.
+        /// </remarks>
+        public void SetColumnNames(IEnumerable<string> columnNames)
+        {
+            ColumnNames.Clear();
+            ColumnNames.AddRange(columnNames);
         }
     }
 }

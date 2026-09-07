@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.CSharp.iWareSql;
+using Microsoft.CodeAnalysis.CSharp.SqlQueries;
 using TableReference = Microsoft.CodeAnalysis.CSharp.iWareSql.TableReference;
 using Microsoft.CodeAnalysis.Completion;
 
@@ -184,7 +185,24 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
             // Replace subquery references
             SourceReferences.RemoveAll(sr => sr is SubqueryReference);
             var subqueries = CurrentQuery.FlattenSubqueries();
-            SourceReferences.AddRange(subqueries.Select(sq => new SubqueryReference(sq)));
+
+            // A subquery's own select list is not enough to know what it offers: "SELECT * FROM
+            // users" has a star rather than columns, so resolving it against the [Orm] schema is
+            // what turns it back into a column list worth suggesting.
+            var compilation = await context.Document.Project.GetCompilationAsync(context.CancellationToken).ConfigureAwait(false);
+            var schema = compilation is null ? null : OrmSchemaProvider.GetSchema(compilation);
+
+            foreach (var subquery in subqueries)
+            {
+                var reference = new SubqueryReference(subquery);
+                if (schema is not null)
+                {
+                    reference.SetColumnNames(
+                        SqlSourceResolution.GetOutputColumns(subquery, schema).Select(static c => c.Name));
+                }
+
+                SourceReferences.Add(reference);
+            }
         }
 
         public SourceReference? GetSourceReferenceByNameOrAlias(string nameOrAlias)

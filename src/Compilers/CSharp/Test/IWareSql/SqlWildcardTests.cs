@@ -214,8 +214,11 @@ namespace Microsoft.CodeAnalysis.CSharp.IWareSql.UnitTests
 
             // Both tables are recoverable, which is what completion needs in order to offer "u"
             // and "r" as things to type after.
-            var tables = SqlTableReferences.Collect(fragment).Tables.Select(t => t.Name).ToArray();
-            AssertEx.SetEqual(new[] { "users", "roles" }, tables);
+            var query = Microsoft.CodeAnalysis.CSharp.SqlQueries.SqlSelectSyntaxInfo.GetInfoFromFragment(fragment);
+            Assert.NotNull(query);
+            AssertEx.SetEqual(
+                new[] { "users", "roles" },
+                query!.Tables.Select(t => t.GetNameString()).ToArray());
         }
 
         [Fact]
@@ -253,7 +256,7 @@ namespace Microsoft.CodeAnalysis.CSharp.IWareSql.UnitTests
                 var fragment = parser.Parse(reader, out var errors);
 
                 Assert.NotEmpty(errors);
-                Assert.Empty(SqlTableReferences.Collect(fragment).Tables);
+                Assert.Null(Microsoft.CodeAnalysis.CSharp.SqlQueries.SqlSelectSyntaxInfo.GetInfoFromFragment(fragment));
             }
         }
 
@@ -264,6 +267,111 @@ namespace Microsoft.CodeAnalysis.CSharp.IWareSql.UnitTests
 
             Assert.Contains("u.*", rendered);
             Assert.DoesNotContain("myUsers", rendered);
+        }
+
+        [Fact]
+        public void WildcardOverADerivedTableWorksLikeOverTheTable()
+        {
+            // The point of the whole source model: a derived table is asked for its own columns, so
+            // this has to behave exactly as "FROM users u" does - including expanding the inner
+            // star to work out what those columns are.
+            AssertEx.Empty(Errors(Program(
+                "        SELECT u.*[myUsers] FROM (SELECT * FROM users) u")));
+
+            var sql = ExpandedSql(Program(
+                "        SELECT u.*[myUsers] FROM (SELECT * FROM users) u"));
+
+            Assert.Contains("u.[id] [__c0]", sql);
+            Assert.Contains("u.[name] [__c1]", sql);
+            Assert.Contains("u.[surname] [__c2]", sql);
+            Assert.Contains("u.[role_id] [__c3]", sql);
+
+            // The subquery itself is left exactly as written - only the outer star is expanded.
+            Assert.Contains("FROM (SELECT * FROM users) u", sql);
+        }
+
+        [Fact]
+        public void WildcardOverADerivedTableWithAnExplicitColumnList()
+        {
+            // The derived table only offers what it selects, so a target needing more than that is
+            // an error rather than something that fails at the server.
+            var errors = Errors(Program(
+                "        SELECT u.*[myUsers] FROM (SELECT id, name FROM users) u"));
+
+            Assert.Contains(errors, e => e.Contains("users.surname"));
+        }
+
+        [Fact]
+        public void ColumnsOfADerivedTableResolveToTheMembersBehindThem()
+        {
+            var resolved = ResolveAll(Program(
+                "        SELECT u.surname FROM (SELECT * FROM users) u"));
+
+            // Selected straight through, so the member behind the column survives the subquery.
+            Assert.Contains("surname -> users.surname", resolved);
+        }
+
+        [Fact]
+        public void ColumnNotOfferedByADerivedTableIsReported()
+        {
+            var warnings = CreateCompilation(Program(
+                "        SELECT u.surname FROM (SELECT id FROM users) u"))
+                .GetDiagnostics()
+                .Where(d => d.Id == "CS12110")
+                .Select(d => d.GetMessage())
+                .ToArray();
+
+            Assert.Contains(warnings, w => w.Contains("surname"));
+        }
+
+        /// <summary>
+        /// What a source offers as columns, as "qualifier: a, b, c".
+        /// </summary>
+        private static string[] SourceColumns(string sqlBody)
+        {
+            var compilation = CreateCompilation(Program("        " + sqlBody));
+            var schema = OrmSchemaProvider.GetSchema(compilation);
+            var root = SqlTableResolution.Parse(RenderedSql(Program("        " + sqlBody)));
+            Assert.NotNull(root);
+
+            return SqlSourceResolution.GetSources(root!, schema)
+                .Select(s => $"{s.Qualifier}: {string.Join(", ", s.Columns.Select(c => c.Name))}")
+                .ToArray();
+        }
+
+        [Fact]
+        public void SubqueryOfAStarOffersTheColumnsBehindIt()
+        {
+            // A subquery's own select list holds no columns when it is written with a star, so
+            // without resolving that star the subquery looks like it offers nothing - which is what
+            // completion had to work from after typing "u.".
+            AssertEx.Equal(
+                new[] { "u: id, name, surname, role_id" },
+                SourceColumns("SELECT u.id FROM (SELECT * FROM users) u"));
+        }
+
+        [Fact]
+        public void SubqueryStarResolvesThroughSeveralLevels()
+        {
+            AssertEx.Equal(
+                new[] { "u: id, name, surname, role_id" },
+                SourceColumns("SELECT u.id FROM (SELECT * FROM (SELECT * FROM users) i) u"));
+        }
+
+        [Fact]
+        public void SubqueryWithAQualifiedStarOffersThatTablesColumns()
+        {
+            AssertEx.Equal(
+                new[] { "u: id, name, surname, role_id" },
+                SourceColumns("SELECT u.id FROM (SELECT t.* FROM users t) u"));
+        }
+
+        [Fact]
+        public void SubqueryExplicitColumnsAreNotWidenedByTheStarHandling()
+        {
+            AssertEx.Equal(
+                new[] { "u: id, name" },
+                SourceColumns("SELECT u.id FROM (SELECT id, name FROM users) u"));
         }
 
         [Fact]
@@ -287,11 +395,12 @@ namespace Microsoft.CodeAnalysis.CSharp.IWareSql.UnitTests
         [Fact]
         public void AmbiguousBareStarResolvesToNothing()
         {
-            // Nothing to point at, so nothing is coloured rather than one of the two picked.
+            // The star is still recorded - it is a name at a position like any other - but it must
+            // not pick one of the two sources, so it carries no symbol and nothing colours it.
             var resolved = ResolveAll(Program(
                 "        SELECT *[myUsers] FROM users u LEFT JOIN roles r ON r.id = u.role_id"));
 
-            Assert.DoesNotContain(resolved, r => r.StartsWith("*"));
+            Assert.DoesNotContain(resolved, r => r.StartsWith("* ->") && !r.EndsWith("<unresolved>"));
         }
 
         [Fact]

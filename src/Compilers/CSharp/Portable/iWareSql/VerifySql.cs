@@ -9,6 +9,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.CSharp.SqlQueries;
 using Microsoft.SqlServer.TransactSql.ScriptDom;
 
 namespace Microsoft.CodeAnalysis.CSharp.iWareSql
@@ -25,14 +26,13 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             public string? _errMsg = null;
 
             /// <summary>
-            /// Tables and columns named by the block, with offsets into the sql text. Cached
-            /// alongside the syntax diagnosis because extracting them is part of the same
-            /// ScriptDom parse and, like that parse, depends only on the text. Whether each one
-            /// *exists* depends on the [Orm] classes in the compilation, which changes as the user
-            /// edits, so that check is deliberately left out of the cache and redone on every call
-            /// - it is only a dictionary lookup per name.
+            /// The query model for the block. Cached alongside the syntax diagnosis because
+            /// building it is part of the same ScriptDom parse and, like that parse, depends only
+            /// on the text. What each name in it *resolves to* depends on the [Orm] classes in the
+            /// compilation, which changes as the user edits, so resolution is deliberately left out
+            /// of the cache and redone on every call.
             /// </summary>
-            public SqlReferences _references = SqlReferences.Empty;
+            public SqlSelectSyntaxInfo? _query = null;
 
             public void Highlight(BindingDiagnosticBag diagnostics, SqlTextBlockSyntax? location)
             {
@@ -51,12 +51,12 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                 SqlTextMap sqlTextMap,
                 SqlTextBlockSyntax? location)
             {
-                if (location is null || _references.IsEmpty)
+                if (location is null || _query is null)
                 {
                     return;
                 }
 
-                foreach (var reference in SqlTableResolution.Resolve(_references, sqlTextMap, compilation))
+                foreach (var reference in SqlTableResolution.Resolve(_query, sqlTextMap, compilation))
                 {
                     if (reference.Symbol is not null || !reference.ReportIfUnresolved)
                     {
@@ -194,7 +194,7 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                     // block the tree is full of holes, and reporting "no such table" against
                     // whatever half-written name ScriptDom managed to recover would mean a
                     // warning that appears and disappears on almost every keystroke.
-                    diagnosis._references = SqlTableReferences.Collect(fragment);
+                    diagnosis._query = SqlSelectSyntaxInfo.GetInfoFromFragment(fragment);
                 }
             }
 

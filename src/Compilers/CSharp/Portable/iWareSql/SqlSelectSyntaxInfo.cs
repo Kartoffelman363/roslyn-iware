@@ -11,7 +11,7 @@ using Microsoft.SqlServer.TransactSql.ScriptDom;
 using Roslyn.Utilities;
 
 #pragma warning disable RS0016 // Add public types and members to the declared API
-namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
+namespace Microsoft.CodeAnalysis.CSharp.SqlQueries
 {
     public class SqlSelectSyntaxInfo
     {
@@ -20,6 +20,81 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
         public readonly List<TableInfo> Tables = new();
         public int Start;
         public int Length;
+
+        /// <summary>
+        /// The stars in this query's select list. Kept apart from <see cref="Columns"/> because a
+        /// star is not one column - it stands for however many the source behind it has, which is
+        /// only known once the sources are resolved.
+        /// </summary>
+        public readonly List<StarInfo> Stars = new();
+
+        /// <summary>
+        /// Every identifier this query writes, with where it sits in the parsed text.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="Columns"/> and <see cref="Tables"/> answer "what does this query select and
+        /// select from", which is what completion needs. This answers "what is written at this
+        /// position", which is what colouring, hover and go-to-definition need, and it therefore
+        /// covers the whole query - WHERE, ON, GROUP BY and ORDER BY included - not just the select
+        /// list. Occurrences belong to the query that wrote them; a nested query owns its own.
+        /// </remarks>
+        public readonly List<SqlIdentifierOccurrence> Occurrences = new();
+
+        /// <summary>The query this one is nested in, for resolving a qualifier declared further out.</summary>
+        public SqlSelectSyntaxInfo? Parent;
+
+        public enum SqlOccurrenceKind
+        {
+            /// <summary>A table's own name, as written in FROM or JOIN.</summary>
+            TableName,
+
+            /// <summary>Something standing for a source without being its name: an alias where it
+            /// is introduced or used to qualify something, and the star of "u.*".</summary>
+            SourceRef,
+
+            /// <summary>A column name.</summary>
+            Column,
+        }
+
+        public sealed class SqlIdentifierOccurrence
+        {
+            public SqlOccurrenceKind Kind { get; }
+
+            /// <summary>The identifier as written, or "*" for a star.</summary>
+            public string Text { get; }
+
+            /// <summary>What qualified it, if anything - the "u" of "u.id" or "u.*".</summary>
+            public string? Qualifier { get; }
+
+            public int Offset { get; }
+            public int Length { get; }
+
+            public SqlIdentifierOccurrence(SqlOccurrenceKind kind, string text, string? qualifier, int offset, int length)
+            {
+                Kind = kind;
+                Text = text;
+                Qualifier = qualifier;
+                Offset = offset;
+                Length = length;
+            }
+        }
+
+        public sealed class StarInfo
+        {
+            /// <summary>The qualifier as written ("u" in "u.*"), or null for a bare star.</summary>
+            public string? Qualifier { get; }
+
+            /// <summary>Covers the whole star expression, qualifier included.</summary>
+            public int Offset { get; }
+            public int Length { get; }
+
+            public StarInfo(string? qualifier, int offset, int length)
+            {
+                Qualifier = qualifier;
+                Offset = offset;
+                Length = length;
+            }
+        }
 
         public abstract class ColumnOrTableInfo(MultiPartIdentifier? name, Identifier? alias)
         {
@@ -106,6 +181,13 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
         {
             public Identifier? Alias;
 
+            /// <summary>
+            /// True when this came from a FROM clause ("FROM (SELECT ...) u") and is therefore a
+            /// source that a qualifier can name, as opposed to a scalar subquery in a SELECT list
+            /// or WHERE clause, which is a value and names nothing.
+            /// </summary>
+            public bool IsDerivedTable;
+
             public SqlSubquerySyntaxInfo(Identifier? subqueryAlias) : base()
             {
                 Alias = subqueryAlias;
@@ -153,6 +235,21 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
         public SqlSelectSyntaxInfo(QuerySpecification qs)
         {
             Populate(qs);
+        }
+
+        /// <summary>
+        /// The query model for an already-parsed fragment.
+        /// </summary>
+        /// <remarks>
+        /// The compiler parses a block once, to verify it, and reads the model off that same
+        /// fragment rather than parsing a second time. Completion has only the text, so it goes
+        /// through <see cref="GetInfoFromStringAsync"/> instead.
+        /// </remarks>
+        public static SqlSelectSyntaxInfo? GetInfoFromFragment(TSqlFragment fragment)
+        {
+            var visitor = new SqlQueryVisitor();
+            fragment.Accept(visitor);
+            return visitor.VisitedQuery;
         }
 
         public static async Task<SqlSelectSyntaxInfo?> GetInfoFromStringAsync(string sqlBlock)
@@ -208,12 +305,14 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
                         Columns.Add(new ColumnInfo(columnName, alias));
                         break;
 
-                        //TODO aljaz figure out what to do with star expression
-                        /*
-                        case SelectStarExpression starExpression:
-                            _columns.Add(new Column("*", null));
-                            break;
-                        */
+                    case SelectStarExpression starExpression:
+                        // A star is not a column, so it does not go in Columns - it stands for
+                        // whatever the source it names has, which needs the sources resolved first.
+                        Stars.Add(new StarInfo(
+                            QualifierString(starExpression.Qualifier),
+                            starExpression.StartOffset,
+                            starExpression.FragmentLength));
+                        break;
                 }
             }
 
@@ -234,6 +333,117 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
             }
             qs.WhereClause?.Accept(finder);
             Subqueries.AddRange(finder.Found);
+
+            // 4. Every identifier written anywhere in this query, for the features that work off
+            //    positions rather than off the shape of the query.
+            foreach (var subquery in Subqueries)
+            {
+                subquery.Parent = this;
+            }
+
+            var collector = new OccurrenceCollector(Occurrences);
+            qs.AcceptChildren(collector);
+        }
+
+        private static string? QualifierString(MultiPartIdentifier? qualifier) =>
+            qualifier?.Identifiers is { Count: > 0 } identifiers
+                ? string.Join(".", identifiers.Select(static i => i.Value))
+                : null;
+
+        /// <summary>
+        /// Records where each identifier of one query sits, stopping at any query nested inside it
+        /// so that every occurrence is owned by the query whose sources should resolve it.
+        /// </summary>
+        private sealed class OccurrenceCollector : TSqlFragmentVisitor
+        {
+            private readonly List<SqlIdentifierOccurrence> _occurrences;
+
+            public OccurrenceCollector(List<SqlIdentifierOccurrence> occurrences)
+            {
+                _occurrences = occurrences;
+            }
+
+            /// <summary>
+            /// A nested query owns its own occurrences, so descending into one here would attribute
+            /// its identifiers to the wrong set of sources. The traversal is started with
+            /// AcceptChildren so the outer query is not stopped by this too.
+            /// </summary>
+            public override void ExplicitVisit(QuerySpecification node)
+            {
+            }
+
+            public override void Visit(NamedTableReference node)
+            {
+                if (node.SchemaObject?.BaseIdentifier is { Value.Length: > 0 } identifier)
+                {
+                    // Temp tables live only for the connection and have no declaration to point at.
+                    if (identifier.Value[0] != '#')
+                    {
+                        Add(SqlOccurrenceKind.TableName, identifier.Value, null, identifier);
+
+                        if (node.Alias is { Value.Length: > 0 } alias)
+                        {
+                            Add(SqlOccurrenceKind.SourceRef, alias.Value, null, alias);
+                        }
+                    }
+                }
+
+                base.Visit(node);
+            }
+
+            public override void Visit(ColumnReferenceExpression node)
+            {
+                var identifiers = node.MultiPartIdentifier?.Identifiers;
+                if (identifiers is not { Count: > 0 })
+                {
+                    base.Visit(node);
+                    return;
+                }
+
+                var column = identifiers[identifiers.Count - 1];
+                var qualifier = identifiers.Count >= 2 ? identifiers[identifiers.Count - 2] : null;
+
+                if (column is { Value.Length: > 0 })
+                {
+                    Add(SqlOccurrenceKind.Column, column.Value, qualifier?.Value, column);
+                }
+
+                if (qualifier is { Value.Length: > 0 })
+                {
+                    Add(SqlOccurrenceKind.SourceRef, qualifier.Value, null, qualifier);
+                }
+
+                base.Visit(node);
+            }
+
+            public override void Visit(SelectStarExpression node)
+            {
+                var qualifier = QualifierString(node.Qualifier);
+
+                // The star glyph is always the last character of the expression, however much
+                // whitespace sits between it and its qualifier.
+                _occurrences.Add(new SqlIdentifierOccurrence(
+                    SqlOccurrenceKind.SourceRef,
+                    "*",
+                    qualifier,
+                    node.StartOffset + node.FragmentLength - 1,
+                    1));
+
+                if (node.Qualifier?.Identifiers is { Count: > 0 } identifiers)
+                {
+                    var last = identifiers[identifiers.Count - 1];
+                    if (last is { Value.Length: > 0 })
+                    {
+                        Add(SqlOccurrenceKind.SourceRef, last.Value, null, last);
+                    }
+                }
+
+                base.Visit(node);
+            }
+
+            private void Add(SqlOccurrenceKind kind, string text, string? qualifier, TSqlFragment fragment)
+                => _occurrences.Add(new SqlIdentifierOccurrence(
+                    kind, text, qualifier, fragment.StartOffset, fragment.FragmentLength));
         }
 
         private void CollectTables(TableReference tableRef)
@@ -251,7 +461,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
 
                 case QueryDerivedTable derived when derived.QueryExpression is QuerySpecification innerQs:
                     var derivedAlias = derived.Alias;
-                    Subqueries.Add(new SqlSubquerySyntaxInfo(innerQs, derivedAlias));
+                    Subqueries.Add(new SqlSubquerySyntaxInfo(innerQs, derivedAlias) { IsDerivedTable = true });
                     break;
 
                 case QualifiedJoin join:
