@@ -463,6 +463,9 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
         private static Syntax.InternalSyntax.SqlOutputIdentifierSegmentSyntax GenerateSqlOutputIdentifierSegment()
             => InternalSyntaxFactory.SqlOutputIdentifierSegment(InternalSyntaxFactory.Token(SyntaxKind.OpenBracketToken), GenerateIdentifierName(), InternalSyntaxFactory.Token(SyntaxKind.CloseBracketToken));
 
+        private static Syntax.InternalSyntax.SqlOutputWildcardSegmentSyntax GenerateSqlOutputWildcardSegment()
+            => InternalSyntaxFactory.SqlOutputWildcardSegment(InternalSyntaxFactory.Token(SyntaxKind.AsteriskToken), InternalSyntaxFactory.Token(SyntaxKind.OpenBracketToken), GenerateIdentifierName(), InternalSyntaxFactory.Token(SyntaxKind.CloseBracketToken));
+
         private static Syntax.InternalSyntax.SqlDoClauseSyntax GenerateSqlDoClause()
             => InternalSyntaxFactory.SqlDoClause(InternalSyntaxFactory.Token(SyntaxKind.SqlDoKeyword), GenerateBlock());
 
@@ -2619,6 +2622,19 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
         {
             var node = GenerateSqlOutputIdentifierSegment();
 
+            Assert.Equal(SyntaxKind.OpenBracketToken, node.OpenBracketToken.Kind);
+            Assert.NotNull(node.Expression);
+            Assert.Equal(SyntaxKind.CloseBracketToken, node.CloseBracketToken.Kind);
+
+            AttachAndCheckDiagnostics(node);
+        }
+
+        [Fact]
+        public void TestSqlOutputWildcardSegmentFactoryAndProperties()
+        {
+            var node = GenerateSqlOutputWildcardSegment();
+
+            Assert.Equal(SyntaxKind.AsteriskToken, node.AsteriskToken.Kind);
             Assert.Equal(SyntaxKind.OpenBracketToken, node.OpenBracketToken.Kind);
             Assert.NotNull(node.Expression);
             Assert.Equal(SyntaxKind.CloseBracketToken, node.CloseBracketToken.Kind);
@@ -7990,6 +8006,32 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
         }
 
         [Fact]
+        public void TestSqlOutputWildcardSegmentTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlOutputWildcardSegment();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlOutputWildcardSegmentIdentityRewriter()
+        {
+            var oldNode = GenerateSqlOutputWildcardSegment();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
         public void TestSqlDoClauseTokenDeleteRewriter()
         {
             var oldNode = GenerateSqlDoClause();
@@ -11177,6 +11219,9 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
         private static SqlOutputIdentifierSegmentSyntax GenerateSqlOutputIdentifierSegment()
             => SyntaxFactory.SqlOutputIdentifierSegment(SyntaxFactory.Token(SyntaxKind.OpenBracketToken), GenerateIdentifierName(), SyntaxFactory.Token(SyntaxKind.CloseBracketToken));
 
+        private static SqlOutputWildcardSegmentSyntax GenerateSqlOutputWildcardSegment()
+            => SyntaxFactory.SqlOutputWildcardSegment(SyntaxFactory.Token(SyntaxKind.AsteriskToken), SyntaxFactory.Token(SyntaxKind.OpenBracketToken), GenerateIdentifierName(), SyntaxFactory.Token(SyntaxKind.CloseBracketToken));
+
         private static SqlDoClauseSyntax GenerateSqlDoClause()
             => SyntaxFactory.SqlDoClause(SyntaxFactory.Token(SyntaxKind.SqlDoKeyword), GenerateBlock());
 
@@ -13337,6 +13382,19 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
             Assert.NotNull(node.Expression);
             Assert.Equal(SyntaxKind.CloseBracketToken, node.CloseBracketToken.Kind());
             var newNode = node.WithOpenBracketToken(node.OpenBracketToken).WithExpression(node.Expression).WithCloseBracketToken(node.CloseBracketToken);
+            Assert.Equal(node, newNode);
+        }
+
+        [Fact]
+        public void TestSqlOutputWildcardSegmentFactoryAndProperties()
+        {
+            var node = GenerateSqlOutputWildcardSegment();
+
+            Assert.Equal(SyntaxKind.AsteriskToken, node.AsteriskToken.Kind());
+            Assert.Equal(SyntaxKind.OpenBracketToken, node.OpenBracketToken.Kind());
+            Assert.NotNull(node.Expression);
+            Assert.Equal(SyntaxKind.CloseBracketToken, node.CloseBracketToken.Kind());
+            var newNode = node.WithAsteriskToken(node.AsteriskToken).WithOpenBracketToken(node.OpenBracketToken).WithExpression(node.Expression).WithCloseBracketToken(node.CloseBracketToken);
             Assert.Equal(node, newNode);
         }
 
@@ -18697,6 +18755,32 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
         public void TestSqlOutputIdentifierSegmentIdentityRewriter()
         {
             var oldNode = GenerateSqlOutputIdentifierSegment();
+            var rewriter = new IdentityRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            Assert.Same(oldNode, newNode);
+        }
+
+        [Fact]
+        public void TestSqlOutputWildcardSegmentTokenDeleteRewriter()
+        {
+            var oldNode = GenerateSqlOutputWildcardSegment();
+            var rewriter = new TokenDeleteRewriter();
+            var newNode = rewriter.Visit(oldNode);
+
+            if(!oldNode.IsMissing)
+            {
+                Assert.NotEqual(oldNode, newNode);
+            }
+
+            Assert.NotNull(newNode);
+            Assert.True(newNode.IsMissing, "No tokens => missing");
+        }
+
+        [Fact]
+        public void TestSqlOutputWildcardSegmentIdentityRewriter()
+        {
+            var oldNode = GenerateSqlOutputWildcardSegment();
             var rewriter = new IdentityRewriter();
             var newNode = rewriter.Visit(oldNode);
 

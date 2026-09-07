@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <!-- Licensed to the .NET Foundation under one or more agreements. The .NET Foundation licenses this file to you under the MIT license. See the LICENSE file in the project root for more information. -->
 
 <!-- 
@@ -3054,6 +3054,34 @@
         <summary>The C# expression each result column is assigned into, e.g. the
         <c>n.krneki</c> in <c>SELECT u.name[n.krneki]</c>. Must be assignable; this is
         checked when the statement is bound.</summary>
+      </PropertyComment>
+    </Field>
+    <Field Name="CloseBracketToken" Type="SyntaxToken">
+      <Kind Name="CloseBracketToken"/>
+    </Field>
+  </Node>
+  <Node Name="SqlOutputWildcardSegmentSyntax" Base="SqlSegmentSyntax">
+    <Kind Name="SqlOutputWildcardSegment"/>
+    <TypeComment>
+      <summary>A wildcard output binding: <c>a.*[myUsers]</c>, which fills every member of the
+      bracketed target from the columns of the table the star is qualified by.</summary>
+    </TypeComment>
+    <Field Name="AsteriskToken" Type="SyntaxToken">
+      <Kind Name="AsteriskToken"/>
+      <PropertyComment>
+        <summary>The <c>*</c> itself. Any qualifier in front of it (the <c>a.</c> of
+        <c>a.*</c>) stays in the preceding text segments, since it is ordinary sql that the
+        server would parse the same way regardless of the binding.</summary>
+      </PropertyComment>
+    </Field>
+    <Field Name="OpenBracketToken" Type="SyntaxToken">
+      <Kind Name="OpenBracketToken"/>
+    </Field>
+    <Field Name="Expression" Type="ExpressionSyntax">
+      <PropertyComment>
+        <summary>The C# object each result row is read into, e.g. the <c>myUsers</c> in
+        <c>SELECT a.*[myUsers]</c>. Every member of its type must correspond to a column of the
+        table; this is checked when the statement is bound.</summary>
       </PropertyComment>
     </Field>
     <Field Name="CloseBracketToken" Type="SyntaxToken">

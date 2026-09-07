@@ -9519,6 +9519,29 @@ done:
                         case SyntaxKind.MinusMinusToken:
                             isComment = true;
                             break;
+                        case SyntaxKind.AsteriskToken:
+                            // '*[' is a wildcard binding: the whole row is read into the bracketed
+                            // object. It has to be recognised here rather than left to the binder
+                            // because the text handed to the server must not contain the bracket -
+                            // T-SQL has no alias slot on a star - and that text is built straight
+                            // from these segments.
+                            if (this.PeekToken(1).Kind != SyntaxKind.OpenBracketToken)
+                            {
+                                break;
+                            }
+
+                            var asterisk = EatToken(SyntaxKind.AsteriskToken);
+                            var wildcardOpenBracket = EatToken(SyntaxKind.OpenBracketToken);
+                            var wildcardExpression = ParseSqlEmbeddedExpression();
+                            var wildcardCloseBracket = EatToken(SyntaxKind.CloseBracketToken);
+                            sqlBlockBuilder.Add(
+                                _syntaxFactory.SqlOutputWildcardSegment(
+                                    asterisk,
+                                    wildcardOpenBracket,
+                                    wildcardExpression,
+                                    wildcardCloseBracket));
+                            continue;
+
                         case SyntaxKind.OpenBracketToken:
                             // Inside a sql block '[' always introduces a C# output binding, never a
                             // T-SQL quoted identifier; a column name needing quoting must be written

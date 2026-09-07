@@ -469,6 +469,9 @@ public partial class CSharpSyntaxVisitor<TResult>
     /// <summary>Called when the visitor visits a SqlOutputIdentifierSegmentSyntax node.</summary>
     public virtual TResult? VisitSqlOutputIdentifierSegment(SqlOutputIdentifierSegmentSyntax node) => this.DefaultVisit(node);
 
+    /// <summary>Called when the visitor visits a SqlOutputWildcardSegmentSyntax node.</summary>
+    public virtual TResult? VisitSqlOutputWildcardSegment(SqlOutputWildcardSegmentSyntax node) => this.DefaultVisit(node);
+
     /// <summary>Called when the visitor visits a SqlDoClauseSyntax node.</summary>
     public virtual TResult? VisitSqlDoClause(SqlDoClauseSyntax node) => this.DefaultVisit(node);
 
@@ -1241,6 +1244,9 @@ public partial class CSharpSyntaxVisitor
     /// <summary>Called when the visitor visits a SqlOutputIdentifierSegmentSyntax node.</summary>
     public virtual void VisitSqlOutputIdentifierSegment(SqlOutputIdentifierSegmentSyntax node) => this.DefaultVisit(node);
 
+    /// <summary>Called when the visitor visits a SqlOutputWildcardSegmentSyntax node.</summary>
+    public virtual void VisitSqlOutputWildcardSegment(SqlOutputWildcardSegmentSyntax node) => this.DefaultVisit(node);
+
     /// <summary>Called when the visitor visits a SqlDoClauseSyntax node.</summary>
     public virtual void VisitSqlDoClause(SqlDoClauseSyntax node) => this.DefaultVisit(node);
 
@@ -2012,6 +2018,9 @@ public partial class CSharpSyntaxRewriter : CSharpSyntaxVisitor<SyntaxNode?>
 
     public override SyntaxNode? VisitSqlOutputIdentifierSegment(SqlOutputIdentifierSegmentSyntax node)
         => node.Update(VisitToken(node.OpenBracketToken), (ExpressionSyntax?)Visit(node.Expression) ?? throw new ArgumentNullException("expression"), VisitToken(node.CloseBracketToken));
+
+    public override SyntaxNode? VisitSqlOutputWildcardSegment(SqlOutputWildcardSegmentSyntax node)
+        => node.Update(VisitToken(node.AsteriskToken), VisitToken(node.OpenBracketToken), (ExpressionSyntax?)Visit(node.Expression) ?? throw new ArgumentNullException("expression"), VisitToken(node.CloseBracketToken));
 
     public override SyntaxNode? VisitSqlDoClause(SqlDoClauseSyntax node)
         => node.Update(VisitToken(node.SqlDoKeyword), (BlockSyntax?)Visit(node.Block) ?? throw new ArgumentNullException("block"));
@@ -4813,6 +4822,20 @@ public static partial class SyntaxFactory
     /// <summary>Creates a new SqlOutputIdentifierSegmentSyntax instance.</summary>
     public static SqlOutputIdentifierSegmentSyntax SqlOutputIdentifierSegment(ExpressionSyntax expression)
         => SyntaxFactory.SqlOutputIdentifierSegment(SyntaxFactory.Token(SyntaxKind.OpenBracketToken), expression, SyntaxFactory.Token(SyntaxKind.CloseBracketToken));
+
+    /// <summary>Creates a new SqlOutputWildcardSegmentSyntax instance.</summary>
+    public static SqlOutputWildcardSegmentSyntax SqlOutputWildcardSegment(SyntaxToken asteriskToken, SyntaxToken openBracketToken, ExpressionSyntax expression, SyntaxToken closeBracketToken)
+    {
+        if (asteriskToken.Kind() != SyntaxKind.AsteriskToken) throw new ArgumentException(nameof(asteriskToken));
+        if (openBracketToken.Kind() != SyntaxKind.OpenBracketToken) throw new ArgumentException(nameof(openBracketToken));
+        if (expression == null) throw new ArgumentNullException(nameof(expression));
+        if (closeBracketToken.Kind() != SyntaxKind.CloseBracketToken) throw new ArgumentException(nameof(closeBracketToken));
+        return (SqlOutputWildcardSegmentSyntax)Syntax.InternalSyntax.SyntaxFactory.SqlOutputWildcardSegment((Syntax.InternalSyntax.SyntaxToken)asteriskToken.Node!, (Syntax.InternalSyntax.SyntaxToken)openBracketToken.Node!, (Syntax.InternalSyntax.ExpressionSyntax)expression.Green, (Syntax.InternalSyntax.SyntaxToken)closeBracketToken.Node!).CreateRed();
+    }
+
+    /// <summary>Creates a new SqlOutputWildcardSegmentSyntax instance.</summary>
+    public static SqlOutputWildcardSegmentSyntax SqlOutputWildcardSegment(ExpressionSyntax expression)
+        => SyntaxFactory.SqlOutputWildcardSegment(SyntaxFactory.Token(SyntaxKind.AsteriskToken), SyntaxFactory.Token(SyntaxKind.OpenBracketToken), expression, SyntaxFactory.Token(SyntaxKind.CloseBracketToken));
 
     /// <summary>Creates a new SqlDoClauseSyntax instance.</summary>
     public static SqlDoClauseSyntax SqlDoClause(SyntaxToken sqlDoKeyword, BlockSyntax block)

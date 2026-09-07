@@ -79,6 +79,13 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                         AppendPlaceholder(builder, segment, "[" + ParseSql.OutputAliasName(outputCount++) + "]");
                         break;
 
+                    case SqlOutputWildcardSegmentSyntax:
+                        // Just the star. T-SQL has no alias slot on one, so a placeholder here
+                        // would make the text unparseable; the binder expands the star into the
+                        // columns it stands for once it knows which table that is.
+                        AppendPlaceholder(builder, segment, "*");
+                        break;
+
                     default:
                         builder.Append(segment.ToFullString());
                         break;
@@ -129,6 +136,44 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             return end > start
                 ? TextSpan.FromBounds(start, end)
                 : new TextSpan(start, length);
+        }
+
+        /// <summary>
+        /// The offset in the sql text corresponding to <paramref name="sourcePosition"/>, the
+        /// inverse of <see cref="MapToSource"/>. Returns -1 when the position is outside every
+        /// segment.
+        /// </summary>
+        /// <remarks>
+        /// Used to find what a given piece of source turned into once placeholders were
+        /// substituted - the binder needs it to line a wildcard segment up with the star ScriptDom
+        /// parsed out of the emitted text.
+        /// </remarks>
+        public int MapToSql(int sourcePosition)
+        {
+            if (_sourceStarts.IsDefaultOrEmpty)
+            {
+                return -1;
+            }
+
+            // Largest index whose segment starts at or before the position. Source segments are in
+            // ascending order and do not overlap, so this is the only one that can contain it.
+            var low = 0;
+            var high = _sourceStarts.Length - 1;
+            while (low < high)
+            {
+                var mid = low + ((high - low + 1) / 2);
+                if (_sourceStarts[mid] <= sourcePosition)
+                {
+                    low = mid;
+                }
+                else
+                {
+                    high = mid - 1;
+                }
+            }
+
+            var delta = sourcePosition - _sourceStarts[low];
+            return delta > _sourceWidths[low] ? -1 : _sqlStarts[low] + delta;
         }
 
         private int MapPosition(int sqlOffset)

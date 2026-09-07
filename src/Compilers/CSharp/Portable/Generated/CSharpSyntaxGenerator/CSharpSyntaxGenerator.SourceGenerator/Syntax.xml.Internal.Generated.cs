@@ -14936,6 +14936,108 @@ internal sealed partial class SqlOutputIdentifierSegmentSyntax : SqlSegmentSynta
         => new SqlOutputIdentifierSegmentSyntax(this.Kind, this.openBracketToken, this.expression, this.closeBracketToken, GetDiagnostics(), annotations);
 }
 
+/// <summary>A wildcard output binding: <c>a.*[myUsers]</c>, which fills every member of the
+/// bracketed target from the columns of the table the star is qualified by.</summary>
+internal sealed partial class SqlOutputWildcardSegmentSyntax : SqlSegmentSyntax
+{
+    internal readonly SyntaxToken asteriskToken;
+    internal readonly SyntaxToken openBracketToken;
+    internal readonly ExpressionSyntax expression;
+    internal readonly SyntaxToken closeBracketToken;
+
+    internal SqlOutputWildcardSegmentSyntax(SyntaxKind kind, SyntaxToken asteriskToken, SyntaxToken openBracketToken, ExpressionSyntax expression, SyntaxToken closeBracketToken, DiagnosticInfo[]? diagnostics, SyntaxAnnotation[]? annotations)
+      : base(kind, diagnostics, annotations)
+    {
+        this.SlotCount = 4;
+        this.AdjustFlagsAndWidth(asteriskToken);
+        this.asteriskToken = asteriskToken;
+        this.AdjustFlagsAndWidth(openBracketToken);
+        this.openBracketToken = openBracketToken;
+        this.AdjustFlagsAndWidth(expression);
+        this.expression = expression;
+        this.AdjustFlagsAndWidth(closeBracketToken);
+        this.closeBracketToken = closeBracketToken;
+    }
+
+    internal SqlOutputWildcardSegmentSyntax(SyntaxKind kind, SyntaxToken asteriskToken, SyntaxToken openBracketToken, ExpressionSyntax expression, SyntaxToken closeBracketToken, SyntaxFactoryContext context)
+      : base(kind)
+    {
+        this.SetFactoryContext(context);
+        this.SlotCount = 4;
+        this.AdjustFlagsAndWidth(asteriskToken);
+        this.asteriskToken = asteriskToken;
+        this.AdjustFlagsAndWidth(openBracketToken);
+        this.openBracketToken = openBracketToken;
+        this.AdjustFlagsAndWidth(expression);
+        this.expression = expression;
+        this.AdjustFlagsAndWidth(closeBracketToken);
+        this.closeBracketToken = closeBracketToken;
+    }
+
+    internal SqlOutputWildcardSegmentSyntax(SyntaxKind kind, SyntaxToken asteriskToken, SyntaxToken openBracketToken, ExpressionSyntax expression, SyntaxToken closeBracketToken)
+      : base(kind)
+    {
+        this.SlotCount = 4;
+        this.AdjustFlagsAndWidth(asteriskToken);
+        this.asteriskToken = asteriskToken;
+        this.AdjustFlagsAndWidth(openBracketToken);
+        this.openBracketToken = openBracketToken;
+        this.AdjustFlagsAndWidth(expression);
+        this.expression = expression;
+        this.AdjustFlagsAndWidth(closeBracketToken);
+        this.closeBracketToken = closeBracketToken;
+    }
+
+    /// <summary>The <c>*</c> itself. Any qualifier in front of it (the <c>a.</c> of
+    /// <c>a.*</c>) stays in the preceding text segments, since it is ordinary sql that the
+    /// server would parse the same way regardless of the binding.</summary>
+    public SyntaxToken AsteriskToken => this.asteriskToken;
+    public SyntaxToken OpenBracketToken => this.openBracketToken;
+    /// <summary>The C# object each result row is read into, e.g. the <c>myUsers</c> in
+    /// <c>SELECT a.*[myUsers]</c>. Every member of its type must correspond to a column of the
+    /// table; this is checked when the statement is bound.</summary>
+    public ExpressionSyntax Expression => this.expression;
+    public SyntaxToken CloseBracketToken => this.closeBracketToken;
+
+    internal override GreenNode? GetSlot(int index)
+        => index switch
+        {
+            0 => this.asteriskToken,
+            1 => this.openBracketToken,
+            2 => this.expression,
+            3 => this.closeBracketToken,
+            _ => null,
+        };
+
+    internal override SyntaxNode CreateRed(SyntaxNode? parent, int position) => new CSharp.Syntax.SqlOutputWildcardSegmentSyntax(this, parent, position);
+
+    public override void Accept(CSharpSyntaxVisitor visitor) => visitor.VisitSqlOutputWildcardSegment(this);
+    public override TResult Accept<TResult>(CSharpSyntaxVisitor<TResult> visitor) => visitor.VisitSqlOutputWildcardSegment(this);
+
+    public SqlOutputWildcardSegmentSyntax Update(SyntaxToken asteriskToken, SyntaxToken openBracketToken, ExpressionSyntax expression, SyntaxToken closeBracketToken)
+    {
+        if (asteriskToken != this.AsteriskToken || openBracketToken != this.OpenBracketToken || expression != this.Expression || closeBracketToken != this.CloseBracketToken)
+        {
+            var newNode = SyntaxFactory.SqlOutputWildcardSegment(asteriskToken, openBracketToken, expression, closeBracketToken);
+            var diags = GetDiagnostics();
+            if (diags?.Length > 0)
+                newNode = newNode.WithDiagnosticsGreen(diags);
+            var annotations = GetAnnotations();
+            if (annotations?.Length > 0)
+                newNode = newNode.WithAnnotationsGreen(annotations);
+            return newNode;
+        }
+
+        return this;
+    }
+
+    internal override GreenNode SetDiagnostics(DiagnosticInfo[]? diagnostics)
+        => new SqlOutputWildcardSegmentSyntax(this.Kind, this.asteriskToken, this.openBracketToken, this.expression, this.closeBracketToken, diagnostics, GetAnnotations());
+
+    internal override GreenNode SetAnnotations(SyntaxAnnotation[]? annotations)
+        => new SqlOutputWildcardSegmentSyntax(this.Kind, this.asteriskToken, this.openBracketToken, this.expression, this.closeBracketToken, GetDiagnostics(), annotations);
+}
+
 internal sealed partial class SqlDoClauseSyntax : CSharpSyntaxNode
 {
     internal readonly SyntaxToken sqlDoKeyword;
@@ -27868,6 +27970,7 @@ internal partial class CSharpSyntaxVisitor<TResult>
     public virtual TResult VisitSqlTextSegment(SqlTextSegmentSyntax node) => this.DefaultVisit(node);
     public virtual TResult VisitSqlInputIdentifierSegment(SqlInputIdentifierSegmentSyntax node) => this.DefaultVisit(node);
     public virtual TResult VisitSqlOutputIdentifierSegment(SqlOutputIdentifierSegmentSyntax node) => this.DefaultVisit(node);
+    public virtual TResult VisitSqlOutputWildcardSegment(SqlOutputWildcardSegmentSyntax node) => this.DefaultVisit(node);
     public virtual TResult VisitSqlDoClause(SqlDoClauseSyntax node) => this.DefaultVisit(node);
     public virtual TResult VisitSqlEmptyClause(SqlEmptyClauseSyntax node) => this.DefaultVisit(node);
     public virtual TResult VisitSqlEndClause(SqlEndClauseSyntax node) => this.DefaultVisit(node);
@@ -28128,6 +28231,7 @@ internal partial class CSharpSyntaxVisitor
     public virtual void VisitSqlTextSegment(SqlTextSegmentSyntax node) => this.DefaultVisit(node);
     public virtual void VisitSqlInputIdentifierSegment(SqlInputIdentifierSegmentSyntax node) => this.DefaultVisit(node);
     public virtual void VisitSqlOutputIdentifierSegment(SqlOutputIdentifierSegmentSyntax node) => this.DefaultVisit(node);
+    public virtual void VisitSqlOutputWildcardSegment(SqlOutputWildcardSegmentSyntax node) => this.DefaultVisit(node);
     public virtual void VisitSqlDoClause(SqlDoClauseSyntax node) => this.DefaultVisit(node);
     public virtual void VisitSqlEmptyClause(SqlEmptyClauseSyntax node) => this.DefaultVisit(node);
     public virtual void VisitSqlEndClause(SqlEndClauseSyntax node) => this.DefaultVisit(node);
@@ -28689,6 +28793,9 @@ internal partial class CSharpSyntaxRewriter : CSharpSyntaxVisitor<CSharpSyntaxNo
 
     public override CSharpSyntaxNode VisitSqlOutputIdentifierSegment(SqlOutputIdentifierSegmentSyntax node)
         => node.Update((SyntaxToken)Visit(node.OpenBracketToken), (ExpressionSyntax)Visit(node.Expression), (SyntaxToken)Visit(node.CloseBracketToken));
+
+    public override CSharpSyntaxNode VisitSqlOutputWildcardSegment(SqlOutputWildcardSegmentSyntax node)
+        => node.Update((SyntaxToken)Visit(node.AsteriskToken), (SyntaxToken)Visit(node.OpenBracketToken), (ExpressionSyntax)Visit(node.Expression), (SyntaxToken)Visit(node.CloseBracketToken));
 
     public override CSharpSyntaxNode VisitSqlDoClause(SqlDoClauseSyntax node)
         => node.Update((SyntaxToken)Visit(node.SqlDoKeyword), (BlockSyntax)Visit(node.Block));
@@ -32247,6 +32354,21 @@ internal partial class ContextAwareSyntax
         }
 
         return result;
+    }
+
+    public SqlOutputWildcardSegmentSyntax SqlOutputWildcardSegment(SyntaxToken asteriskToken, SyntaxToken openBracketToken, ExpressionSyntax expression, SyntaxToken closeBracketToken)
+    {
+#if DEBUG
+        if (asteriskToken == null) throw new ArgumentNullException(nameof(asteriskToken));
+        if (asteriskToken.Kind != SyntaxKind.AsteriskToken) throw new ArgumentException(nameof(asteriskToken));
+        if (openBracketToken == null) throw new ArgumentNullException(nameof(openBracketToken));
+        if (openBracketToken.Kind != SyntaxKind.OpenBracketToken) throw new ArgumentException(nameof(openBracketToken));
+        if (expression == null) throw new ArgumentNullException(nameof(expression));
+        if (closeBracketToken == null) throw new ArgumentNullException(nameof(closeBracketToken));
+        if (closeBracketToken.Kind != SyntaxKind.CloseBracketToken) throw new ArgumentException(nameof(closeBracketToken));
+#endif
+
+        return new SqlOutputWildcardSegmentSyntax(SyntaxKind.SqlOutputWildcardSegment, asteriskToken, openBracketToken, expression, closeBracketToken, this.context);
     }
 
     public SqlDoClauseSyntax SqlDoClause(SyntaxToken sqlDoKeyword, BlockSyntax block)
@@ -37803,6 +37925,21 @@ internal static partial class SyntaxFactory
         }
 
         return result;
+    }
+
+    public static SqlOutputWildcardSegmentSyntax SqlOutputWildcardSegment(SyntaxToken asteriskToken, SyntaxToken openBracketToken, ExpressionSyntax expression, SyntaxToken closeBracketToken)
+    {
+#if DEBUG
+        if (asteriskToken == null) throw new ArgumentNullException(nameof(asteriskToken));
+        if (asteriskToken.Kind != SyntaxKind.AsteriskToken) throw new ArgumentException(nameof(asteriskToken));
+        if (openBracketToken == null) throw new ArgumentNullException(nameof(openBracketToken));
+        if (openBracketToken.Kind != SyntaxKind.OpenBracketToken) throw new ArgumentException(nameof(openBracketToken));
+        if (expression == null) throw new ArgumentNullException(nameof(expression));
+        if (closeBracketToken == null) throw new ArgumentNullException(nameof(closeBracketToken));
+        if (closeBracketToken.Kind != SyntaxKind.CloseBracketToken) throw new ArgumentException(nameof(closeBracketToken));
+#endif
+
+        return new SqlOutputWildcardSegmentSyntax(SyntaxKind.SqlOutputWildcardSegment, asteriskToken, openBracketToken, expression, closeBracketToken);
     }
 
     public static SqlDoClauseSyntax SqlDoClause(SyntaxToken sqlDoKeyword, BlockSyntax block)

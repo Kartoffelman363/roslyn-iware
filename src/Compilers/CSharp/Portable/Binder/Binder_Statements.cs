@@ -3290,7 +3290,8 @@ namespace Microsoft.CodeAnalysis.CSharp
                 out var inputNames,
                 sqlTextSegments.Segments,
                 out var sqlText,
-                out var sqlTextMap);
+                out var sqlTextMap,
+                out var sqlWildcards);
 
             // Each output binding is assigned into once per result row, so bind it as an
             // assignment target. BindValueKind.Assignable gives the ordinary C# diagnostics for
@@ -3322,6 +3323,23 @@ namespace Microsoft.CodeAnalysis.CSharp
                 node,
                 diagnostics);
 
+            // Verification runs against the text as written, which is still valid sql because a
+            // wildcard segment emits a bare star. Expanding it afterwards rewrites the star into
+            // the columns it stands for, so what reaches the server is a plain list of aliased
+            // columns and the rest of the pipeline - and lowering in particular - sees nothing
+            // unusual.
+            var queryOutputNames = outputNames;
+            if (!sqlWildcards.IsEmpty)
+            {
+                sqlText = ExpandSqlWildcards(
+                    sqlWildcards,
+                    sqlText,
+                    sqlTextMap,
+                    queryTargetsBuilder,
+                    ref queryOutputNames,
+                    diagnostics);
+            }
+
             var boundSqlDoClause = node.SqlDoClause != null ? BindEmbeddedBlock(node.SqlDoClause.Block, diagnostics) : null;
             var boundSqlEmptyClause = node.SqlEmptyClause != null ? BindEmbeddedBlock(node.SqlEmptyClause.Block, diagnostics) : null;
             var boundSqlEndClause = node.SqlEndClause != null ? BindEmbeddedBlock(node.SqlEndClause.Block, diagnostics) : null;
@@ -3332,9 +3350,229 @@ namespace Microsoft.CodeAnalysis.CSharp
                 boundSqlEmptyClause,
                 boundSqlEndClause,
                 queryTargetsBuilder.ToImmutable(),
-                outputNames,
+                queryOutputNames,
                 parameterExpressionsBuilder.ToImmutable(),
                 inputNames);
+        }
+
+        /// <summary>
+        /// Rewrites each <c>*</c> that carries a binding into the columns of the table it stands
+        /// for, adding an assignment target and an alias per column.
+        /// </summary>
+        /// <remarks>
+        /// The target need not be an <c>[Orm]</c> class - any type will do - but every member it
+        /// declares must correspond to a column of the table, since a member with nowhere to read
+        /// from would otherwise fail at run time with the server complaining about a column name
+        /// the user never wrote. Which members count, and what column each maps to, is decided by
+        /// <see cref="OrmSchemaProvider.GetColumns"/> so that the two sides cannot disagree.
+        /// </remarks>
+        /// <returns>The sql text with every bound star expanded.</returns>
+        private string ExpandSqlWildcards(
+            ImmutableArray<SqlOutputWildcardSegmentSyntax> sqlWildcards,
+            string sqlText,
+            SqlTextMap sqlTextMap,
+            ImmutableArray<BoundExpression>.Builder queryTargets,
+            ref ImmutableArray<string> outputNames,
+            BindingDiagnosticBag diagnostics)
+        {
+            var stars = SqlTableResolution.GetReferences(sqlText).Stars;
+            if (stars.IsEmpty)
+            {
+                // The block did not parse, so there is nothing to line the segments up against.
+                // VerifySql has already reported the syntax error.
+                return sqlText;
+            }
+
+            var schema = OrmSchemaProvider.GetSchema(Compilation);
+            var outputNameBuilder = outputNames.ToBuilder();
+
+            // Collected first and applied afterwards: each replacement changes the offsets of
+            // everything after it, so they have to go in from the back.
+            var replacements = ArrayBuilder<(int Start, int Length, string Text)>.GetInstance();
+
+            foreach (var wildcard in sqlWildcards)
+            {
+                ReportSqlAwait(wildcard.Expression, diagnostics);
+
+                // Match the segment to its star by position rather than by order: a block may also
+                // contain stars with no binding at all ("SELECT *" on its own), and those must be
+                // left exactly as written.
+                var starOffset = sqlTextMap.MapToSql(wildcard.AsteriskToken.SpanStart);
+
+                SqlStarReference? match = null;
+                foreach (var candidate in stars)
+                {
+                    if (starOffset >= candidate.Offset && starOffset < candidate.Offset + candidate.Length)
+                    {
+                        match = candidate;
+                        break;
+                    }
+                }
+
+                if (match is not null star)
+                {
+                    continue;
+                }
+
+                if (!TryGetWildcardTable(star, wildcard, schema, diagnostics, out var table))
+                {
+                    continue;
+                }
+
+                // Bound once here for its type, and then once more per column below. A bound tree
+                // is a tree rather than a graph, so the same node cannot be hung under several
+                // member accesses; each needs a receiver of its own. Re-binding also matches what
+                // writing the bindings out by hand would do, since every explicit binding carries
+                // its own copy of the receiver and evaluates it once per row.
+                var probe = BindValue(wildcard.Expression, diagnostics, BindValueKind.RValue);
+                if (probe.Type is not NamedTypeSymbol { TypeKind: not TypeKind.Error } targetType)
+                {
+                    continue;
+                }
+
+                var targetColumns = OrmSchemaProvider.GetColumns(targetType.GetPublicSymbol());
+                if (targetColumns.IsEmpty)
+                {
+                    Error(diagnostics, ErrorCode.ERR_SQL_SymbolError, wildcard,
+                        $"'{targetType.Name}' declares no members to read a row into");
+                    continue;
+                }
+
+                var expansion = PooledStringBuilder.GetInstance();
+                foreach (var targetColumn in targetColumns)
+                {
+                    if (table.FindColumn(targetColumn.ColumnName) is not { } tableColumn)
+                    {
+                        Error(diagnostics, ErrorCode.ERR_SQL_SymbolError, wildcard,
+                            $"'{targetType.Name}.{targetColumn.PropertyName}' has no matching column in table '{table.TableName}'");
+                        continue;
+                    }
+
+                    // Diagnostics for the receiver itself were already reported by the probe above;
+                    // repeating them once per column would say the same thing N times. Marked
+                    // compiler-generated because nothing in the source corresponds to this
+                    // particular access - the user wrote a star, and these are the members it was
+                    // expanded into.
+                    var receiver = BindValue(wildcard.Expression, BindingDiagnosticBag.Discarded, BindValueKind.RValue)
+                        .MakeCompilerGenerated();
+                    if (BindSqlWildcardMember(wildcard, receiver, targetColumn, diagnostics) is not { } target)
+                    {
+                        continue;
+                    }
+
+                    var alias = ParseSql.OutputAliasName(outputNameBuilder.Count);
+                    queryTargets.Add(target);
+                    outputNameBuilder.Add(alias);
+
+                    if (expansion.Builder.Length > 0)
+                    {
+                        expansion.Builder.Append(", ");
+                    }
+
+                    if (star.Qualifier is { Length: > 0 } qualifier)
+                    {
+                        expansion.Builder.Append(qualifier).Append('.');
+                    }
+
+                    // Bracket-quoted so a column named after a reserved word still round-trips.
+                    expansion.Builder.Append('[').Append(tableColumn.ColumnName).Append("] [").Append(alias).Append(']');
+                }
+
+                replacements.Add((star.Offset, star.Length, expansion.ToStringAndFree()));
+            }
+
+            replacements.Sort(static (x, y) => y.Start.CompareTo(x.Start));
+
+            var text = PooledStringBuilder.GetInstance();
+            text.Builder.Append(sqlText);
+            foreach (var (start, length, replacement) in replacements)
+            {
+                text.Builder.Remove(start, length).Insert(start, replacement);
+            }
+
+            replacements.Free();
+            outputNames = outputNameBuilder.ToImmutable();
+            return text.ToStringAndFree();
+        }
+
+        /// <summary>
+        /// The table a bound star reads from, or false with a diagnostic reported when there is
+        /// not exactly one.
+        /// </summary>
+        private bool TryGetWildcardTable(
+            SqlStarReference star,
+            SqlOutputWildcardSegmentSyntax wildcard,
+            OrmSchema schema,
+            BindingDiagnosticBag diagnostics,
+            [NotNullWhen(true)] out OrmTable? table)
+        {
+            table = null;
+
+            if (star.CandidateTables.IsEmpty)
+            {
+                Error(diagnostics, ErrorCode.ERR_SQL_SymbolError, wildcard,
+                    star.Qualifier is { Length: > 0 } qualifier
+                        ? $"'{qualifier}' does not name a table a row can be read from"
+                        : "there is no table in scope to read a row from");
+                return false;
+            }
+
+            if (star.CandidateTables.Length > 1)
+            {
+                // A bare star across a join: which table the object should be filled from is the
+                // user's decision, not one to guess at.
+                Error(diagnostics, ErrorCode.ERR_SQL_SymbolError, wildcard,
+                    $"'*' is ambiguous across {string.Join(", ", star.CandidateTables)}; qualify it with the table or alias to read from");
+                return false;
+            }
+
+            var tableName = star.CandidateTables[0];
+            table = schema.FindTable(tableName);
+            if (table is null)
+            {
+                Error(diagnostics, ErrorCode.ERR_SQL_SymbolError, wildcard,
+                    $"No [Orm] class defines a table named '{tableName}', so its columns are not known");
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Binds <c>receiver.member</c> for one column of a wildcard binding, as an assignment
+        /// target.
+        /// </summary>
+        /// <remarks>
+        /// There is no syntax for this access to be bound from - the user wrote a star, not a
+        /// member name - so it is built against the wildcard segment's own syntax, which is also
+        /// where any diagnostic about the member should point.
+        /// </remarks>
+        private BoundExpression? BindSqlWildcardMember(
+            SqlOutputWildcardSegmentSyntax wildcard,
+            BoundExpression receiver,
+            OrmColumn column,
+            BindingDiagnosticBag diagnostics)
+        {
+            BoundExpression access;
+            switch (column.Symbol.GetSymbol())
+            {
+                case PropertySymbol property:
+                    access = BindPropertyAccess(wildcard, receiver, property, diagnostics, LookupResultKind.Viable, hasErrors: false)
+                        .MakeCompilerGenerated();
+                    break;
+
+                case FieldSymbol field:
+                    access = BindFieldAccess(wildcard, receiver, field, diagnostics, LookupResultKind.Viable, indexed: false, hasErrors: false)
+                        .MakeCompilerGenerated();
+                    break;
+
+                default:
+                    return null;
+            }
+
+            // Same check the explicit bindings get from BindValue: a getter-only property or a
+            // readonly field is reported here rather than reaching lowering.
+            return CheckValue(access, BindValueKind.Assignable, diagnostics);
         }
 
         /// <summary>

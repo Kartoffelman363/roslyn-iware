@@ -1,10 +1,11 @@
-// Licensed to the .NET Foundation under one or more agreements.
+﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using Microsoft.SqlServer.TransactSql.ScriptDom;
 
 #pragma warning disable RS0016 // Add public types and members to the declared API
@@ -84,6 +85,37 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
     }
 
     /// <summary>
+    /// A star in the select list - the "a.*" of "SELECT a.*[obj]" - and the tables it could stand
+    /// for.
+    /// </summary>
+    public readonly struct SqlStarReference
+    {
+        /// <summary>
+        /// One entry when the star is qualified ("a.*"), every table in scope when it is bare
+        /// ("*"). A bare star is only expandable when that leaves exactly one candidate.
+        /// </summary>
+        public ImmutableArray<string> CandidateTables { get; }
+
+        /// <summary>
+        /// The qualifier as written, for re-emitting the columns it stood for ("a" gives
+        /// "a.id, a.name"). Null for a bare star, whose columns are emitted unqualified.
+        /// </summary>
+        public string? Qualifier { get; }
+
+        /// <summary>Covers the whole star expression, qualifier included.</summary>
+        public int Offset { get; }
+        public int Length { get; }
+
+        public SqlStarReference(ImmutableArray<string> candidateTables, string? qualifier, int offset, int length)
+        {
+            CandidateTables = candidateTables;
+            Qualifier = qualifier;
+            Offset = offset;
+            Length = length;
+        }
+    }
+
+    /// <summary>
     /// Everything a sql block names that can be resolved against the [Orm] classes.
     /// </summary>
     public readonly struct SqlReferences
@@ -91,23 +123,27 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
         public ImmutableArray<SqlTableReference> Tables { get; }
         public ImmutableArray<SqlColumnReference> Columns { get; }
         public ImmutableArray<SqlAliasReference> Aliases { get; }
+        public ImmutableArray<SqlStarReference> Stars { get; }
 
         public SqlReferences(
             ImmutableArray<SqlTableReference> tables,
             ImmutableArray<SqlColumnReference> columns,
-            ImmutableArray<SqlAliasReference> aliases)
+            ImmutableArray<SqlAliasReference> aliases,
+            ImmutableArray<SqlStarReference> stars)
         {
             Tables = tables;
             Columns = columns;
             Aliases = aliases;
+            Stars = stars;
         }
 
         public static SqlReferences Empty { get; } = new SqlReferences(
             ImmutableArray<SqlTableReference>.Empty,
             ImmutableArray<SqlColumnReference>.Empty,
-            ImmutableArray<SqlAliasReference>.Empty);
+            ImmutableArray<SqlAliasReference>.Empty,
+            ImmutableArray<SqlStarReference>.Empty);
 
-        public bool IsEmpty => Tables.IsEmpty && Columns.IsEmpty && Aliases.IsEmpty;
+        public bool IsEmpty => Tables.IsEmpty && Columns.IsEmpty && Aliases.IsEmpty && Stars.IsEmpty;
     }
 
     /// <summary>
@@ -194,6 +230,9 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
 
             private readonly ImmutableArray<SqlAliasReference>.Builder _aliases =
                 ImmutableArray.CreateBuilder<SqlAliasReference>();
+
+            private readonly ImmutableArray<SqlStarReference>.Builder _stars =
+                ImmutableArray.CreateBuilder<SqlStarReference>();
 
             // A CTE introduces a name that is a table for the rest of the statement but has no
             // [Orm] class behind it, so those names must not be reported as unknown. Names are
@@ -307,6 +346,35 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                 base.Visit(node);
             }
 
+            public override void Visit(SelectStarExpression node)
+            {
+                string? qualifier = null;
+                ImmutableArray<string> candidates;
+
+                if (node.Qualifier?.Identifiers is { Count: > 0 } identifiers)
+                {
+                    // "a.*", or "dbo.users.*" where the table is still the last identifier. The
+                    // qualifier is kept as written so the expansion re-qualifies its columns the
+                    // same way rather than inventing a spelling the query did not use.
+                    qualifier = string.Join(".", identifiers.Select(static i => i.Value));
+
+                    var tableQualifier = identifiers[identifiers.Count - 1]?.Value;
+                    candidates = tableQualifier is { Length: > 0 } name
+                        && _scope.TryResolve(name, out var resolved)
+                        && resolved is not null
+                            ? ImmutableArray.Create(resolved)
+                            : ImmutableArray<string>.Empty;
+                }
+                else
+                {
+                    candidates = _scope.AllTables();
+                }
+
+                _stars.Add(new SqlStarReference(candidates, qualifier, node.StartOffset, node.FragmentLength));
+
+                base.Visit(node);
+            }
+
             public override void Visit(ColumnReferenceExpression node)
             {
                 var identifiers = node.MultiPartIdentifier?.Identifiers;
@@ -393,7 +461,7 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
 
                 // Aliases need no equivalent filtering: one standing for a CTE simply resolves to
                 // no [Orm] class, and nothing is reported for an alias either way.
-                return new SqlReferences(tables, _columns.ToImmutable(), _aliases.ToImmutable());
+                return new SqlReferences(tables, _columns.ToImmutable(), _aliases.ToImmutable(), _stars.ToImmutable());
             }
         }
     }

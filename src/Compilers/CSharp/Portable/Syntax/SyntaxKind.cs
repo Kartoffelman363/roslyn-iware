@@ -879,6 +879,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         SqlTextSegment = 8935,
         SqlInputIdentifierSegment = 8936,
         SqlOutputIdentifierSegment = 8937,
+        SqlOutputWildcardSegment = 8938,
 
         // patterns (for pattern-matching)
         DeclarationPattern = 9000,

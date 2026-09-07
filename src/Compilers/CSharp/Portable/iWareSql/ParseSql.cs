@@ -44,10 +44,12 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             out ImmutableArray<string> sqlInputNames,
             SyntaxList<SqlSegmentSyntax> sqlSegments,
             out string sqlText,
-            out SqlTextMap sqlTextMap)
+            out SqlTextMap sqlTextMap,
+            out ImmutableArray<SqlOutputWildcardSegmentSyntax> sqlWildcards)
         {
             var sqlOutputBuilder = ImmutableArray.CreateBuilder<SqlOutputIdentifierSegmentSyntax>();
             var sqlInputBuilder = ImmutableArray.CreateBuilder<SqlInputIdentifierSegmentSyntax>();
+            var sqlWildcardBuilder = ImmutableArray.CreateBuilder<SqlOutputWildcardSegmentSyntax>();
             var sqlOutputNameBuilder = ImmutableArray.CreateBuilder<string>();
             var sqlInputNameBuilder = ImmutableArray.CreateBuilder<string>();
 
@@ -55,6 +57,12 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             {
                 switch (sqlSegment)
                 {
+                    case SqlOutputWildcardSegmentSyntax sqlWildcardSegment:
+                        // No alias is allocated here: how many columns the star stands for is not
+                        // known until the binder has resolved the table behind it.
+                        sqlWildcardBuilder.Add(sqlWildcardSegment);
+                        break;
+
                     case SqlInputIdentifierSegmentSyntax sqlInputSegment:
                         sqlInputNameBuilder.Add(InputParameterName(sqlInputBuilder.Count));
                         sqlInputBuilder.Add(sqlInputSegment);
@@ -73,6 +81,7 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             // n-th name in these arrays is the n-th placeholder in the text.
             sqlTextMap = SqlTextMap.Create(sqlSegments, out sqlText);
 
+            sqlWildcards = sqlWildcardBuilder.ToImmutableArray();
             sqlOutputs = sqlOutputBuilder.ToImmutableArray();
             sqlInputs = sqlInputBuilder.ToImmutableArray();
             sqlOutputNames = sqlOutputNameBuilder.ToImmutableArray();

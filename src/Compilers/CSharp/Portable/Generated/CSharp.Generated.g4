@@ -570,6 +570,7 @@ sql_text_block
 sql_segment
   : sql_input_identifier_segment
   | sql_output_identifier_segment
+  | sql_output_wildcard_segment
   | sql_text_segment
   ;
 
@@ -579,6 +580,10 @@ sql_input_identifier_segment
 
 sql_output_identifier_segment
   : '[' expression ']'
+  ;
+
+sql_output_wildcard_segment
+  : '*' '[' expression ']'
   ;
 
 sql_text_segment

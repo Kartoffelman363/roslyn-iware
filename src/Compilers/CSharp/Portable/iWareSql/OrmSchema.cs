@@ -189,7 +189,23 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
 
             var tableName = GetNamedArgumentString(ormAttribute, "TableName") ?? type.Name;
 
-            var columns = new List<OrmColumn>();
+            tables.Add(new OrmTable(tableName, GetColumns(type), type));
+        }
+
+        /// <summary>
+        /// The columns a type declares, by the same rule whether or not it is marked [Orm].
+        /// </summary>
+        /// <remarks>
+        /// Applied to an [Orm] class this builds that table's column list. It is also applied to
+        /// the target of a wildcard binding ("SELECT a.*[obj]"), which deliberately need not be an
+        /// [Orm] class: a plain DTO can be filled from a table as long as every member it declares
+        /// corresponds to a column. Sharing the rule is the point - a member that counts as a
+        /// column on one side has to count as one on the other, [DbField(Label=...)] renames
+        /// included, or the two would disagree about what "matching" means.
+        /// </remarks>
+        public static ImmutableArray<OrmColumn> GetColumns(INamedTypeSymbol type)
+        {
+            var columns = ImmutableArray.CreateBuilder<OrmColumn>();
             foreach (var member in type.GetMembers())
             {
                 // Columns can be either auto-properties ("public string Foo { get; set; }")
@@ -224,7 +240,7 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                 columns.Add(new OrmColumn(propertyName, columnName, dbType, domain, member));
             }
 
-            tables.Add(new OrmTable(tableName, columns.ToImmutableArray(), type));
+            return columns.ToImmutable();
         }
 
         // Matched by simple name only (not full namespace) since OrmAttribute/DbFieldAttribute

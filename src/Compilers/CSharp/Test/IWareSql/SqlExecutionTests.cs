@@ -1,4 +1,4 @@
-// Licensed to the .NET Foundation under one or more agreements.
+﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
@@ -35,7 +35,7 @@ namespace Microsoft.CodeAnalysis.CSharp.IWareSql.UnitTests
             var compilation = CSharpCompilation.Create(
                 assemblyName: "SqlExecutionTest_" + Guid.NewGuid().ToString("N"),
                 syntaxTrees: new[] { CSharpSyntaxTree.ParseText(source) },
-                references: RuntimeReferences,
+                references: SqlTestReferences.Runtime,
                 options: new CSharpCompilationOptions(
                     OutputKind.DynamicallyLinkedLibrary,
                     optimizationLevel: OptimizationLevel.Debug));
@@ -73,23 +73,7 @@ namespace Microsoft.CodeAnalysis.CSharp.IWareSql.UnitTests
             return captured.ToString();
         }
 
-        /// <summary>
-        /// Everything this process can load, used as the compilation's references.
-        /// </summary>
-        /// <remarks>
-        /// The emitted assembly is loaded into this same process, so compiling it against exactly
-        /// what the runtime will give it is both the simplest way to be sure the two agree and the
-        /// only way to get the whole set it needs. That set is wider than it looks: as well as
-        /// iWare.Database and iWare.Domain.Abstractions, lowering resolves
-        /// Microsoft.Data.SqlClient.SqlDataReader to shape the read loop and ImmutableArray&lt;T&gt;
-        /// to carry the column names, so a curated reference set has to be kept in step with
-        /// whatever LocalRewriter_SqlStatement happens to look up.
-        /// </remarks>
-        private static IEnumerable<MetadataReference> RuntimeReferences =>
-            ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
-                .Split(Path.PathSeparator)
-                .Where(static path => path.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
-                .Select(static path => (MetadataReference)MetadataReference.CreateFromFile(path));
+
 
         [ConditionalFact(typeof(DatabaseAvailable))]
         public void JoinQueryReturnsRows()
@@ -139,6 +123,55 @@ namespace Microsoft.CodeAnalysis.CSharp.IWareSql.UnitTests
             Assert.Contains("empty", output);
             Assert.Contains("end", output);
             Assert.DoesNotContain("row", output);
+        }
+
+        [ConditionalFact(typeof(DatabaseAvailable))]
+        public void WildcardFillsTheWholeObject()
+        {
+            // Read into a plain DTO rather than the [Orm] class, which exercises the "target need
+            // not be [Orm]" rule and lets role_id be declared nullable. It has to be: that column
+            // is nullable in the fixture and example_simple's RoleIdDomain is what normally models
+            // that, where this test uses plain framework types.
+            var source = SqlTestSource.Tables + """
+
+                public class UserRow
+                {
+                    public int id { get; set; }
+                    public string name { get; set; }
+                    public string surname { get; set; }
+                    public int? role_id { get; set; }
+                }
+
+                public class P
+                {
+                    public static void Main()
+                    {
+                        UserRow row = new();
+
+                        sql
+                        {
+                        SELECT u.*[row] FROM users u
+                        }
+                        sqldo
+                        {
+                            System.Console.WriteLine($"{row.id}|{row.name}|{row.surname}|{row.role_id}");
+                        }
+                        sqlempty
+                        {
+                            System.Console.WriteLine("none");
+                        }
+                    }
+                }
+                """;
+
+            var output = RunProgram(source);
+
+            // Every member was filled from its own column rather than left at its default: the id
+            // and role_id are ints, so a row that came back at all must have them set, and the
+            // pipe-separated shape shows all four positions were written.
+            Assert.DoesNotContain("none", output);
+            var first = output.Trim().Split('\n')[0].Trim();
+            Assert.Equal(4, first.Split('|').Length);
         }
 
         [ConditionalFact(typeof(DatabaseAvailable))]

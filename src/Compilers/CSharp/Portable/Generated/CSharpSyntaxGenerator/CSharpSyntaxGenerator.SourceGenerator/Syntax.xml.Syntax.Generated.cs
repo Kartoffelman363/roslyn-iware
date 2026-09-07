@@ -9252,6 +9252,62 @@ public sealed partial class SqlOutputIdentifierSegmentSyntax : SqlSegmentSyntax
     public SqlOutputIdentifierSegmentSyntax WithCloseBracketToken(SyntaxToken closeBracketToken) => Update(this.OpenBracketToken, this.Expression, closeBracketToken);
 }
 
+/// <summary>A wildcard output binding: <c>a.*[myUsers]</c>, which fills every member of the
+/// bracketed target from the columns of the table the star is qualified by.</summary>
+/// <remarks>
+/// <para>This node is associated with the following syntax kinds:</para>
+/// <list type="bullet">
+/// <item><description><see cref="SyntaxKind.SqlOutputWildcardSegment"/></description></item>
+/// </list>
+/// </remarks>
+public sealed partial class SqlOutputWildcardSegmentSyntax : SqlSegmentSyntax
+{
+    private ExpressionSyntax? expression;
+
+    internal SqlOutputWildcardSegmentSyntax(InternalSyntax.CSharpSyntaxNode green, SyntaxNode? parent, int position)
+      : base(green, parent, position)
+    {
+    }
+
+    /// <summary>The <c>*</c> itself. Any qualifier in front of it (the <c>a.</c> of
+    /// <c>a.*</c>) stays in the preceding text segments, since it is ordinary sql that the
+    /// server would parse the same way regardless of the binding.</summary>
+    public SyntaxToken AsteriskToken => new SyntaxToken(this, ((InternalSyntax.SqlOutputWildcardSegmentSyntax)this.Green).asteriskToken, Position, 0);
+
+    public SyntaxToken OpenBracketToken => new SyntaxToken(this, ((InternalSyntax.SqlOutputWildcardSegmentSyntax)this.Green).openBracketToken, GetChildPosition(1), GetChildIndex(1));
+
+    /// <summary>The C# object each result row is read into, e.g. the <c>myUsers</c> in
+    /// <c>SELECT a.*[myUsers]</c>. Every member of its type must correspond to a column of the
+    /// table; this is checked when the statement is bound.</summary>
+    public ExpressionSyntax Expression => GetRed(ref this.expression, 2)!;
+
+    public SyntaxToken CloseBracketToken => new SyntaxToken(this, ((InternalSyntax.SqlOutputWildcardSegmentSyntax)this.Green).closeBracketToken, GetChildPosition(3), GetChildIndex(3));
+
+    internal override SyntaxNode? GetNodeSlot(int index) => index == 2 ? GetRed(ref this.expression, 2)! : null;
+
+    internal override SyntaxNode? GetCachedSlot(int index) => index == 2 ? this.expression : null;
+
+    public override void Accept(CSharpSyntaxVisitor visitor) => visitor.VisitSqlOutputWildcardSegment(this);
+    public override TResult? Accept<TResult>(CSharpSyntaxVisitor<TResult> visitor) where TResult : default => visitor.VisitSqlOutputWildcardSegment(this);
+
+    public SqlOutputWildcardSegmentSyntax Update(SyntaxToken asteriskToken, SyntaxToken openBracketToken, ExpressionSyntax expression, SyntaxToken closeBracketToken)
+    {
+        if (asteriskToken != this.AsteriskToken || openBracketToken != this.OpenBracketToken || expression != this.Expression || closeBracketToken != this.CloseBracketToken)
+        {
+            var newNode = SyntaxFactory.SqlOutputWildcardSegment(asteriskToken, openBracketToken, expression, closeBracketToken);
+            var annotations = GetAnnotations();
+            return annotations?.Length > 0 ? newNode.WithAnnotations(annotations) : newNode;
+        }
+
+        return this;
+    }
+
+    public SqlOutputWildcardSegmentSyntax WithAsteriskToken(SyntaxToken asteriskToken) => Update(asteriskToken, this.OpenBracketToken, this.Expression, this.CloseBracketToken);
+    public SqlOutputWildcardSegmentSyntax WithOpenBracketToken(SyntaxToken openBracketToken) => Update(this.AsteriskToken, openBracketToken, this.Expression, this.CloseBracketToken);
+    public SqlOutputWildcardSegmentSyntax WithExpression(ExpressionSyntax expression) => Update(this.AsteriskToken, this.OpenBracketToken, expression, this.CloseBracketToken);
+    public SqlOutputWildcardSegmentSyntax WithCloseBracketToken(SyntaxToken closeBracketToken) => Update(this.AsteriskToken, this.OpenBracketToken, this.Expression, closeBracketToken);
+}
+
 /// <remarks>
 /// <para>This node is associated with the following syntax kinds:</para>
 /// <list type="bullet">
