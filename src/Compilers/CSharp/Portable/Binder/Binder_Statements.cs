@@ -3409,7 +3409,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                     }
                 }
 
-                if (match is not null star)
+                if (match is not { } star)
                 {
                     continue;
                 }
