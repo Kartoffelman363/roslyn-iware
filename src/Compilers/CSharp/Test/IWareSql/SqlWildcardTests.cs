@@ -174,6 +174,98 @@ namespace Microsoft.CodeAnalysis.CSharp.IWareSql.UnitTests
                 .ToArray();
         }
 
+        /// <summary>
+        /// The text a block is rendered as before being parsed - what the compiler verifies and
+        /// what completion reads its query out of.
+        /// </summary>
+        private static string RenderedSql(string source)
+        {
+            var tree = CSharpSyntaxTree.ParseText(source);
+            var block = tree.GetRoot().DescendantNodes().OfType<SqlTextBlockSyntax>().Single();
+            SqlTextMap.Create(block.Segments, out var sqlText);
+            return sqlText;
+        }
+
+        [Fact]
+        public void RenderedBlockWithWildcardsParsesCleanly()
+        {
+            // Completion builds its picture of the query by parsing this text, so a block that does
+            // not parse leaves it with nothing to offer - no aliases, no columns. A binding whose
+            // segment kind the renderer does not know falls through to its own source text, and
+            // "*[obj]" is not valid sql, which is exactly how wildcards broke completion once.
+            var source = Program("""
+                        SELECT
+                            u.*[myUsers],
+                            r.*[myRoles]
+
+                            FROM users u
+                            LEFT JOIN roles r ON r.id = u.role_id
+                            ORDER BY u.id DESC
+                """);
+
+            var rendered = RenderedSql(source);
+            Assert.DoesNotContain("[myUsers]", rendered);
+
+            var parser = new Microsoft.SqlServer.TransactSql.ScriptDom.TSql180Parser(initialQuotedIdentifiers: true);
+            using var reader = new System.IO.StringReader(rendered);
+            var fragment = parser.Parse(reader, out var errors);
+
+            Assert.Empty(errors);
+
+            // Both tables are recoverable, which is what completion needs in order to offer "u"
+            // and "r" as things to type after.
+            var tables = SqlTableReferences.Collect(fragment).Tables.Select(t => t.Name).ToArray();
+            AssertEx.SetEqual(new[] { "users", "roles" }, tables);
+        }
+
+        [Fact]
+        public void SelectListEndingInACommaRecoversNothing()
+        {
+            // A select list left ending in a comma - exactly how it looks while the next column is
+            // being typed - is unrecoverable for ScriptDom: no query specification comes back, so
+            // there are no tables in it at all. Explicit bindings behave identically, so this is
+            // not something the star binding introduced.
+            //
+            // Completion copes with it deliberately rather than by accident: QueryInfo keeps the
+            // last SyntaxInfo that did parse ("?? SyntaxInfo") and carries on offering that while
+            // the text is mid-edit. That fallback is the reason this limitation does not need
+            // fixing - but it only has something to hold if the block parsed cleanly at some
+            // earlier keystroke, which is why a binding that never parses (as the wildcard did not,
+            // before it was taught to the renderer) breaks completion outright instead of degrading.
+            var withStars = RenderedSql(Program("""
+                        SELECT
+                            u.*[myUsers],
+
+                            FROM users u
+                """));
+
+            var withExplicitBindings = RenderedSql(Program("""
+                        SELECT
+                            u.id[myUsers.id],
+
+                            FROM users u
+                """));
+
+            foreach (var rendered in new[] { withStars, withExplicitBindings })
+            {
+                var parser = new Microsoft.SqlServer.TransactSql.ScriptDom.TSql180Parser(initialQuotedIdentifiers: true);
+                using var reader = new System.IO.StringReader(rendered);
+                var fragment = parser.Parse(reader, out var errors);
+
+                Assert.NotEmpty(errors);
+                Assert.Empty(SqlTableReferences.Collect(fragment).Tables);
+            }
+        }
+
+        [Fact]
+        public void RenderedWildcardIsAPlainStar()
+        {
+            var rendered = RenderedSql(Program("        SELECT u.*[myUsers] FROM users u"));
+
+            Assert.Contains("u.*", rendered);
+            Assert.DoesNotContain("myUsers", rendered);
+        }
+
         [Fact]
         public void StarAndItsQualifierResolveToTheTable()
         {

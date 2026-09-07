@@ -139,35 +139,26 @@ namespace Microsoft.CodeAnalysis.CSharp.Completion.iWareSql
         }
 
         /// <summary>
-        /// Because "SELECT id[myObj.myProp] ... WHERE id = @otherObj.prop;"
-        /// aren't valid syntaxes in SQL replace these with placeholder parameters like so
-        /// "SELECT id[p0] ... WHERE id = @pN;", where N is number of properties
+        /// Because "SELECT id[myObj.myProp] ... WHERE id = @otherObj.prop;" aren't valid syntaxes
+        /// in SQL, the C# bindings are replaced with placeholders before the text is parsed.
         /// </summary>
-        /// <param name="sqlStatement"></param>
-        /// <returns></returns>
-        public string SqlSegmentsToValidFullString(SyntaxList<Syntax.SqlSegmentSyntax> sqlStatement)
-        {
-            var segmentString = "";
-
-            int placeholderParamIdx = 0;
-            foreach (var segment in sqlStatement)
-            {
-                segmentString += segment.Kind() switch
-                {
-                    SyntaxKind.SqlInputIdentifierSegment => $"@input_identifier_placeholder{placeholderParamIdx++}",
-                    SyntaxKind.SqlOutputIdentifierSegment => $"[output_identifier_placeholder{placeholderParamIdx++}]",
-                    _ => segment.ToFullString()
-                };
-            }
-
-            return segmentString;
-        }
-
+        /// <remarks>
+        /// This defers to <see cref="SqlTextMap.Create"/>, which is what the compiler renders a
+        /// block with, rather than substituting placeholders here as well. Keeping a second
+        /// implementation meant every new kind of binding had to be taught to both, and a segment
+        /// kind the switch had not heard of fell through to its own source text - which for a
+        /// wildcard is "*[obj]", not valid sql, so the parse failed and completion silently had no
+        /// query to offer aliases from.
+        ///
+        /// It also fixes the offsets. The placeholders substituted here were free-form and much
+        /// wider than the text they replaced, so every character after a binding sat further along
+        /// than the caret position being compared against it; the compiler's are padded to the
+        /// width of what they stand in for, so the subtraction below is exact.
+        /// </remarks>
         public async Task UpdateQuerySyntaxInfoAsync(Syntax.SqlTextBlockSyntax sqlBlock, CompletionContext context)
         {
             var sqlStatement = sqlBlock.Segments;
-            //var sqlStatementString = sqlStatement.ToFullString();
-            var sqlStatementString = SqlSegmentsToValidFullString(sqlStatement);
+            SqlTextMap.Create(sqlStatement, out var sqlStatementString);
             var relativePosition = context.Position - sqlStatement.FullSpan.Start;
             SyntaxInfo = await SqlSelectSyntaxInfo.GetInfoFromStringAsync(sqlStatementString).ConfigureAwait(false) ?? SyntaxInfo;
             CurrentQuery = SyntaxInfo?.GetQueryAtCursorPosition(relativePosition);
