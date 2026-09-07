@@ -56,6 +56,14 @@ internal sealed class SqlCompletionProvider : CompletionProvider
                     return false;
                 }
 
+                var star = "*";
+                context.AddItem(CompletionItem.Create(
+                        displayText: star,
+                        filterText: star,
+                        sortText: star,
+                        rules: s_sqlCompletionRules,
+                        tags: [WellKnownTags.Keyword]));
+
                 foreach (var columnName in sourceReference.ColumnNames)
                 {
                     context.AddItem(CompletionItem.Create(
