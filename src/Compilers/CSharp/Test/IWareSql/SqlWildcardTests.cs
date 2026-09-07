@@ -375,6 +375,63 @@ namespace Microsoft.CodeAnalysis.CSharp.IWareSql.UnitTests
         }
 
         [Fact]
+        public void StringLiteralIntoAnIntTargetIsAnError()
+        {
+            // The read loop unboxes into the target, so this is a certain run-time failure rather
+            // than a conversion that merely might not work.
+            var errors = Errors(Program("        SELECT 'abababab'[myUsers.id] FROM users"));
+
+            Assert.Contains(errors, e => e.Contains("string") && e.Contains("int"));
+        }
+
+        [Fact]
+        public void IntegerLiteralIntoAStringTargetIsAnError()
+        {
+            Assert.Contains(
+                Errors(Program("        SELECT 42[myUsers.name] FROM users")),
+                e => e.Contains("int") && e.Contains("string"));
+        }
+
+        [Fact]
+        public void LiteralMatchingItsTargetIsFine()
+        {
+            AssertEx.Empty(Errors(Program("        SELECT 42[myUsers.id] FROM users")));
+            AssertEx.Empty(Errors(Program("        SELECT 'abc'[myUsers.name] FROM users")));
+        }
+
+        [Fact]
+        public void ColumnOfTheWrongTypeIsAnError()
+        {
+            Assert.Contains(
+                Errors(Program("        SELECT u.name[myUsers.id] FROM users u")),
+                e => e.Contains("string") && e.Contains("int"));
+        }
+
+        [Fact]
+        public void ColumnMatchingItsTargetIsFine()
+        {
+            AssertEx.Empty(Errors(Program(
+                "        SELECT u.id[myUsers.id], u.name[myUsers.name] FROM users u")));
+        }
+
+        [Fact]
+        public void ExpressionsAreNotSecondGuessed()
+        {
+            // Working out the type of an arbitrary sql expression is the server's job; guessing at
+            // it here would reject queries that are perfectly valid.
+            AssertEx.Empty(Errors(Program("        SELECT u.id + 1[myUsers.id] FROM users u")));
+            AssertEx.Empty(Errors(Program("        SELECT COUNT(*)[myUsers.id] FROM users u")));
+        }
+
+        [Fact]
+        public void ColumnThroughASubqueryIsStillChecked()
+        {
+            Assert.Contains(
+                Errors(Program("        SELECT u.name[myUsers.id] FROM (SELECT * FROM users) u")),
+                e => e.Contains("string") && e.Contains("int"));
+        }
+
+        [Fact]
         public void StarAndItsQualifierResolveToTheTable()
         {
             // The classifier, hover and go-to-definition all read these, so a star that resolves

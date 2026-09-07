@@ -3305,6 +3305,8 @@ namespace Microsoft.CodeAnalysis.CSharp
                 queryTargetsBuilder.Add(BindValue(sqlOutput.Expression, diagnostics, BindValueKind.Assignable));
             }
 
+            CheckSqlOutputTypes(sqlOutputs, queryTargetsBuilder, outputNames, sqlText, diagnostics);
+
             var parameterExpressionsBuilder = ImmutableArray.CreateBuilder<BoundExpression>(sqlInputs.Length);
             foreach (var sqlInput in sqlInputs)
             {
@@ -3354,6 +3356,139 @@ namespace Microsoft.CodeAnalysis.CSharp
                 queryOutputNames,
                 parameterExpressionsBuilder.ToImmutable(),
                 inputNames);
+        }
+
+        /// <summary>
+        /// Reports an output binding whose target cannot hold what the sql selects into it.
+        /// </summary>
+        /// <remarks>
+        /// The read loop unboxes each value straight into its target - see
+        /// BuildConversionFromObject in LocalRewriter_SqlStatement - and unboxing is exact: a
+        /// string cannot land in an int even though a cast would. That makes a mismatch a certain
+        /// run-time failure rather than a risk, so it is worth reporting up front.
+        ///
+        /// Only literals and column references are checked; the type of an arbitrary sql expression
+        /// is the server's business, and guessing at it would produce errors on valid queries.
+        /// </remarks>
+        private void CheckSqlOutputTypes(
+            ImmutableArray<SqlOutputIdentifierSegmentSyntax> sqlOutputs,
+            ImmutableArray<BoundExpression>.Builder queryTargets,
+            ImmutableArray<string> outputNames,
+            string sqlText,
+            BindingDiagnosticBag diagnostics)
+        {
+            if (sqlOutputs.IsEmpty || SqlTableResolution.Parse(sqlText) is not { } root)
+            {
+                return;
+            }
+
+            var schema = OrmSchemaProvider.GetSchema(Compilation);
+
+            for (var i = 0; i < sqlOutputs.Length && i < queryTargets.Count && i < outputNames.Length; i++)
+            {
+                // A target whose own binding failed has already been reported; saying its type does
+                // not match would only add noise on top of the real error.
+                if (queryTargets[i].Type is not { TypeKind: not TypeKind.Error } targetType ||
+                    queryTargets[i].HasErrors)
+                {
+                    continue;
+                }
+
+                var alias = outputNames[i];
+
+                foreach (var query in root.FlattenQueries())
+                {
+                    var element = query.SelectElements.FirstOrDefault(e => e.QuotedAlias == alias);
+                    if (element is null)
+                    {
+                        continue;
+                    }
+
+                    if (GetSqlValueType(element, query, schema) is { } sqlType &&
+                        !EffectiveTargetType(targetType).Equals(sqlType, TypeCompareKind.AllIgnoreOptions))
+                    {
+                        Error(diagnostics, ErrorCode.ERR_SQL_SymbolError, sqlOutputs[i],
+                            $"cannot read a {sqlType.ToDisplayString()} into '{targetType.ToDisplayString()}'");
+                    }
+
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// The runtime type the server will hand back for a select element, or null when it cannot
+        /// be told from the sql.
+        /// </summary>
+        private TypeSymbol? GetSqlValueType(
+            SqlSelectSyntaxInfo.SelectElementInfo element,
+            SqlSelectSyntaxInfo query,
+            OrmSchema schema)
+        {
+            switch (element.Kind)
+            {
+                case SqlSelectSyntaxInfo.SqlExpressionKind.StringLiteral:
+                    return Compilation.GetSpecialType(SpecialType.System_String);
+
+                case SqlSelectSyntaxInfo.SqlExpressionKind.IntegerLiteral:
+                    return Compilation.GetSpecialType(SpecialType.System_Int32);
+
+                case SqlSelectSyntaxInfo.SqlExpressionKind.NumericLiteral:
+                    return Compilation.GetSpecialType(SpecialType.System_Decimal);
+
+                case SqlSelectSyntaxInfo.SqlExpressionKind.ColumnReference:
+                    {
+                        if (element.ColumnName is not { Length: > 0 } columnName)
+                        {
+                            return null;
+                        }
+
+                        var source = element.ColumnQualifier is { Length: > 0 } qualifier
+                            ? SqlTableResolution.FindSource(query, SqlSourceResolution.LastSegment(qualifier), schema)
+                            : SqlTableResolution.SoleSource(query, schema);
+
+                        // The member behind the column describes what the database holds, so its
+                        // type - with any Domain wrapper removed - is what the reader will return.
+                        return source?.FindColumn(columnName)?.Origin?.Symbol.GetSymbol() switch
+                        {
+                            PropertySymbol property => EffectiveTargetType(property.Type),
+                            FieldSymbol field => EffectiveTargetType(field.Type),
+                            _ => null,
+                        };
+                    }
+
+                default:
+                    // Null literals included: a null lands through the DBNull path rather than
+                    // being unboxed, so it is not this check's concern.
+                    return null;
+            }
+        }
+
+        /// <summary>
+        /// What a target actually has to be handed: a <c>Domain&lt;T&gt;</c> is built from its T,
+        /// and a nullable from its underlying type, so those wrappers are peeled off before the
+        /// two sides are compared.
+        /// </summary>
+        private TypeSymbol EffectiveTargetType(TypeSymbol type)
+        {
+            if (type.IsNullableType())
+            {
+                type = type.GetNullableUnderlyingType();
+            }
+
+            var domainOfT = Compilation.GetTypeByMetadataName("iWareSql.Domain.Abstractions.Domain`1");
+            if (domainOfT is not null)
+            {
+                for (var current = type as NamedTypeSymbol; current is not null; current = current.BaseTypeNoUseSiteDiagnostics)
+                {
+                    if (current.OriginalDefinition.Equals(domainOfT, TypeCompareKind.ConsiderEverything))
+                    {
+                        return current.TypeArgumentsWithAnnotationsNoUseSiteDiagnostics[0].Type;
+                    }
+                }
+            }
+
+            return type;
         }
 
         /// <summary>

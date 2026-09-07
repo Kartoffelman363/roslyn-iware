@@ -79,6 +79,68 @@ namespace Microsoft.CodeAnalysis.CSharp.SqlQueries
             }
         }
 
+        /// <summary>
+        /// What a select element evaluates to, as far as it can be told from the sql alone.
+        /// </summary>
+        public enum SqlExpressionKind
+        {
+            /// <summary>Anything not worth trying to type - an arithmetic expression, a function call.</summary>
+            Unknown,
+            StringLiteral,
+            IntegerLiteral,
+            NumericLiteral,
+            NullLiteral,
+            ColumnReference,
+        }
+
+        /// <summary>
+        /// One entry of a select list, with enough about its expression to tell what type the
+        /// server will hand back for it.
+        /// </summary>
+        /// <remarks>
+        /// Only literals and column references are described. Everything else is
+        /// <see cref="SqlExpressionKind.Unknown"/>, which callers must treat as "no opinion"
+        /// rather than as an error - working out the type of an arbitrary sql expression is the
+        /// server's job, not this model's.
+        /// </remarks>
+        public sealed class SelectElementInfo
+        {
+            /// <summary>
+            /// The alias written in square brackets, which is how a C# output binding is rendered
+            /// into the sql. Null when the element has no bracketed alias.
+            /// </summary>
+            public string? QuotedAlias { get; }
+
+            public SqlExpressionKind Kind { get; }
+
+            /// <summary>Set when <see cref="Kind"/> is a column reference.</summary>
+            public string? ColumnName { get; }
+            public string? ColumnQualifier { get; }
+
+            /// <summary>Covers the expression, for pointing a diagnostic at it.</summary>
+            public int Offset { get; }
+            public int Length { get; }
+
+            public SelectElementInfo(
+                string? quotedAlias,
+                SqlExpressionKind kind,
+                string? columnName,
+                string? columnQualifier,
+                int offset,
+                int length)
+            {
+                QuotedAlias = quotedAlias;
+                Kind = kind;
+                ColumnName = columnName;
+                ColumnQualifier = columnQualifier;
+                Offset = offset;
+                Length = length;
+            }
+        }
+
+        /// <summary>This query's select list, described for type checking.</summary>
+        public readonly List<SelectElementInfo> SelectElements = new();
+
         public sealed class StarInfo
         {
             /// <summary>The qualifier as written ("u" in "u.*"), or null for a bare star.</summary>
@@ -303,6 +365,12 @@ namespace Microsoft.CodeAnalysis.CSharp.SqlQueries
                             _ => null
                         };
                         Columns.Add(new ColumnInfo(columnName, alias));
+
+                        // Recorded separately from Columns, which deliberately drops a
+                        // bracket-quoted alias: that alias is exactly how a C# output binding is
+                        // rendered, and it is what ties this element back to the binding it came
+                        // from.
+                        SelectElements.Add(DescribeSelectElement(scalar));
                         break;
 
                     case SelectStarExpression starExpression:
@@ -343,6 +411,45 @@ namespace Microsoft.CodeAnalysis.CSharp.SqlQueries
 
             var collector = new OccurrenceCollector(Occurrences);
             qs.AcceptChildren(collector);
+        }
+
+        private static SelectElementInfo DescribeSelectElement(SelectScalarExpression scalar)
+        {
+            var quotedAlias = scalar.ColumnName?.Identifier is { QuoteType: QuoteType.SquareBracket } quoted
+                ? quoted.Value
+                : null;
+
+            var kind = SqlExpressionKind.Unknown;
+            string? columnName = null;
+            string? columnQualifier = null;
+
+            switch (scalar.Expression)
+            {
+                case Literal literal:
+                    kind = literal.LiteralType switch
+                    {
+                        LiteralType.String => SqlExpressionKind.StringLiteral,
+                        LiteralType.Integer => SqlExpressionKind.IntegerLiteral,
+                        LiteralType.Numeric or LiteralType.Real or LiteralType.Money => SqlExpressionKind.NumericLiteral,
+                        LiteralType.Null => SqlExpressionKind.NullLiteral,
+                        _ => SqlExpressionKind.Unknown,
+                    };
+                    break;
+
+                case ColumnReferenceExpression { MultiPartIdentifier.Identifiers: { Count: > 0 } identifiers }:
+                    kind = SqlExpressionKind.ColumnReference;
+                    columnName = identifiers[identifiers.Count - 1]?.Value;
+                    columnQualifier = identifiers.Count >= 2 ? identifiers[identifiers.Count - 2]?.Value : null;
+                    break;
+            }
+
+            return new SelectElementInfo(
+                quotedAlias,
+                kind,
+                columnName,
+                columnQualifier,
+                scalar.Expression.StartOffset,
+                scalar.Expression.FragmentLength);
         }
 
         private static string? QualifierString(MultiPartIdentifier? qualifier) =>
