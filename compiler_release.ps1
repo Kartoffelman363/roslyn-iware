@@ -8,28 +8,31 @@
 #>
 [CmdletBinding(DefaultParameterSetName = 'Patch')]
 param(
-    [Parameter(ParameterSetName = 'Live')][System.IO.DirectoryInfo]$live
+    [System.IO.DirectoryInfo]$live,
+    [switch]$nocompile
 )
 
 $release = ".\artifacts\CompilerRelease"
 $bincore = Join-Path $release "bincore"
 $ok = $true
 
-dotnet publish .\src\Compilers\Core\MSBuildTask\MSBuild\Microsoft.Build.Tasks.CodeAnalysis.csproj -c Release -o $release /p:DebugType=portable /p:IncludeSymbols=true -f net10.0
-if ($LASTEXITCODE -ne 0) {
-    $ok = $false
-}
-dotnet publish .\src\Compilers\Server\VBCSCompiler\AnyCpu\VBCSCompiler.csproj -c Release -o $bincore /p:DebugType=portable /p:IncludeSymbols=true -f net10.0
-if ($LASTEXITCODE -ne 0) {
-    $ok = $false
-}
-dotnet publish .\src\Compilers\CSharp\csc\AnyCpu\csc.csproj -c Release -o $bincore /p:DebugType=portable /p:IncludeSymbols=true -f net10.0
-if ($LASTEXITCODE -ne 0) {
-    $ok = $false
-}
-dotnet publish .\src\Compilers\VisualBasic\vbc\AnyCpu\vbc.csproj -c Release -o $bincore /p:DebugType=portable /p:IncludeSymbols=true -f net10.0
-if ($LASTEXITCODE -ne 0) {
-    $ok = $false
+if (-Not ($nocompile)){
+    dotnet publish .\src\Compilers\Core\MSBuildTask\MSBuild\Microsoft.Build.Tasks.CodeAnalysis.csproj -c Release -o $release /p:DebugType=portable /p:IncludeSymbols=true -f net10.0
+    if ($LASTEXITCODE -ne 0) {
+        $ok = $false
+    }
+    dotnet publish .\src\Compilers\Server\VBCSCompiler\AnyCpu\VBCSCompiler.csproj -c Release -o $bincore /p:DebugType=portable /p:IncludeSymbols=true -f net10.0
+    if ($LASTEXITCODE -ne 0) {
+        $ok = $false
+    }
+    dotnet publish .\src\Compilers\CSharp\csc\AnyCpu\csc.csproj -c Release -o $bincore /p:DebugType=portable /p:IncludeSymbols=true -f net10.0
+    if ($LASTEXITCODE -ne 0) {
+        $ok = $false
+    }
+    dotnet publish .\src\Compilers\VisualBasic\vbc\AnyCpu\vbc.csproj -c Release -o $bincore /p:DebugType=portable /p:IncludeSymbols=true -f net10.0
+    if ($LASTEXITCODE -ne 0) {
+        $ok = $false
+    }
 }
 
 if ($ok) {

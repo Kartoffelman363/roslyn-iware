@@ -8,28 +8,31 @@
 #>
 [CmdletBinding(DefaultParameterSetName = 'Patch')]
 param(
-    [Parameter(ParameterSetName = 'Live')][System.IO.DirectoryInfo]$live
+    [System.IO.DirectoryInfo]$live,
+    [switch]$nocompile
 )
 
 $debug = ".\artifacts\CompilerDebug"
 $bincore = Join-Path $debug "bincore"
 $ok = $true
 
-dotnet publish .\src\Compilers\Core\MSBuildTask\MSBuild\Microsoft.Build.Tasks.CodeAnalysis.csproj -c Debug -o $debug /p:DebugType=portable /p:IncludeSymbols=true -f net10.0
-if ($LASTEXITCODE -ne 0) {
-    $ok = $false
-}
-dotnet publish .\src\Compilers\Server\VBCSCompiler\AnyCpu\VBCSCompiler.csproj -c Debug -o $bincore /p:DebugType=portable /p:IncludeSymbols=true -f net10.0
-if ($LASTEXITCODE -ne 0) {
-    $ok = $false
-}
-dotnet publish .\src\Compilers\CSharp\csc\AnyCpu\csc.csproj -c Debug -o $bincore /p:DebugType=portable /p:IncludeSymbols=true -f net10.0
-if ($LASTEXITCODE -ne 0) {
-    $ok = $false
-}
-dotnet publish .\src\Compilers\VisualBasic\vbc\AnyCpu\vbc.csproj -c Debug -o $bincore /p:DebugType=portable /p:IncludeSymbols=true -f net10.0
-if ($LASTEXITCODE -ne 0) {
-    $ok = $false
+if (-Not ($nocompile)){
+    dotnet publish .\src\Compilers\Core\MSBuildTask\MSBuild\Microsoft.Build.Tasks.CodeAnalysis.csproj -c Debug -o $debug /p:DebugType=portable /p:IncludeSymbols=true -f net10.0
+    if ($LASTEXITCODE -ne 0) {
+        $ok = $false
+    }
+    dotnet publish .\src\Compilers\Server\VBCSCompiler\AnyCpu\VBCSCompiler.csproj -c Debug -o $bincore /p:DebugType=portable /p:IncludeSymbols=true -f net10.0
+    if ($LASTEXITCODE -ne 0) {
+        $ok = $false
+    }
+    dotnet publish .\src\Compilers\CSharp\csc\AnyCpu\csc.csproj -c Debug -o $bincore /p:DebugType=portable /p:IncludeSymbols=true -f net10.0
+    if ($LASTEXITCODE -ne 0) {
+        $ok = $false
+    }
+    dotnet publish .\src\Compilers\VisualBasic\vbc\AnyCpu\vbc.csproj -c Debug -o $bincore /p:DebugType=portable /p:IncludeSymbols=true -f net10.0
+    if ($LASTEXITCODE -ne 0) {
+        $ok = $false
+    }
 }
 
 if ($ok) {

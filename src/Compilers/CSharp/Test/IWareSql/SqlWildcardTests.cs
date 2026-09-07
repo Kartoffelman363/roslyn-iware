@@ -9,6 +9,7 @@ using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.CSharp.iWareSql;
 using Microsoft.CodeAnalysis.CSharp.Test.Utilities;
 using Microsoft.CodeAnalysis.Test.Utilities;
 using Roslyn.Test.Utilities;
@@ -151,6 +152,61 @@ namespace Microsoft.CodeAnalysis.CSharp.IWareSql.UnitTests
         public void UnboundStarSurvivesExpansionUntouched()
         {
             Assert.Contains("*", ExpandedSql(Program("        SELECT * FROM users")));
+        }
+
+        /// <summary>
+        /// Every name in the block resolved, as "written-text -> symbol", ordered by position.
+        /// </summary>
+        private static string[] ResolveAll(string source)
+        {
+            var compilation = CreateCompilation(source);
+            var tree = compilation.SyntaxTrees.Single(t => t.ToString().Contains("sql"));
+            var block = tree.GetRoot().DescendantNodes().OfType<SqlTextBlockSyntax>().Single();
+            var text = tree.GetText();
+
+            return SqlTableResolution.Resolve(block, compilation)
+                .OrderBy(r => r.Span.Start)
+                .Select(r => $"{text.ToString(r.Span)} -> " + (r.Symbol is null
+                    ? "<unresolved>"
+                    : r.Symbol.Kind == SymbolKind.NamedType
+                        ? r.Symbol.Name
+                        : $"{r.Symbol.ContainingType.Name}.{r.Symbol.Name}"))
+                .ToArray();
+        }
+
+        [Fact]
+        public void StarAndItsQualifierResolveToTheTable()
+        {
+            // The classifier, hover and go-to-definition all read these, so a star that resolves
+            // to nothing is a star with no colour on it - which is what "a.*" looked like before
+            // it was recorded here, while the "a.id" beside it was coloured.
+            var resolved = ResolveAll(Program("        SELECT a.*[myUsers] FROM users a"));
+
+            Assert.Contains("a -> users", resolved);
+            Assert.Contains("* -> users", resolved);
+        }
+
+        [Fact]
+        public void BareStarResolvesToTheOnlyTableInScope()
+        {
+            Assert.Contains("* -> users", ResolveAll(Program("        SELECT *[myUsers] FROM users")));
+        }
+
+        [Fact]
+        public void AmbiguousBareStarResolvesToNothing()
+        {
+            // Nothing to point at, so nothing is coloured rather than one of the two picked.
+            var resolved = ResolveAll(Program(
+                "        SELECT *[myUsers] FROM users u LEFT JOIN roles r ON r.id = u.role_id"));
+
+            Assert.DoesNotContain(resolved, r => r.StartsWith("*"));
+        }
+
+        [Fact]
+        public void UnboundStarStillResolves()
+        {
+            // Colouring follows what the sql means, not whether a binding was attached to it.
+            Assert.Contains("* -> users", ResolveAll(Program("        SELECT a.* FROM users a")));
         }
 
         [Fact]

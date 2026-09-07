@@ -60,14 +60,15 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
     }
 
     /// <summary>
-    /// One occurrence of an alias standing for a table - both where it is introduced
-    /// (the "u" in "FROM users u") and where it is used to qualify a column (the "u" in "u.id").
+    /// One occurrence of something standing for a table without being spelled like one: an alias
+    /// where it is introduced (the "u" in "FROM users u") or used to qualify a column (the "u" in
+    /// "u.id"), and the star of "a.*" together with the qualifier in front of it.
     /// </summary>
     /// <remarks>
     /// Unlike a <see cref="SqlTableReference"/> the text at this span is not the table's name, so
-    /// it carries the name it stands for instead. An alias is never reported as undeclared: it
-    /// resolves by construction, and when the table behind it has no [Orm] class that table's own
-    /// occurrence already carries the warning.
+    /// it carries the name it stands for instead. None of these is ever reported as undeclared:
+    /// they resolve by construction, and when the table behind one has no [Orm] class that table's
+    /// own occurrence already carries the warning.
     /// </remarks>
     public readonly struct SqlAliasReference
     {
@@ -349,6 +350,7 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             public override void Visit(SelectStarExpression node)
             {
                 string? qualifier = null;
+                Identifier? tableIdentifier = null;
                 ImmutableArray<string> candidates;
 
                 if (node.Qualifier?.Identifiers is { Count: > 0 } identifiers)
@@ -358,8 +360,8 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                     // same way rather than inventing a spelling the query did not use.
                     qualifier = string.Join(".", identifiers.Select(static i => i.Value));
 
-                    var tableQualifier = identifiers[identifiers.Count - 1]?.Value;
-                    candidates = tableQualifier is { Length: > 0 } name
+                    tableIdentifier = identifiers[identifiers.Count - 1];
+                    candidates = tableIdentifier?.Value is { Length: > 0 } name
                         && _scope.TryResolve(name, out var resolved)
                         && resolved is not null
                             ? ImmutableArray.Create(resolved)
@@ -371,6 +373,30 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                 }
 
                 _stars.Add(new SqlStarReference(candidates, qualifier, node.StartOffset, node.FragmentLength));
+
+                // A star reads like a column reference on screen, so it gets the same treatment:
+                // the qualifier in front of it, and the star itself, both point at the table whose
+                // columns it stands for. Only done when that table is unambiguous - a bare star
+                // spanning a join stands for no single thing to point at.
+                if (candidates.Length == 1)
+                {
+                    var tableName = candidates[0];
+
+                    if (tableIdentifier is { Value.Length: > 0 })
+                    {
+                        _aliases.Add(new SqlAliasReference(
+                            tableName,
+                            tableIdentifier.StartOffset,
+                            tableIdentifier.FragmentLength));
+                    }
+
+                    // The '*' is always the last character of the expression, however much
+                    // whitespace the qualifier put in front of it.
+                    _aliases.Add(new SqlAliasReference(
+                        tableName,
+                        node.StartOffset + node.FragmentLength - 1,
+                        1));
+                }
 
                 base.Visit(node);
             }

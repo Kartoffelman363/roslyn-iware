@@ -8,15 +8,18 @@
 #>
 [CmdletBinding(DefaultParameterSetName = 'Patch')]
 param(
-    [Parameter(ParameterSetName = 'Live')][System.IO.DirectoryInfo]$live
+    [System.IO.DirectoryInfo]$live,
+    [switch]$nocompile
 )
 
 $debug = ".\artifacts\LanguageServerDebug"
 $ok = $true
 
-dotnet publish .\src\LanguageServer\Microsoft.CodeAnalysis.LanguageServer\ -c Debug -o .\artifacts\LanguageServerDebug /p:DebugType=portable /p:IncludeSymbols=true
-if ($LASTEXITCODE -ne 0) {
-    $ok = $false
+if (-Not ($nocompile)){
+    dotnet publish .\src\LanguageServer\Microsoft.CodeAnalysis.LanguageServer\ -c Debug -o .\artifacts\LanguageServerDebug /p:DebugType=portable /p:IncludeSymbols=true
+    if ($LASTEXITCODE -ne 0) {
+        $ok = $false
+    }
 }
 
 if ($ok) {

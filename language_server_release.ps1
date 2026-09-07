@@ -8,15 +8,18 @@
 #>
 [CmdletBinding(DefaultParameterSetName = 'Patch')]
 param(
-    [Parameter(ParameterSetName = 'Live')][System.IO.DirectoryInfo]$live
+    [System.IO.DirectoryInfo]$live,
+    [switch]$nocompile
 )
 
 $release = ".\artifacts\LanguageServerRelease"
 $ok = $true
 
-dotnet publish .\src\LanguageServer\Microsoft.CodeAnalysis.LanguageServer\ -c Release -o .\artifacts\LanguageServerRelease /p:DebugType=portable /p:IncludeSymbols=true
-if ($LASTEXITCODE -ne 0) {
-    $ok = $false
+if (-Not ($nocompile)){
+    dotnet publish .\src\LanguageServer\Microsoft.CodeAnalysis.LanguageServer\ -c Release -o .\artifacts\LanguageServerRelease /p:DebugType=portable /p:IncludeSymbols=true
+    if ($LASTEXITCODE -ne 0) {
+        $ok = $false
+    }
 }
 
 if ($ok) {
