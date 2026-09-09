@@ -1949,23 +1949,54 @@ namespace Microsoft.CodeAnalysis.CSharp
             }
         }
 
+        /// <summary>
+        /// A sql statement branches on whether the query returned anything: the do-block runs with
+        /// every output binding written, the empty-block runs with none of them written, and the
+        /// end-block runs after either. Modelling it that way is what lets "users u; sql { SELECT
+        /// *[u] ... } sqldo { ... u ... }" compile while still reporting a read of u after the
+        /// statement, where a query returning no rows would have left it untouched.
+        /// </summary>
         public override BoundNode VisitSqlStatement(BoundSqlStatement node)
         {
+            VisitSqlBoundIdentifiers(node.ParameterExpressions);
+
+            var beforeRows = this.State.Clone();
+
+            VisitSqlQueryTargets(node.QueryTargets);
+            VisitSqlEntityBuildTargets(node.EntityBuildTargets);
             if (node.SqlDoOpt is not null)
             {
                 VisitSqlDoBlock(node.SqlDoOpt);
             }
+
+            var afterRows = this.State;
+
+            this.State = beforeRows;
             if (node.SqlEmptyOpt is not null)
             {
                 VisitSqlEmptyBlock(node.SqlEmptyOpt);
             }
+
+            Join(ref this.State, ref afterRows);
+
             if (node.SqlEndOpt is not null)
             {
                 VisitSqlEndBlock(node.SqlEndOpt);
             }
-            VisitSqlQueryTargets(node.QueryTargets);
-            VisitSqlBoundIdentifiers(node.ParameterExpressions);
+
             return null;
+        }
+
+        /// <summary>
+        /// Visits the targets a star select constructs. Unlike the column-by-column targets these
+        /// are whole-object assignments, so the target is written rather than read through.
+        /// </summary>
+        protected virtual void VisitSqlEntityBuildTargets(ImmutableArray<BoundExpression> entityBuildTargets)
+        {
+            foreach (var target in entityBuildTargets)
+            {
+                VisitLvalue(target);
+            }
         }
 
         //TODO-aljaz try equivalents of these functions are also referenced elsewhere -- ControllFlowPass.cs

@@ -7,6 +7,7 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using Microsoft.CodeAnalysis.CSharp.Symbols;
+using Microsoft.CodeAnalysis.CSharp.iWareSql;
 
 namespace Microsoft.CodeAnalysis.CSharp
 {
@@ -47,6 +48,9 @@ namespace Microsoft.CodeAnalysis.CSharp
             private readonly BoundBlock? _sqlEndBoundBlock;
             private readonly ImmutableArray<BoundExpression> _queryTargets;
             private readonly ImmutableArray<string> _querySqlNames;
+            private readonly ImmutableArray<BoundExpression> _entityBuildTargets;
+            private readonly ImmutableArray<int> _entityBuildFirstColumns;
+            private readonly MethodSymbol? _toRowVersionMethodSymbol;
             private readonly ImmutableArray<BoundExpression> _parameterExpressions;
             private readonly ImmutableArray<string> _parameterNames;
             // Fields
@@ -80,6 +84,8 @@ namespace Microsoft.CodeAnalysis.CSharp
 
                 _queryTargets = node.QueryTargets;
                 _querySqlNames = node.QuerySqlNames;
+                _entityBuildTargets = node.EntityBuildTargets;
+                _entityBuildFirstColumns = node.EntityBuildFirstColumns;
                 _parameterExpressions = node.ParameterExpressions;
                 _parameterNames = node.ParameterNames;
 
@@ -152,6 +158,10 @@ namespace Microsoft.CodeAnalysis.CSharp
                     _readMethodSymbol.Parameters[1].Type.Equals(_immutableArrayOfStringsType) &&
                     !_readMethodSymbol.ReturnsVoid,
                     "method iWare.Database.SqlCommands.Read() does not match expected signature");
+
+                // Only needed by a star select into an [Orm] entity, so looked up leniently:
+                // a project with no such select never touches it.
+                _toRowVersionMethodSymbol = TryLookupFunction("iWare.Database.SqlCommands", "ToRowVersion");
 
                 // Fields
                 _dbNullValueProperty = dbNullType
@@ -536,7 +546,147 @@ namespace Microsoft.CodeAnalysis.CSharp
                         _factory.ExpressionStatement(AssignToTarget(target, valueLocal)));
                 }
 
+                for (int k = 0; k < _entityBuildTargets.Length; k++)
+                {
+                    BuildEntity(
+                        _entityBuildTargets[k],
+                        _entityBuildFirstColumns[k],
+                        readValuesLocal,
+                        getItemMethodSymbol!,
+                        domainOfTOpenType!,
+                        tmpLocal,
+                        locals,
+                        sideEffects);
+                }
+
                 return _factory.Block(locals.ToImmutable(), sideEffects.ToImmutableArray());
+            }
+
+            /// <summary>
+            /// Emits <c>target = new T_Builder().AddCol(v0)....AddRowVersion(rv).Build();</c> for
+            /// one star select into an [Orm] entity.
+            /// </summary>
+            /// <remarks>
+            /// The entity's columns are partial properties standing in front of a values object
+            /// the constructor supplies, so there is nothing to assign into until the object
+            /// exists. Constructing it here rather than filling it in also means the target only
+            /// has to be assignable, not already assigned, and it is the only way the row version
+            /// gets in - OrmTable keeps it outside the row's values and settable only from the
+            /// constructor.
+            ///
+            /// The column order is <see cref="OrmSchemaProvider.GetColumns"/>'s, which is the same
+            /// order the binder laid the result columns out in.
+            /// </remarks>
+            private void BuildEntity(
+                BoundExpression target,
+                int firstColumn,
+                BoundExpression readValuesLocal,
+                MethodSymbol getItemMethodSymbol,
+                NamedTypeSymbol domainOfTOpenType,
+                BoundExpression tmpLocal,
+                ImmutableArray<LocalSymbol>.Builder locals,
+                ImmutableArray<BoundStatement>.Builder sideEffects)
+            {
+                if (target.Type is not NamedTypeSymbol entityType ||
+                    !Binder.TryGetOrmBuilder(entityType, out var builderType))
+                {
+                    // Binding would have reported this; the statement carries HasErrors and will
+                    // not reach codegen.
+                    return;
+                }
+
+                var builderCtor = builderType.InstanceConstructors.FirstOrDefault(static c => c.ParameterCount == 0);
+                var buildMethod = builderType.GetMembers("Build").OfType<MethodSymbol>().FirstOrDefault(static m => m.ParameterCount == 0);
+                if (builderCtor is null || buildMethod is null)
+                {
+                    return;
+                }
+
+                BoundExpression chain = _factory.New(builderCtor);
+                var column = firstColumn;
+
+                foreach (var ormColumn in OrmSchemaProvider.GetColumns(entityType.GetPublicSymbol()))
+                {
+                    if (FindAddMethod(builderType, "Add" + ormColumn.PropertyName) is not { } addMethod)
+                    {
+                        return;
+                    }
+
+                    chain = _factory.Call(
+                        chain,
+                        addMethod,
+                        ReadColumnInto(addMethod.Parameters[0].Type, column++, readValuesLocal, getItemMethodSymbol, domainOfTOpenType, tmpLocal, locals, sideEffects));
+                }
+
+                if (FindAddMethod(builderType, "AddRowVersion") is not { } addRowVersion || _toRowVersionMethodSymbol is null)
+                {
+                    return;
+                }
+
+                // The row version comes over as bytes rather than a number, so it goes through a
+                // helper instead of the ordinary unboxing conversion the other columns use.
+                var rowVersionSymbol = _factory.SynthesizedLocal(addRowVersion.Parameters[0].Type);
+                var rowVersionLocal = _factory.Local(rowVersionSymbol);
+                locals.Add(rowVersionSymbol);
+                sideEffects.Add(
+                    _factory.Assignment(
+                        rowVersionLocal,
+                        _factory.Call(
+                            null,
+                            _toRowVersionMethodSymbol,
+                            [ReadColumnAsObject(column, readValuesLocal, getItemMethodSymbol)])));
+
+                chain = _factory.Call(chain, addRowVersion, rowVersionLocal);
+
+                var entitySymbol = _factory.SynthesizedLocal(entityType);
+                var entityLocal = _factory.Local(entitySymbol);
+                locals.Add(entitySymbol);
+
+                sideEffects.Add(_factory.Assignment(entityLocal, _factory.Call(chain, buildMethod)));
+                sideEffects.Add(_factory.ExpressionStatement(AssignToTarget(target, entityLocal)));
+            }
+
+            private static MethodSymbol? FindAddMethod(NamedTypeSymbol builderType, string name) =>
+                builderType.GetMembers(name).OfType<MethodSymbol>().FirstOrDefault(static m => m.ParameterCount == 1);
+
+            private BoundExpression ReadColumnAsObject(int column, BoundExpression readValuesLocal, MethodSymbol getItemMethodSymbol) =>
+                _factory.Convert(
+                    _objectType,
+                    _factory.Call(readValuesLocal, getItemMethodSymbol, [_factory.Literal(column)]),
+                    Conversion.Boxing);
+
+            /// <summary>
+            /// Reads one result column into a fresh local of <paramref name="valueType"/>, mapping
+            /// DBNull to null on the way, and returns a read of that local.
+            /// </summary>
+            private BoundExpression ReadColumnInto(
+                TypeSymbol valueType,
+                int column,
+                BoundExpression readValuesLocal,
+                MethodSymbol getItemMethodSymbol,
+                NamedTypeSymbol domainOfTOpenType,
+                BoundExpression tmpLocal,
+                ImmutableArray<LocalSymbol>.Builder locals,
+                ImmutableArray<BoundStatement>.Builder sideEffects)
+            {
+                var valueSymbol = _factory.SynthesizedLocal(valueType);
+                var valueLocal = _factory.Local(valueSymbol);
+                locals.Add(valueSymbol);
+
+                sideEffects.Add(
+                    _factory.Assignment(
+                        tmpLocal,
+                        ReadColumnAsObject(column, readValuesLocal, getItemMethodSymbol)));
+                sideEffects.Add(
+                    _factory.If(
+                        _factory.ObjectEqual(tmpLocal, _factory.Field(null, _dbNullValueProperty)),
+                        _factory.Assignment(tmpLocal, _factory.Null(tmpLocal.Type))));
+                sideEffects.Add(
+                    _factory.Assignment(
+                        valueLocal,
+                        BuildConversionFromObject(tmpLocal, valueType, domainOfTOpenType)));
+
+                return valueLocal;
             }
 
             /// <summary>

@@ -3332,6 +3332,8 @@ namespace Microsoft.CodeAnalysis.CSharp
             // columns and the rest of the pipeline - and lowering in particular - sees nothing
             // unusual.
             var queryOutputNames = outputNames;
+            var entityBuildTargets = ArrayBuilder<BoundExpression>.GetInstance();
+            var entityBuildFirstColumns = ArrayBuilder<int>.GetInstance();
             if (!sqlWildcards.IsEmpty)
             {
                 sqlText = ExpandSqlWildcards(
@@ -3340,6 +3342,8 @@ namespace Microsoft.CodeAnalysis.CSharp
                     sqlTextMap,
                     queryTargetsBuilder,
                     ref queryOutputNames,
+                    entityBuildTargets,
+                    entityBuildFirstColumns,
                     diagnostics);
             }
 
@@ -3354,6 +3358,8 @@ namespace Microsoft.CodeAnalysis.CSharp
                 boundSqlEndClause,
                 queryTargetsBuilder.ToImmutable(),
                 queryOutputNames,
+                entityBuildTargets.ToImmutableAndFree(),
+                entityBuildFirstColumns.ToImmutableAndFree(),
                 parameterExpressionsBuilder.ToImmutable(),
                 inputNames);
         }
@@ -3509,6 +3515,8 @@ namespace Microsoft.CodeAnalysis.CSharp
             SqlTextMap sqlTextMap,
             ImmutableArray<BoundExpression>.Builder queryTargets,
             ref ImmutableArray<string> outputNames,
+            ArrayBuilder<BoundExpression> entityBuildTargets,
+            ArrayBuilder<int> entityBuildFirstColumns,
             BindingDiagnosticBag diagnostics)
         {
             var root = SqlTableResolution.Parse(sqlText);
@@ -3533,6 +3541,18 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             var schema = OrmSchemaProvider.GetSchema(Compilation);
             var outputNameBuilder = outputNames.ToBuilder();
+
+            // Entity builds are held back and emitted after every member-assignment binding has
+            // taken its column. Result values are fetched by alias rather than by position, so
+            // where a star sits in the sql text does not constrain where its columns sit in the
+            // output list - and putting the builds last is what lets QueryTargets stay parallel
+            // to the columns it does own, with each build addressed by its own start index.
+            var pendingBuilds = ArrayBuilder<(
+                SqlOutputWildcardSegmentSyntax Wildcard,
+                SqlSelectSyntaxInfo.StarInfo Star,
+                SqlSource Source,
+                NamedTypeSymbol TargetType,
+                ImmutableArray<OrmColumn> Columns)>.GetInstance();
 
             // Collected first and applied afterwards: each replacement changes the offsets of
             // everything after it, so they have to go in from the back.
@@ -3588,6 +3608,18 @@ namespace Microsoft.CodeAnalysis.CSharp
                     continue;
                 }
 
+                // An entity whose table members were generated is constructed rather than filled
+                // in: its columns are partial properties standing in front of a values object, so
+                // assigning them one by one would need the entity to exist already. Going through
+                // the builder means the star can read a row into a variable that was only
+                // declared, and it is what carries the row version across - nothing else can set
+                // it once the object exists.
+                if (IsGeneratedOrmEntity(targetType))
+                {
+                    pendingBuilds.Add((wildcard, star, source, targetType, targetColumns));
+                    continue;
+                }
+
                 var expansion = PooledStringBuilder.GetInstance();
                 foreach (var targetColumn in targetColumns)
                 {
@@ -3631,6 +3663,50 @@ namespace Microsoft.CodeAnalysis.CSharp
                 replacements.Add((star.Offset, star.Length, expansion.ToStringAndFree()));
             }
 
+            foreach (var (wildcard, star, source, targetType, targetColumns) in pendingBuilds)
+            {
+                var expansion = PooledStringBuilder.GetInstance();
+                var firstColumn = outputNameBuilder.Count;
+                var qualifier = star.Qualifier is { Length: > 0 } q ? q + "." : string.Empty;
+                var complete = true;
+
+                // Every column of the entity, in the order lowering will walk them, so the two
+                // agree on which result column feeds which builder call without having to say so.
+                foreach (var targetColumn in targetColumns)
+                {
+                    if (source.FindColumn(targetColumn.ColumnName) is not { } sourceColumn)
+                    {
+                        Error(diagnostics, ErrorCode.ERR_SQL_SymbolError, wildcard,
+                            $"'{targetType.Name}.{targetColumn.PropertyName}' has no matching column in '{source.TableName ?? source.Qualifier}'");
+                        complete = false;
+                        continue;
+                    }
+
+                    AppendSqlColumn(expansion.Builder, qualifier, sourceColumn.Name, outputNameBuilder);
+                }
+
+                if (!complete)
+                {
+                    // A column was missing, so the runs would not line up with what lowering
+                    // expects. The error above already fails the compilation.
+                    expansion.Free();
+                    continue;
+                }
+
+                // Always last, and always present: every table carries __rowversion, and the
+                // entity has no column standing for it - OrmTable holds it outside the row's
+                // values, so it can only arrive through the builder.
+                AppendSqlColumn(expansion.Builder, qualifier, RowVersionColumnName, outputNameBuilder);
+
+                ReportSqlAwait(wildcard.Expression, diagnostics);
+                var buildTarget = BindValue(wildcard.Expression, diagnostics, BindValueKind.Assignable);
+
+                entityBuildTargets.Add(buildTarget);
+                entityBuildFirstColumns.Add(firstColumn);
+                replacements.Add((star.Offset, star.Length, expansion.ToStringAndFree()));
+            }
+
+            pendingBuilds.Free();
             stars.Free();
             replacements.Sort(static (x, y) => y.Start.CompareTo(x.Start));
 
@@ -3644,6 +3720,73 @@ namespace Microsoft.CodeAnalysis.CSharp
             replacements.Free();
             outputNames = outputNameBuilder.ToImmutable();
             return text.ToStringAndFree();
+        }
+
+        /// <summary>
+        /// The row version column every table carries, and which an [Orm] entity's builder is
+        /// given so the object knows which version of the row it holds.
+        /// </summary>
+        internal const string RowVersionColumnName = "__rowversion";
+
+        /// <summary>
+        /// Appends one aliased column to a star's expansion and records the alias it was given.
+        /// </summary>
+        private static void AppendSqlColumn(
+            System.Text.StringBuilder expansion,
+            string qualifier,
+            string columnName,
+            ImmutableArray<string>.Builder outputNames)
+        {
+            if (expansion.Length > 0)
+            {
+                expansion.Append(", ");
+            }
+
+            var alias = ParseSql.OutputAliasName(outputNames.Count);
+            outputNames.Add(alias);
+
+            // Bracket-quoted so a column named after a reserved word still round-trips.
+            expansion.Append(qualifier).Append('[').Append(columnName).Append("] [").Append(alias).Append(']');
+        }
+
+        /// <summary>
+        /// Whether the table members of this [Orm] class were generated, i.e. whether it has a
+        /// builder to be constructed through.
+        /// </summary>
+        /// <remarks>
+        /// Recognised structurally rather than by referencing iWare.Database: the compiler has no
+        /// dependency on it, and the generator that writes these members ships separately.
+        /// </remarks>
+        private static bool IsGeneratedOrmEntity(NamedTypeSymbol type)
+        {
+            for (var current = type.BaseTypeNoUseSiteDiagnostics; current is not null; current = current.BaseTypeNoUseSiteDiagnostics)
+            {
+                if (current.OriginalDefinition is { Name: "OrmTable", Arity: 1 })
+                {
+                    return TryGetOrmBuilder(type, out _);
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// The generated builder nested in an [Orm] entity, found by the name the generator gives
+        /// it.
+        /// </summary>
+        internal static bool TryGetOrmBuilder(NamedTypeSymbol entityType, [NotNullWhen(true)] out NamedTypeSymbol? builderType)
+        {
+            foreach (var nested in entityType.GetTypeMembers(entityType.Name + "_Builder"))
+            {
+                if (nested.Arity == 0 && nested.GetMembers("Build").OfType<MethodSymbol>().Any(static m => m.ParameterCount == 0))
+                {
+                    builderType = nested;
+                    return true;
+                }
+            }
+
+            builderType = null;
+            return false;
         }
 
         /// <summary>

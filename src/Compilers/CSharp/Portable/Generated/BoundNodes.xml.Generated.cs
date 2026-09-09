@@ -4315,13 +4315,15 @@ namespace Microsoft.CodeAnalysis.CSharp
 
     internal sealed partial class BoundSqlStatement : BoundStatement
     {
-        public BoundSqlStatement(SyntaxNode syntax, string sqlContents, BoundBlock? sqlDoOpt, BoundBlock? sqlEmptyOpt, BoundBlock? sqlEndOpt, ImmutableArray<BoundExpression> queryTargets, ImmutableArray<string> querySqlNames, ImmutableArray<BoundExpression> parameterExpressions, ImmutableArray<string> parameterNames, bool hasErrors = false)
-            : base(BoundKind.SqlStatement, syntax, hasErrors || sqlDoOpt.HasErrors() || sqlEmptyOpt.HasErrors() || sqlEndOpt.HasErrors() || queryTargets.HasErrors() || parameterExpressions.HasErrors())
+        public BoundSqlStatement(SyntaxNode syntax, string sqlContents, BoundBlock? sqlDoOpt, BoundBlock? sqlEmptyOpt, BoundBlock? sqlEndOpt, ImmutableArray<BoundExpression> queryTargets, ImmutableArray<string> querySqlNames, ImmutableArray<BoundExpression> entityBuildTargets, ImmutableArray<int> entityBuildFirstColumns, ImmutableArray<BoundExpression> parameterExpressions, ImmutableArray<string> parameterNames, bool hasErrors = false)
+            : base(BoundKind.SqlStatement, syntax, hasErrors || sqlDoOpt.HasErrors() || sqlEmptyOpt.HasErrors() || sqlEndOpt.HasErrors() || queryTargets.HasErrors() || entityBuildTargets.HasErrors() || parameterExpressions.HasErrors())
         {
 
             RoslynDebug.Assert(sqlContents is object, "Field 'sqlContents' cannot be null (make the type nullable in BoundNodes.xml to remove this check)");
             RoslynDebug.Assert(!queryTargets.IsDefault, "Field 'queryTargets' cannot be null (use Null=\"allow\" in BoundNodes.xml to remove this check)");
             RoslynDebug.Assert(!querySqlNames.IsDefault, "Field 'querySqlNames' cannot be null (use Null=\"allow\" in BoundNodes.xml to remove this check)");
+            RoslynDebug.Assert(!entityBuildTargets.IsDefault, "Field 'entityBuildTargets' cannot be null (use Null=\"allow\" in BoundNodes.xml to remove this check)");
+            RoslynDebug.Assert(!entityBuildFirstColumns.IsDefault, "Field 'entityBuildFirstColumns' cannot be null (use Null=\"allow\" in BoundNodes.xml to remove this check)");
             RoslynDebug.Assert(!parameterExpressions.IsDefault, "Field 'parameterExpressions' cannot be null (use Null=\"allow\" in BoundNodes.xml to remove this check)");
             RoslynDebug.Assert(!parameterNames.IsDefault, "Field 'parameterNames' cannot be null (use Null=\"allow\" in BoundNodes.xml to remove this check)");
 
@@ -4331,6 +4333,8 @@ namespace Microsoft.CodeAnalysis.CSharp
             this.SqlEndOpt = sqlEndOpt;
             this.QueryTargets = queryTargets;
             this.QuerySqlNames = querySqlNames;
+            this.EntityBuildTargets = entityBuildTargets;
+            this.EntityBuildFirstColumns = entityBuildFirstColumns;
             this.ParameterExpressions = parameterExpressions;
             this.ParameterNames = parameterNames;
         }
@@ -4341,17 +4345,19 @@ namespace Microsoft.CodeAnalysis.CSharp
         public BoundBlock? SqlEndOpt { get; }
         public ImmutableArray<BoundExpression> QueryTargets { get; }
         public ImmutableArray<string> QuerySqlNames { get; }
+        public ImmutableArray<BoundExpression> EntityBuildTargets { get; }
+        public ImmutableArray<int> EntityBuildFirstColumns { get; }
         public ImmutableArray<BoundExpression> ParameterExpressions { get; }
         public ImmutableArray<string> ParameterNames { get; }
 
         [DebuggerStepThrough]
         public override BoundNode? Accept(BoundTreeVisitor visitor) => visitor.VisitSqlStatement(this);
 
-        public BoundSqlStatement Update(string sqlContents, BoundBlock? sqlDoOpt, BoundBlock? sqlEmptyOpt, BoundBlock? sqlEndOpt, ImmutableArray<BoundExpression> queryTargets, ImmutableArray<string> querySqlNames, ImmutableArray<BoundExpression> parameterExpressions, ImmutableArray<string> parameterNames)
+        public BoundSqlStatement Update(string sqlContents, BoundBlock? sqlDoOpt, BoundBlock? sqlEmptyOpt, BoundBlock? sqlEndOpt, ImmutableArray<BoundExpression> queryTargets, ImmutableArray<string> querySqlNames, ImmutableArray<BoundExpression> entityBuildTargets, ImmutableArray<int> entityBuildFirstColumns, ImmutableArray<BoundExpression> parameterExpressions, ImmutableArray<string> parameterNames)
         {
-            if (sqlContents != this.SqlContents || sqlDoOpt != this.SqlDoOpt || sqlEmptyOpt != this.SqlEmptyOpt || sqlEndOpt != this.SqlEndOpt || queryTargets != this.QueryTargets || querySqlNames != this.QuerySqlNames || parameterExpressions != this.ParameterExpressions || parameterNames != this.ParameterNames)
+            if (sqlContents != this.SqlContents || sqlDoOpt != this.SqlDoOpt || sqlEmptyOpt != this.SqlEmptyOpt || sqlEndOpt != this.SqlEndOpt || queryTargets != this.QueryTargets || querySqlNames != this.QuerySqlNames || entityBuildTargets != this.EntityBuildTargets || entityBuildFirstColumns != this.EntityBuildFirstColumns || parameterExpressions != this.ParameterExpressions || parameterNames != this.ParameterNames)
             {
-                var result = new BoundSqlStatement(this.Syntax, sqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, queryTargets, querySqlNames, parameterExpressions, parameterNames, this.HasErrors);
+                var result = new BoundSqlStatement(this.Syntax, sqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, queryTargets, querySqlNames, entityBuildTargets, entityBuildFirstColumns, parameterExpressions, parameterNames, this.HasErrors);
                 result.CopyAttributes(this);
                 return result;
             }
@@ -10560,6 +10566,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             this.Visit(node.SqlEmptyOpt);
             this.Visit(node.SqlEndOpt);
             this.VisitList(node.QueryTargets);
+            this.VisitList(node.EntityBuildTargets);
             this.VisitList(node.ParameterExpressions);
             return null;
         }
@@ -11888,8 +11895,9 @@ namespace Microsoft.CodeAnalysis.CSharp
             BoundBlock? sqlEmptyOpt = (BoundBlock?)this.Visit(node.SqlEmptyOpt);
             BoundBlock? sqlEndOpt = (BoundBlock?)this.Visit(node.SqlEndOpt);
             ImmutableArray<BoundExpression> queryTargets = this.VisitList(node.QueryTargets);
+            ImmutableArray<BoundExpression> entityBuildTargets = this.VisitList(node.EntityBuildTargets);
             ImmutableArray<BoundExpression> parameterExpressions = this.VisitList(node.ParameterExpressions);
-            return node.Update(node.SqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, queryTargets, node.QuerySqlNames, parameterExpressions, node.ParameterNames);
+            return node.Update(node.SqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, queryTargets, node.QuerySqlNames, entityBuildTargets, node.EntityBuildFirstColumns, parameterExpressions, node.ParameterNames);
         }
         public override BoundNode? VisitCatchBlock(BoundCatchBlock node)
         {
@@ -16528,6 +16536,8 @@ namespace Microsoft.CodeAnalysis.CSharp
             new TreeDumperNode("sqlEndOpt", null, new TreeDumperNode[] { Visit(node.SqlEndOpt, null) }),
             new TreeDumperNode("queryTargets", null, from x in node.QueryTargets select Visit(x, null)),
             new TreeDumperNode("querySqlNames", node.QuerySqlNames, null),
+            new TreeDumperNode("entityBuildTargets", null, from x in node.EntityBuildTargets select Visit(x, null)),
+            new TreeDumperNode("entityBuildFirstColumns", node.EntityBuildFirstColumns, null),
             new TreeDumperNode("parameterExpressions", null, from x in node.ParameterExpressions select Visit(x, null)),
             new TreeDumperNode("parameterNames", node.ParameterNames, null),
             new TreeDumperNode("hasErrors", node.HasErrors, null)

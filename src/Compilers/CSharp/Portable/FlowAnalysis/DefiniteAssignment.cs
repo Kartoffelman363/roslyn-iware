@@ -2462,6 +2462,18 @@ namespace Microsoft.CodeAnalysis.CSharp
             }
         }
 
+        protected override void VisitSqlEntityBuildTargets(ImmutableArray<BoundExpression> entityBuildTargets)
+        {
+            base.VisitSqlEntityBuildTargets(entityBuildTargets);
+            foreach (var target in entityBuildTargets)
+            {
+                // A star select into an [Orm] entity constructs the object rather than filling one
+                // in, so this is an assignment in the ordinary sense - "users u;" followed by
+                // "SELECT *[u]" leaves u assigned for the sqldo block, the same as "u = ...".
+                Assign(target, value: null);
+            }
+        }
+
         public override BoundNode VisitDeconstructionAssignmentOperator(BoundDeconstructionAssignmentOperator node)
         {
             base.VisitDeconstructionAssignmentOperator(node);

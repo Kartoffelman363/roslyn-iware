@@ -1364,6 +1364,14 @@
          into SqlContents. -->
     <Field Name="QueryTargets" Type="ImmutableArray&lt;BoundExpression&gt;"/>
     <Field Name="QuerySqlNames" Type="ImmutableArray&lt;string&gt;"/>
+    <!-- Star selects into an [Orm] entity, which is constructed through its generated builder
+         rather than assigned member by member. Each target is assignable and takes a contiguous
+         run of result columns starting at the matching EntityBuildFirstColumns entry: one per
+         column of the entity in OrmSchemaProvider.GetColumns order, then the row version. Those
+         runs always sit past the end of QueryTargets, so the two stay in step over the columns
+         they do share. -->
+    <Field Name="EntityBuildTargets" Type="ImmutableArray&lt;BoundExpression&gt;"/>
+    <Field Name="EntityBuildFirstColumns" Type="ImmutableArray&lt;int&gt;"/>
     <!-- Expressions supplying the SQL parameter values, in parameter order.
          ParameterNames holds the synthesized @name for each, matching SqlContents. -->
     <Field Name="ParameterExpressions" Type="ImmutableArray&lt;BoundExpression&gt;"/>

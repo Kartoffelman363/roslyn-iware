@@ -643,10 +643,12 @@ namespace Microsoft.CodeAnalysis.CSharp
             BoundBlock? sqlEndOpt,
             ImmutableArray<BoundExpression> queryTargets,
             ImmutableArray<string> querySqlNames,
+            ImmutableArray<BoundExpression> entityBuildTargets,
+            ImmutableArray<int> entityBuildFirstColumns,
             ImmutableArray<BoundExpression> parameterExpressions,
             ImmutableArray<string> parameterNames
                 )
-            : this(syntax, sqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, queryTargets, querySqlNames, parameterExpressions, parameterNames, hasErrors: false)
+            : this(syntax, sqlContents, sqlDoOpt, sqlEmptyOpt, sqlEndOpt, queryTargets, querySqlNames, entityBuildTargets, entityBuildFirstColumns, parameterExpressions, parameterNames, hasErrors: false)
         {
         }
     }

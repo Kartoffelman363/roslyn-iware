@@ -1707,6 +1707,8 @@ namespace Microsoft.CodeAnalysis.CSharp.CodeGen
                 sqlEndClause,
                 node.QueryTargets,
                 node.QuerySqlNames,
+                node.EntityBuildTargets,
+                node.EntityBuildFirstColumns,
                 parameterExpressions,
                 node.ParameterNames
             );
