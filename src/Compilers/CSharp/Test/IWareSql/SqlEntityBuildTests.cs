@@ -36,16 +36,21 @@ namespace Microsoft.CodeAnalysis.CSharp.IWareSql.UnitTests
             #pragma warning disable CS8981 // type name only contains lower-cased ascii characters
             using iWare.Database;
 
-            public class users_Values
+            public class users_Values : IOrmValues<users_Values>
             {
                 public int id { get; set; }
                 public string name { get; set; }
                 public string surname { get; set; }
                 public int? role_id { get; set; }
+
+                public users_Values Copy() => new()
+                {
+                    id = id, name = name, surname = surname, role_id = role_id,
+                };
             }
 
             [Orm]
-            public class users : OrmTable<users_Values>
+            public class users : OrmTable<users, users_Values>
             {
                 public int id { get; set; }
                 public string name { get; set; }
@@ -66,6 +71,17 @@ namespace Microsoft.CodeAnalysis.CSharp.IWareSql.UnitTests
                 }
 
                 internal void SetRowVersion(long value) => __rowVersion = value;
+
+                protected override users CreateFrom(users_Values values, long rowVersion)
+                {
+                    var e = new users
+                    {
+                        id = values.id, name = values.name,
+                        surname = values.surname, role_id = values.role_id,
+                    };
+                    e.SetRowVersion(rowVersion);
+                    return e;
+                }
 
                 protected override string _tableName => "users";
                 protected override OrmColumnRef<users_Values>[] _keys => System.Array.Empty<OrmColumnRef<users_Values>>();

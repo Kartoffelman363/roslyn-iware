@@ -3761,7 +3761,10 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
             for (var current = type.BaseTypeNoUseSiteDiagnostics; current is not null; current = current.BaseTypeNoUseSiteDiagnostics)
             {
-                if (current.OriginalDefinition is { Name: "OrmTable", Arity: 1 })
+                // Matched on name alone rather than on arity: whether OrmTable carries one type
+                // parameter or two is the library's business, and the builder below is what
+                // actually decides whether this entity can be constructed.
+                if (current.OriginalDefinition is { Name: "OrmTable", IsGenericType: true })
                 {
                     return TryGetOrmBuilder(type, out _);
                 }
