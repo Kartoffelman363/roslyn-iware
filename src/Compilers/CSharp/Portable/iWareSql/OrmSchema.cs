@@ -15,8 +15,6 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
     {
         public string PropertyName { get; }
         public string ColumnName { get; }
-        public string? DbType { get; }
-        public string? Domain { get; }
 
         /// <summary>
         /// The property or field this column was built from, so a column named in a sql block can
@@ -25,12 +23,10 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
         /// </summary>
         public ISymbol? Symbol { get; }
 
-        internal OrmColumn(string propertyName, string columnName, string? dbType, string? domain, ISymbol? symbol = null)
+        internal OrmColumn(string propertyName, string columnName, ISymbol? symbol = null)
         {
             PropertyName = propertyName;
             ColumnName = columnName;
-            DbType = dbType;
-            Domain = domain;
             Symbol = symbol;
         }
     }
@@ -234,10 +230,8 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
 
                 var dbField = member.GetAttributes().FirstOrDefault(a => IsMarkerAttribute(a.AttributeClass, "DbField"));
                 var columnName = GetNamedArgumentString(dbField, "Label") ?? propertyName;
-                var dbType = GetNamedArgumentString(dbField, "dbType");
-                var domain = GetNamedArgumentValueAsString(dbField, "domain");
 
-                columns.Add(new OrmColumn(propertyName, columnName, dbType, domain, member));
+                columns.Add(new OrmColumn(propertyName, columnName, member));
             }
 
             return columns.ToImmutable();
@@ -265,43 +259,6 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                 {
                     return value.Value as string;
                 }
-            }
-
-            return null;
-        }
-
-        // "domain" in the example (domain=userId, unquoted) is either an enum member or a
-        // reference to a constant, not a plain string literal. TypedConstant.Value for an enum
-        // comes through as the boxed underlying integral value, so resolve its symbolic name
-        // here instead of blindly stringifying the number.
-        private static string? GetNamedArgumentValueAsString(AttributeData? attribute, string argumentName)
-        {
-            if (attribute is null)
-            {
-                return null;
-            }
-
-            foreach (var (key, value) in attribute.NamedArguments)
-            {
-                if (key != argumentName)
-                {
-                    continue;
-                }
-
-                if (value.Value is string s)
-                {
-                    return s;
-                }
-
-                if (value.Type is { TypeKind: TypeKind.Enum } enumType)
-                {
-                    var member = enumType.GetMembers()
-                        .OfType<IFieldSymbol>()
-                        .FirstOrDefault(f => f.HasConstantValue && System.Object.Equals(f.ConstantValue, value.Value));
-                    return member?.Name ?? value.Value?.ToString();
-                }
-
-                return value.Value?.ToString();
             }
 
             return null;

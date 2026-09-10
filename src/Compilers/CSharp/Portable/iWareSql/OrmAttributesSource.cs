@@ -37,8 +37,6 @@ internal sealed class DbFieldAttribute : Attribute
 {
     // Optional - defaults to the property/field name if omitted.
     public string Label { get; set; }
-    public string dbType { get; set; }
-    public string domain { get; set; }
 }
 ";
     }
