@@ -1,4 +1,4 @@
-// Licensed to the .NET Foundation under one or more agreements.
+﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
@@ -83,11 +83,11 @@ namespace Microsoft.CodeAnalysis.CSharp.IWareSql.UnitTests
                     return e;
                 }
 
-                protected override string _tableName => "users";
-                protected override OrmColumnRef<users_Values>[] _keys => System.Array.Empty<OrmColumnRef<users_Values>>();
+                public override string __tableName => "users";
+                public override OrmColumnRef<users_Values>[] __keys => System.Array.Empty<OrmColumnRef<users_Values>>();
                 protected override OrmColumnRef<users_Values>[] _colRefs => System.Array.Empty<OrmColumnRef<users_Values>>();
                 protected override users_Values _values { get; } = new();
-                protected override users_Values _oldValues { get; } = new();
+                public override users_Values __oldValues { get; } = new();
             }
             """;
 

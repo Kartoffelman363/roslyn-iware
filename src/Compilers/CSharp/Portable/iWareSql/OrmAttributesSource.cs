@@ -1,4 +1,4 @@
-// Licensed to the .NET Foundation under one or more agreements.
+﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
@@ -37,6 +37,7 @@ internal sealed class DbFieldAttribute : Attribute
 {
     // Optional - defaults to the property/field name if omitted.
     public string Label { get; set; }
+    public bool Ignore { get; set; }
 }
 ";
     }

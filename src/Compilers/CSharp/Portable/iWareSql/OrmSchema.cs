@@ -1,4 +1,4 @@
-// Licensed to the .NET Foundation under one or more agreements.
+﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
@@ -7,6 +7,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Microsoft.CodeAnalysis;
+using Microsoft.IdentityModel.Tokens;
 
 #pragma warning disable RS0016 // Add public types and members to the declared API
 namespace Microsoft.CodeAnalysis.CSharp.iWareSql
@@ -229,6 +230,13 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                 }
 
                 var dbField = member.GetAttributes().FirstOrDefault(a => IsMarkerAttribute(a.AttributeClass, "DbField"));
+                bool ignoreColumn = GetNamedArgumentBoolean(dbField, "Ignore") ?? false;
+
+                if (ignoreColumn)
+                {
+                    continue;
+                }
+
                 var columnName = GetNamedArgumentString(dbField, "Label") ?? propertyName;
 
                 columns.Add(new OrmColumn(propertyName, columnName, member));
@@ -258,6 +266,24 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
                 if (key == argumentName)
                 {
                     return value.Value as string;
+                }
+            }
+
+            return null;
+        }
+
+        private static bool? GetNamedArgumentBoolean(AttributeData? attribute, string argumentName)
+        {
+            if (attribute is null)
+            {
+                return null;
+            }
+
+            foreach (var (key, value) in attribute.NamedArguments)
+            {
+                if (key == argumentName)
+                {
+                    return value.Value as bool?;
                 }
             }
 
