@@ -52,42 +52,46 @@ namespace Microsoft.CodeAnalysis.CSharp.IWareSql.UnitTests
             [Orm]
             public class users : OrmTable<users, users_Values>
             {
-                public int id { get; set; }
-                public string name { get; set; }
-                public string surname { get; set; }
-                public int? role_id { get; set; }
+                public int id { get => _values.id; set => _values.id = value; }
+                public string name { get => _values.name; set => _values.name = value; }
+                public string surname { get => _values.surname; set => _values.surname = value; }
+                public int? role_id { get => _values.role_id; set => _values.role_id = value; }
 
                 public class users_Builder
                 {
-                    private readonly users _entity = new();
+                    private readonly users_Values _builderValues = new();
+                    private long _builderRowVersion = 0;
 
-                    public users_Builder Addid(int value) { _entity.id = value; return this; }
-                    public users_Builder Addname(string value) { _entity.name = value; return this; }
-                    public users_Builder Addsurname(string value) { _entity.surname = value; return this; }
-                    public users_Builder Addrole_id(int? value) { _entity.role_id = value; return this; }
-                    public users_Builder AddRowVersion(long value) { _entity.SetRowVersion(value); return this; }
+                    public users_Builder Addid(int value) { _builderValues.id = value; return this; }
+                    public users_Builder Addname(string value) { _builderValues.name = value; return this; }
+                    public users_Builder Addsurname(string value) { _builderValues.surname = value; return this; }
+                    public users_Builder Addrole_id(int? value) { _builderValues.role_id = value; return this; }
+                    public users_Builder AddRowVersion(long value) { _builderRowVersion = value; return this; }
 
-                    public users Build() => _entity;
+                    public users Build() => new(_builderValues, _builderRowVersion);
                 }
 
-                internal void SetRowVersion(long value) => __rowVersion = value;
+                protected override users CreateFrom(users_Values values, long rowVersion) => new(values, rowVersion);
 
-                protected override users CreateFrom(users_Values values, long rowVersion)
-                {
-                    var e = new users
-                    {
-                        id = values.id, name = values.name,
-                        surname = values.surname, role_id = values.role_id,
-                    };
-                    e.SetRowVersion(rowVersion);
-                    return e;
-                }
-
+                [DbField(Ignore = true)]
                 public override string __tableName => "users";
+                [DbField(Ignore = true)]
+                public override bool __nonTenantTable => false;
+                [DbField(Ignore = true)]
                 public override OrmColumnRef<users_Values>[] __keys => System.Array.Empty<OrmColumnRef<users_Values>>();
                 protected override OrmColumnRef<users_Values>[] _colRefs => System.Array.Empty<OrmColumnRef<users_Values>>();
-                protected override users_Values _values { get; } = new();
-                public override users_Values __oldValues { get; } = new();
+                protected override users_Values _values { get; }
+                [DbField(Ignore = true)]
+                public override users_Values __oldValues { get; }
+
+                public users() { _values = new(); __oldValues = new(); }
+
+                public users(users_Values values, long rowVersion)
+                    : base(rowVersion)
+                {
+                    _values = values;
+                    __oldValues = values.Copy();
+                }
             }
             """;
 

@@ -3489,9 +3489,19 @@ namespace Microsoft.CodeAnalysis.CSharp
                 {
                     if (current.OriginalDefinition.Equals(domainOfT, TypeCompareKind.ConsiderEverything))
                     {
-                        return current.TypeArgumentsWithAnnotationsNoUseSiteDiagnostics[0].Type;
+                        type = current.TypeArgumentsWithAnnotationsNoUseSiteDiagnostics[0].Type;
+                        break;
                     }
                 }
+            }
+
+            // Domain<T> is almost always Domain<int?> rather than Domain<int>, so unwrapping one
+            // yields a nullable that a peeled target would never match. Nullability is not what
+            // this comparison is about - it only asks whether the value can be unboxed into the
+            // target at all - so both sides end up unwrapped the same way.
+            if (type.IsNullableType())
+            {
+                type = type.GetNullableUnderlyingType();
             }
 
             return type;
