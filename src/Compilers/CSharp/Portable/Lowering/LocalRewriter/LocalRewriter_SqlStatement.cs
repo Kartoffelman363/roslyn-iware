@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Linq;
 using Microsoft.CodeAnalysis.CSharp.Symbols;
 using Microsoft.CodeAnalysis.CSharp.iWareSql;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Microsoft.CodeAnalysis.CSharp
 {
@@ -135,12 +136,12 @@ namespace Microsoft.CodeAnalysis.CSharp
                 _beginMethodSymbol = TryLookupFunction(
                     "iWare.Database.SqlCommands",
                     "Begin")!;
-                if (_beginMethodSymbol is null || _beginMethodSymbol.Parameters.Length != 3 || _beginMethodSymbol.ReturnsVoid)
+                if (_beginMethodSymbol is null || _beginMethodSymbol.Parameters.Length != 4 || _beginMethodSymbol.ReturnsVoid)
                 {
                     throw new Exception("Missing or invalid method iWare.Database.SqlCommands.Begin");
                 }
                 Debug.Assert(_beginMethodSymbol is not null, "method iWare.Database.SqlCommands.Begin not found");
-                Debug.Assert(_beginMethodSymbol.Parameters.Length == 3 && !_beginMethodSymbol.ReturnsVoid, "method iWare.Database.SqlCommands.Begin does not match expected signature");
+                Debug.Assert(_beginMethodSymbol.Parameters.Length == 4 && !_beginMethodSymbol.ReturnsVoid, "method iWare.Database.SqlCommands.Begin does not match expected signature");
 
                 _endMethodSymbol = TryLookupFunction(
                     "iWare.Database.SqlCommands",
@@ -256,6 +257,11 @@ namespace Microsoft.CodeAnalysis.CSharp
                 var parameterNamesLocal = _factory.Local(parameterNamesSymbol);
                 sideEffects.Add(AssignStringArrayToLocal(parameterNamesLocal, _parameterNames));
 
+                // ImmutableArray<string> nonTenantTables = /*[Orm(NonTenantTable = true)] tables*/;
+                var nonTenantTablesSymbol = _factory.SynthesizedLocal(_immutableArrayOfStringsType);
+                var nonTenantTablesLocal = _factory.Local(nonTenantTablesSymbol);
+                sideEffects.Add(AssignStringArrayToLocal(nonTenantTablesLocal, NonTenantTableNames()));
+
                 // sqlReader = Begin(/*QUERY*/, parameters);
                 var sqlReaderBeginStatement = _factory.Assignment(
                     sqlReaderLocal,
@@ -265,7 +271,8 @@ namespace Microsoft.CodeAnalysis.CSharp
                         ImmutableArray.Create<BoundExpression>(
                             _sqlTextBoundLiteral,
                             parametersLocal,
-                            parameterNamesLocal)));
+                            parameterNamesLocal,
+                            nonTenantTablesLocal)));
 
                 //  /*ASSIGN LOCALS*/
                 var assignLocalsStatements = AssignLocals(_queryTargets, readValuesLocal);
@@ -334,7 +341,8 @@ namespace Microsoft.CodeAnalysis.CSharp
                         readValuesSymbol,
                         sqlNamesSymbol,
                         parametersSymbol,
-                        parameterNamesSymbol
+                        parameterNamesSymbol,
+                        nonTenantTablesSymbol
                     ],
                     sideEffectsImmutable);
                 // ret.DumpSource is VERY useful!!!!
@@ -762,6 +770,31 @@ namespace Microsoft.CodeAnalysis.CSharp
                 }
                 underlyingType = null!;
                 return false;
+            }
+
+            /// <summary>
+            /// The tables whose names the tenant rewrite has to leave alone, i.e. those marked
+            /// [Orm(NonTenantTable = true)].
+            /// </summary>
+            /// <remarks>
+            /// Resolved here rather than at run time because only the compilation knows which
+            /// [Orm] classes exist - the schema walk covers referenced assemblies too, so a table
+            /// declared in another project is still recognised.
+            /// </remarks>
+            private ImmutableArray<string> NonTenantTableNames()
+            {
+                var schema = OrmSchemaProvider.GetSchema(_compilation);
+                var builder = ArrayBuilder<string>.GetInstance();
+
+                foreach (var table in schema.Tables)
+                {
+                    if (!table.IsTenantTable)
+                    {
+                        builder.Add(table.TableName);
+                    }
+                }
+
+                return builder.ToImmutableAndFree();
             }
 
             private MethodSymbol? TryLookupFunction(string @namespace, string functionName)

@@ -37,6 +37,10 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
         public string TableName { get; }
         public ImmutableArray<OrmColumn> Columns { get; }
 
+        public INamedTypeSymbol? Symbol { get; }
+
+        public bool IsTenantTable { get; }
+
         /// <summary>
         /// The column written as <paramref name="columnName"/> in sql. Matches the database column
         /// name first and the property name second - they differ only when [DbField(Label=...)]
@@ -63,19 +67,12 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             return null;
         }
 
-        /// <summary>
-        /// The <c>[Orm]</c>-marked class this table was built from. Carried so that features
-        /// which resolve a table name back to source - go-to-definition on a table inside a
-        /// sql block, for instance - have a symbol to navigate to. Null only for tables that
-        /// were not produced by walking a compilation.
-        /// </summary>
-        public INamedTypeSymbol? Symbol { get; }
-
-        internal OrmTable(string tableName, ImmutableArray<OrmColumn> columns, INamedTypeSymbol? symbol = null)
+        internal OrmTable(string tableName, ImmutableArray<OrmColumn> columns, INamedTypeSymbol? symbol = null, bool isTenantTable = true)
         {
             TableName = tableName;
             Columns = columns;
             Symbol = symbol;
+            IsTenantTable = isTenantTable;
         }
     }
 
@@ -185,8 +182,9 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             }
 
             var tableName = GetNamedArgumentString(ormAttribute, "TableName") ?? type.Name;
+            bool isTenantTable = !(GetNamedArgumentBoolean(ormAttribute, "NonTenantTable") ?? false);
 
-            tables.Add(new OrmTable(tableName, GetColumns(type), type));
+            tables.Add(new OrmTable(tableName, GetColumns(type), type, isTenantTable));
         }
 
         /// <summary>

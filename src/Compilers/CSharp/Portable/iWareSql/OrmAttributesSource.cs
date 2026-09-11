@@ -28,15 +28,26 @@ using System;
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
 internal sealed class OrmAttribute : Attribute
 {
-    // Optional - defaults to the class name if omitted.
+    /// <summary>
+    /// Optional - defaults to the class name if omitted.
+    /// </summary>
     public string TableName { get; set; }
+    /// <summary>
+    /// Optional - defaults to false if omitted. Tells the compiler if the real table name should have the tenant ID suffix
+    /// </summary>
+    public bool NonTenantTable { get; set; }
 }
 
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, Inherited = false, AllowMultiple = false)]
 internal sealed class DbFieldAttribute : Attribute
 {
-    // Optional - defaults to the property/field name if omitted.
+    /// <summary>
+    /// Optional - defaults to the property/field name if omitted.
+    /// </summary>
     public string Label { get; set; }
+    /// <summary>
+    /// Optional - defaults to false if omitted. Should this public field not be used as a column.
+    /// </summary>
     public bool Ignore { get; set; }
 }
 ";
