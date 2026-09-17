@@ -11222,6 +11222,24 @@ namespace Microsoft.CodeAnalysis.CSharp
             return null;
         }
 
+        protected override void VisitSqlQueryTargets(ImmutableArray<BoundExpression> queryTargets)
+        {
+            foreach (var target in queryTargets)
+            {
+                var targetType = VisitLvalueWithAnnotations(target);
+                TrackNullableStateForAssignment(valueOpt: null, targetType, MakeSlot(target), targetType.ToTypeWithState());
+            }
+        }
+
+        protected override void VisitSqlEntityBuildTargets(ImmutableArray<BoundExpression> entityBuildTargets)
+        {
+            foreach (var target in entityBuildTargets)
+            {
+                var targetType = VisitLvalueWithAnnotations(target);
+                TrackNullableStateForAssignment(valueOpt: null, targetType, MakeSlot(target), TypeWithState.Create(targetType.Type, NullableFlowState.NotNull));
+            }
+        }
+
         private bool IsPropertyOutputMoreStrictThanInput(PropertySymbol property)
         {
             var type = property.TypeWithAnnotations;

@@ -595,19 +595,99 @@ namespace Microsoft.CodeAnalysis.CSharp
                 ImmutableArray<LocalSymbol>.Builder locals,
                 ImmutableArray<BoundStatement>.Builder sideEffects)
             {
-                if (target.Type is not NamedTypeSymbol entityType ||
-                    !Binder.TryGetOrmBuilder(entityType, out var builderType))
+                if (target.Type is not NamedTypeSymbol targetType)
+                {
+                    return;
+                }
+
+                if (Binder.IsOrmJoinTable(targetType))
+                {
+                    BuildJoin(target, targetType, firstColumn, readValuesLocal, getItemMethodSymbol, domainOfTOpenType, tmpLocal, locals, sideEffects);
+                    return;
+                }
+
+                if (EmitEntity(targetType, firstColumn, readValuesLocal, getItemMethodSymbol, domainOfTOpenType, tmpLocal, locals, sideEffects) is { } entityLocal)
+                {
+                    sideEffects.Add(_factory.ExpressionStatement(AssignToTarget(target, entityLocal)));
+                }
+            }
+
+            private void BuildJoin(
+                BoundExpression target,
+                NamedTypeSymbol joinType,
+                int firstColumn,
+                BoundExpression readValuesLocal,
+                MethodSymbol getItemMethodSymbol,
+                NamedTypeSymbol domainOfTOpenType,
+                BoundExpression tmpLocal,
+                ImmutableArray<LocalSymbol>.Builder locals,
+                ImmutableArray<BoundStatement>.Builder sideEffects)
+            {
+                var joinCtor = joinType.InstanceConstructors.FirstOrDefault(static c => c.ParameterCount == 0);
+                if (joinCtor is null)
+                {
+                    return;
+                }
+
+                var joinSymbol = _factory.SynthesizedLocal(joinType);
+                var joinLocal = _factory.Local(joinSymbol);
+                locals.Add(joinSymbol);
+                sideEffects.Add(_factory.Assignment(joinLocal, _factory.New(joinCtor)));
+
+                var column = firstColumn;
+                foreach (var member in Binder.GetOrmJoinMembers(joinType))
+                {
+                    if (member.Type is not NamedTypeSymbol entityType || member.GetOwnOrInheritedSetMethod() is not { } setter)
+                    {
+                        return;
+                    }
+
+                    var rowVersionColumn = column + OrmSchemaProvider.GetColumns(entityType.GetPublicSymbol()).Length;
+
+                    var build = ImmutableArray.CreateBuilder<BoundStatement>();
+                    if (EmitEntity(entityType, column, readValuesLocal, getItemMethodSymbol, domainOfTOpenType, tmpLocal, locals, build) is not { } entityLocal)
+                    {
+                        return;
+                    }
+
+                    build.Add(_factory.ExpressionStatement(_factory.Call(joinLocal, setter, entityLocal)));
+
+                    sideEffects.Add(
+                        _factory.If(
+                            _factory.ObjectEqual(
+                                ReadColumnAsObject(rowVersionColumn, readValuesLocal, getItemMethodSymbol),
+                                _factory.Field(null, _dbNullValueProperty)),
+                            _factory.ExpressionStatement(_factory.Call(joinLocal, setter, _factory.Null(entityType))),
+                            _factory.Block(build.ToImmutable())));
+
+                    column = rowVersionColumn + 1;
+                }
+
+                sideEffects.Add(_factory.ExpressionStatement(AssignToTarget(target, joinLocal)));
+            }
+
+            private BoundExpression? EmitEntity(
+                NamedTypeSymbol entityType,
+                int firstColumn,
+                BoundExpression readValuesLocal,
+                MethodSymbol getItemMethodSymbol,
+                NamedTypeSymbol domainOfTOpenType,
+                BoundExpression tmpLocal,
+                ImmutableArray<LocalSymbol>.Builder locals,
+                ImmutableArray<BoundStatement>.Builder sideEffects)
+            {
+                if (!Binder.TryGetOrmBuilder(entityType, out var builderType))
                 {
                     // Binding would have reported this; the statement carries HasErrors and will
                     // not reach codegen.
-                    return;
+                    return null;
                 }
 
                 var builderCtor = builderType.InstanceConstructors.FirstOrDefault(static c => c.ParameterCount == 0);
                 var buildMethod = builderType.GetMembers("Build").OfType<MethodSymbol>().FirstOrDefault(static m => m.ParameterCount == 0);
                 if (builderCtor is null || buildMethod is null)
                 {
-                    return;
+                    return null;
                 }
 
                 BoundExpression chain = _factory.New(builderCtor);
@@ -617,7 +697,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 {
                     if (FindAddMethod(builderType, "Add" + ormColumn.PropertyName) is not { } addMethod)
                     {
-                        return;
+                        return null;
                     }
 
                     chain = _factory.Call(
@@ -628,7 +708,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
                 if (FindAddMethod(builderType, "AddRowVersion") is not { } addRowVersion || _toRowVersionMethodSymbol is null)
                 {
-                    return;
+                    return null;
                 }
 
                 // The row version comes over as bytes rather than a number, so it goes through a
@@ -651,7 +731,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 locals.Add(entitySymbol);
 
                 sideEffects.Add(_factory.Assignment(entityLocal, _factory.Call(chain, buildMethod)));
-                sideEffects.Add(_factory.ExpressionStatement(AssignToTarget(target, entityLocal)));
+                return entityLocal;
             }
 
             private static MethodSymbol? FindAddMethod(NamedTypeSymbol builderType, string name) =>

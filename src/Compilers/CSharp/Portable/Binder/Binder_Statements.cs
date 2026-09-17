@@ -3564,6 +3564,11 @@ namespace Microsoft.CodeAnalysis.CSharp
                 NamedTypeSymbol TargetType,
                 ImmutableArray<OrmColumn> Columns)>.GetInstance();
 
+            var pendingJoins = ArrayBuilder<(
+                SqlOutputWildcardSegmentSyntax Wildcard,
+                SqlSelectSyntaxInfo.StarInfo Star,
+                ImmutableArray<(SqlSource Source, ImmutableArray<SqlSourceColumn> Columns)> Plan)>.GetInstance();
+
             // Collected first and applied afterwards: each replacement changes the offsets of
             // everything after it, so they have to go in from the back.
             var replacements = ArrayBuilder<(int Start, int Length, string Text)>.GetInstance();
@@ -3591,6 +3596,17 @@ namespace Microsoft.CodeAnalysis.CSharp
 
                 if (match is not { } star || starQuery is null)
                 {
+                    continue;
+                }
+
+                if (BindValue(wildcard.Expression, BindingDiagnosticBag.Discarded, BindValueKind.RValue).Type is NamedTypeSymbol { TypeKind: not TypeKind.Error } joinType &&
+                    IsOrmJoinTable(joinType))
+                {
+                    if (TryPlanOrmJoin(wildcard, star, starQuery, joinType, schema, diagnostics, out var joinPlan))
+                    {
+                        pendingJoins.Add((wildcard, star, joinPlan));
+                    }
+
                     continue;
                 }
 
@@ -3716,6 +3732,28 @@ namespace Microsoft.CodeAnalysis.CSharp
                 replacements.Add((star.Offset, star.Length, expansion.ToStringAndFree()));
             }
 
+            foreach (var (wildcard, star, plan) in pendingJoins)
+            {
+                var expansion = PooledStringBuilder.GetInstance();
+                var firstColumn = outputNameBuilder.Count;
+
+                foreach (var (source, columns) in plan)
+                {
+                    var qualifier = QuoteSqlIdentifier(SqlSourceResolution.LastSegment(source.Qualifier)) + ".";
+                    foreach (var column in columns)
+                    {
+                        AppendSqlColumn(expansion.Builder, qualifier, column.Name, outputNameBuilder);
+                    }
+
+                    AppendSqlColumn(expansion.Builder, qualifier, RowVersionColumnName, outputNameBuilder);
+                }
+
+                entityBuildTargets.Add(BindValue(wildcard.Expression, diagnostics, BindValueKind.Assignable));
+                entityBuildFirstColumns.Add(firstColumn);
+                replacements.Add((star.Offset, star.Length, expansion.ToStringAndFree()));
+            }
+
+            pendingJoins.Free();
             pendingBuilds.Free();
             stars.Free();
             replacements.Sort(static (x, y) => y.Start.CompareTo(x.Start));
@@ -3731,6 +3769,223 @@ namespace Microsoft.CodeAnalysis.CSharp
             outputNames = outputNameBuilder.ToImmutable();
             return text.ToStringAndFree();
         }
+
+        internal static bool IsOrmJoinTable(NamedTypeSymbol type)
+        {
+            for (var current = type.BaseTypeNoUseSiteDiagnostics; current is not null; current = current.BaseTypeNoUseSiteDiagnostics)
+            {
+                if (IsOrmJoinTableBase(current))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsOrmJoinTableBase(NamedTypeSymbol type) =>
+            type is { Name: "OrmJoinTable", IsGenericType: false };
+
+        internal static ImmutableArray<PropertySymbol> GetOrmJoinMembers(NamedTypeSymbol joinType)
+        {
+            var chain = ArrayBuilder<NamedTypeSymbol>.GetInstance();
+            for (var current = joinType; current is not null && !IsOrmJoinTableBase(current); current = current.BaseTypeNoUseSiteDiagnostics)
+            {
+                chain.Add(current);
+            }
+
+            var members = ArrayBuilder<PropertySymbol>.GetInstance();
+            for (var i = chain.Count - 1; i >= 0; i--)
+            {
+                foreach (var member in chain[i].GetMembers())
+                {
+                    if (member is PropertySymbol { DeclaredAccessibility: Accessibility.Public, IsStatic: false, IsIndexer: false, IsOverride: false, IsImplicitlyDeclared: false } property &&
+                        property.Type is NamedTypeSymbol entityType &&
+                        IsGeneratedOrmEntity(entityType))
+                    {
+                        members.Add(property);
+                    }
+                }
+            }
+
+            chain.Free();
+            return members.ToImmutableAndFree();
+        }
+
+        private bool TryPlanOrmJoin(
+            SqlOutputWildcardSegmentSyntax wildcard,
+            SqlSelectSyntaxInfo.StarInfo star,
+            SqlSelectSyntaxInfo query,
+            NamedTypeSymbol joinType,
+            OrmSchema schema,
+            BindingDiagnosticBag diagnostics,
+            out ImmutableArray<(SqlSource Source, ImmutableArray<SqlSourceColumn> Columns)> plan)
+        {
+            plan = default;
+
+            if (star.Qualifier is { Length: > 0 } qualifier)
+            {
+                Error(diagnostics, ErrorCode.ERR_SQL_SymbolError, wildcard,
+                    $"'{joinType.Name}' reads every table of the query, so its '*' cannot be qualified with '{qualifier}'");
+                return false;
+            }
+
+            var useSiteInfo = CompoundUseSiteInfo<AssemblySymbol>.Discarded;
+            var constructible = false;
+            if (!joinType.IsAbstract)
+            {
+                foreach (var constructor in joinType.InstanceConstructors)
+                {
+                    if (constructor.ParameterCount == 0 && IsAccessible(constructor, ref useSiteInfo))
+                    {
+                        constructible = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!constructible)
+            {
+                Error(diagnostics, ErrorCode.ERR_SQL_SymbolError, wildcard,
+                    $"'{joinType.Name}' needs an accessible parameterless constructor to read a join into");
+                return false;
+            }
+
+            var members = GetOrmJoinMembers(joinType);
+            if (members.IsEmpty)
+            {
+                Error(diagnostics, ErrorCode.ERR_SQL_SymbolError, wildcard,
+                    $"'{joinType.Name}' declares no public properties of a generated [Orm] entity type to read a join into");
+                return false;
+            }
+
+            var sources = SqlSourceResolution.GetSources(query, schema);
+            var planned = ArrayBuilder<(SqlSource Source, ImmutableArray<SqlSourceColumn> Columns)>.GetInstance(members.Length);
+            var complete = true;
+
+            foreach (var member in members)
+            {
+                var memberName = joinType.Name + "." + member.Name;
+
+                if (member.GetOwnOrInheritedSetMethod() is not { } setter || !IsAccessible(setter, ref useSiteInfo))
+                {
+                    Error(diagnostics, ErrorCode.ERR_SQL_SymbolError, wildcard,
+                        $"'{memberName}' has no accessible setter to read a row into");
+                    complete = false;
+                    continue;
+                }
+
+                var entityType = (NamedTypeSymbol)member.Type;
+                if (FindOrmJoinSource(wildcard, memberName, member.Name, entityType, sources, diagnostics) is not { } source)
+                {
+                    complete = false;
+                    continue;
+                }
+
+                var alreadyRead = false;
+                foreach (var (plannedSource, _) in planned)
+                {
+                    if (ReferenceEquals(plannedSource, source))
+                    {
+                        alreadyRead = true;
+                        break;
+                    }
+                }
+
+                if (alreadyRead)
+                {
+                    Error(diagnostics, ErrorCode.ERR_SQL_SymbolError, wildcard,
+                        $"'{memberName}' reads from '{source.Qualifier}', which another property of '{joinType.Name}' already reads from");
+                    complete = false;
+                    continue;
+                }
+
+                var columns = ArrayBuilder<SqlSourceColumn>.GetInstance();
+                foreach (var entityColumn in OrmSchemaProvider.GetColumns(entityType.GetPublicSymbol()))
+                {
+                    if (source.FindColumn(entityColumn.ColumnName) is { } sourceColumn)
+                    {
+                        columns.Add(sourceColumn);
+                    }
+                    else
+                    {
+                        Error(diagnostics, ErrorCode.ERR_SQL_SymbolError, wildcard,
+                            $"'{entityType.Name}.{entityColumn.PropertyName}' has no matching column in '{source.Qualifier}'");
+                        complete = false;
+                    }
+                }
+
+                planned.Add((source, columns.ToImmutableAndFree()));
+            }
+
+            if (!complete)
+            {
+                planned.Free();
+                return false;
+            }
+
+            plan = planned.ToImmutableAndFree();
+            return true;
+        }
+
+        private SqlSource? FindOrmJoinSource(
+            SqlOutputWildcardSegmentSyntax wildcard,
+            string memberName,
+            string propertyName,
+            NamedTypeSymbol entityType,
+            ImmutableArray<SqlSource> sources,
+            BindingDiagnosticBag diagnostics)
+        {
+            var entitySymbol = entityType.GetPublicSymbol();
+
+            foreach (var source in sources)
+            {
+                if (!string.Equals(SqlSourceResolution.LastSegment(source.Qualifier), propertyName, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (source.Table is { } namedTable && !SymbolEqualityComparer.Default.Equals(namedTable.Symbol, entitySymbol))
+                {
+                    Error(diagnostics, ErrorCode.ERR_SQL_SymbolError, wildcard,
+                        $"'{memberName}' is a '{entityType.Name}', but '{source.Qualifier}' reads from '{namedTable.TableName}'");
+                    return null;
+                }
+
+                return source;
+            }
+
+            var matches = ArrayBuilder<SqlSource>.GetInstance();
+            foreach (var source in sources)
+            {
+                if (source.Table is { } table && SymbolEqualityComparer.Default.Equals(table.Symbol, entitySymbol))
+                {
+                    matches.Add(source);
+                }
+            }
+
+            SqlSource? found = null;
+            if (matches.Count == 1)
+            {
+                found = matches[0];
+            }
+            else if (matches.Count == 0)
+            {
+                Error(diagnostics, ErrorCode.ERR_SQL_SymbolError, wildcard,
+                    $"'{memberName}' is a '{entityType.Name}', but no table of that type appears in the query");
+            }
+            else
+            {
+                Error(diagnostics, ErrorCode.ERR_SQL_SymbolError, wildcard,
+                    $"'{entityType.Name}' appears more than once in the query ({string.Join(", ", matches.Select(static s => s.Qualifier))}); name '{memberName}' after the alias it should read from");
+            }
+
+            matches.Free();
+            return found;
+        }
+
+        private static string QuoteSqlIdentifier(string identifier) =>
+            "[" + identifier.Replace("]", "]]") + "]";
 
         /// <summary>
         /// The row version column every table carries, and which an [Orm] entity's builder is
