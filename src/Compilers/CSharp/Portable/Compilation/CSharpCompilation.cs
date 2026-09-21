@@ -30,7 +30,9 @@ using Microsoft.CodeAnalysis.PooledObjects;
 using Microsoft.CodeAnalysis.Symbols;
 using Microsoft.CodeAnalysis.Text;
 using Roslyn.Utilities;
+using static System.Net.Mime.MediaTypeNames;
 using static Microsoft.CodeAnalysis.CSharp.Binder;
+using static Microsoft.CodeAnalysis.CSharp.OverloadResolution;
 
 namespace Microsoft.CodeAnalysis.CSharp
 {
@@ -542,8 +544,13 @@ namespace Microsoft.CodeAnalysis.CSharp
                 // trees are actually present the moment that's knowable, whether that's right
                 // here (if syntaxTrees is non-empty) or later via a separate AddSyntaxTrees call
                 // (the Workspaces/IDE pattern of building an empty compilation first).
+
+                SourceText ormAttributesSourceText = SourceText.From(iWareSql.OrmAttributesSource.Text, Encoding.UTF8);
+                SourceText tenantSessionSourceText = SourceText.From(iWareSql.TenantSessionSource.Text, Encoding.UTF8);
+
                 compilation = compilation.AddSyntaxTrees(
-                    CSharpSyntaxTree.ParseText(iWareSql.OrmAttributesSource.Text, options: CSharpParseOptions.Default, path: OrmAttributesSyntheticFilePath, encoding: Encoding.UTF8));
+                    CSharpSyntaxTree.ParseText(ormAttributesSourceText, CSharpParseOptions.Default, OrmAttributesSyntheticFilePath),
+                    CSharpSyntaxTree.ParseText(tenantSessionSourceText, CSharpParseOptions.Default, TenantSessionSyntheticFilePath));
             }
 
             if (!materializedSyntaxTrees.IsDefault)
@@ -586,6 +593,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         // recognize and filter out this tree from its own SourceFiles-derived positional
         // bookkeeping - see CommonCompiler.IsSynthesizedSourceFile.
         internal const string OrmAttributesSyntheticFilePath = "__iWareOrmAttributes.g.cs";
+        internal const string TenantSessionSyntheticFilePath = "__iWareTenantSession.g.cs";
 
         // Every CSharpCompilation construction funnels through this constructor overload (Create,
         // Update, WithAssemblyName, WithOptions, etc. all end up here), which makes it the one
@@ -607,14 +615,14 @@ namespace Microsoft.CodeAnalysis.CSharp
                 return syntaxAndDeclarations;
             }
 
-            SyntaxTree? ormAttributesTree = null;
+            var replaceTrees = new HashSet<SyntaxTree>();
             CSharpParseOptions? otherTreeOptions = null;
 
             foreach (var tree in trees)
             {
-                if (tree.FilePath == OrmAttributesSyntheticFilePath)
+                if (tree.FilePath == OrmAttributesSyntheticFilePath || tree.FilePath == TenantSessionSyntheticFilePath)
                 {
-                    ormAttributesTree = tree;
+                    replaceTrees.Add(tree);
                 }
                 else if (otherTreeOptions is null && tree.Options is CSharpParseOptions options)
                 {
@@ -624,29 +632,30 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             // Our tree isn't part of this set (script/interactive compilation, or it hasn't been
             // seeded yet), or there's nothing else present yet to reconcile it against.
-            if (ormAttributesTree is null || otherTreeOptions is null)
+            if (replaceTrees.IsNullOrEmpty() || otherTreeOptions is null)
             {
                 return syntaxAndDeclarations;
             }
 
-            if (ormAttributesTree.Options is CSharpParseOptions currentOptions &&
+            if (replaceTrees.All(rt =>
+                rt.Options is CSharpParseOptions currentOptions &&
                 currentOptions.LanguageVersion == otherTreeOptions.LanguageVersion &&
                 currentOptions.Features.Count == otherTreeOptions.Features.Count &&
-                currentOptions.Features.All(kvp => otherTreeOptions.Features.TryGetValue(kvp.Key, out var value) && value == kvp.Value))
+                currentOptions.Features.All(kvp => otherTreeOptions.Features.TryGetValue(kvp.Key, out var value) && value == kvp.Value)))
             {
                 // Already consistent with the rest of the compilation - nothing to do.
                 return syntaxAndDeclarations;
             }
 
-            var replacementTree = CSharpSyntaxTree.ParseText(
-                iWareSql.OrmAttributesSource.Text,
-                options: otherTreeOptions,
-                path: OrmAttributesSyntheticFilePath,
-                encoding: Encoding.UTF8);
+            SourceText ormAttributesSourceText = SourceText.From(iWareSql.OrmAttributesSource.Text, Encoding.UTF8);
+            SourceText tenantSessionSourceText = SourceText.From(iWareSql.TenantSessionSource.Text, Encoding.UTF8);
+            SyntaxTree[] replacementTrees = [
+                CSharpSyntaxTree.ParseText(ormAttributesSourceText, otherTreeOptions, OrmAttributesSyntheticFilePath),
+                CSharpSyntaxTree.ParseText(tenantSessionSourceText, otherTreeOptions, TenantSessionSyntheticFilePath)];
 
             return syntaxAndDeclarations
-                .RemoveSyntaxTrees(new HashSet<SyntaxTree> { ormAttributesTree })
-                .AddSyntaxTrees(new[] { replacementTree });
+                .RemoveSyntaxTrees(replaceTrees)
+                .AddSyntaxTrees(replacementTrees);
         }
 
         private CSharpCompilation(

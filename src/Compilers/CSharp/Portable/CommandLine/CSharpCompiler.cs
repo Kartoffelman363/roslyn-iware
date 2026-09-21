@@ -43,7 +43,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         // strictly from Arguments.SourceFiles and must not see this extra tree, or its
         // positional indexing against compilation.SyntaxTrees goes out of bounds / misaligns.
         protected override bool IsSynthesizedSourceFile(SyntaxTree tree) =>
-            tree.FilePath == CSharpCompilation.OrmAttributesSyntheticFilePath;
+            tree.FilePath == CSharpCompilation.OrmAttributesSyntheticFilePath || tree.FilePath == CSharpCompilation.TenantSessionSyntheticFilePath;
 
         public override Compilation? CreateCompilation(
             TextWriter consoleOutput,
