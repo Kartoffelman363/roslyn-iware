@@ -29,6 +29,7 @@ namespace Microsoft.CodeAnalysis.CSharp.IWareSql.UnitTests
                 public UserIdDomain() : base(null) { }
                 public override int? InstanceDefaultValue => null;
                 public override bool InstanceIsNullable => true;
+                public override string ToRoundtripString() => Value?.ToString(System.Globalization.CultureInfo.InvariantCulture);
             }
 
             [Orm]

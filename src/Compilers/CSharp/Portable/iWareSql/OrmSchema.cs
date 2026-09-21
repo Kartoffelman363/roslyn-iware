@@ -87,9 +87,29 @@ namespace Microsoft.CodeAnalysis.CSharp.iWareSql
             _byName = new Dictionary<string, OrmTable>(System.StringComparer.OrdinalIgnoreCase);
             foreach (var table in tables)
             {
-                // First declaration wins if two [Orm] classes somehow resolve to the same table name.
-                _byName.TryAdd(table.TableName, table);
+                if (!_byName.TryGetValue(table.TableName, out var existing) || DerivesFrom(table.Symbol, existing.Symbol))
+                {
+                    _byName[table.TableName] = table;
+                }
             }
+        }
+
+        private static bool DerivesFrom(INamedTypeSymbol? type, INamedTypeSymbol? baseType)
+        {
+            if (type is null || baseType is null)
+            {
+                return false;
+            }
+
+            for (var current = type.BaseType; current is not null; current = current.BaseType)
+            {
+                if (SymbolEqualityComparer.Default.Equals(current, baseType))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public OrmTable? FindTable(string tableName) =>

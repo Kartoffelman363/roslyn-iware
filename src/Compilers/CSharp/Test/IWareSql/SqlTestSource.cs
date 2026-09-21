@@ -1,4 +1,4 @@
-// Licensed to the .NET Foundation under one or more agreements.
+﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
@@ -32,7 +32,7 @@ namespace Microsoft.CodeAnalysis.CSharp.IWareSql.UnitTests
             #pragma warning disable CS8981 // type name only contains lower-cased ascii characters
 
             [Orm]
-            public class users
+            public partial class users
             {
                 public int id { get; set; }
                 public string name { get; set; }
@@ -45,7 +45,7 @@ namespace Microsoft.CodeAnalysis.CSharp.IWareSql.UnitTests
             }
 
             [Orm]
-            public class roles
+            public partial class roles
             {
                 public int id { get; set; }
                 public string name { get; set; }

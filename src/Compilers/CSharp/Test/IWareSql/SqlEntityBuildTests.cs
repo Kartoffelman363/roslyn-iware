@@ -80,9 +80,16 @@ namespace Microsoft.CodeAnalysis.CSharp.IWareSql.UnitTests
                 [DbField(Ignore = true)]
                 public override OrmColumnRef<users_Values>[] __keys => System.Array.Empty<OrmColumnRef<users_Values>>();
                 protected override OrmColumnRef<users_Values>[] _colRefs => System.Array.Empty<OrmColumnRef<users_Values>>();
-                protected override users_Values _values { get; }
+                protected override users_Values _values { get; set; }
                 [DbField(Ignore = true)]
-                public override users_Values __oldValues { get; }
+                public override users_Values __oldValues { get; protected set; }
+
+                public override users Copy()
+                {
+                    var copy = new users();
+                    copy._values = _values.Copy();
+                    return copy;
+                }
 
                 public users() { _values = new(); __oldValues = new(); }
 

@@ -3936,7 +3936,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             ImmutableArray<SqlSource> sources,
             BindingDiagnosticBag diagnostics)
         {
-            var entitySymbol = entityType.GetPublicSymbol();
+            var entityTableName = OrmTableNameOf(entityType.GetPublicSymbol());
 
             foreach (var source in sources)
             {
@@ -3945,7 +3945,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                     continue;
                 }
 
-                if (source.Table is { } namedTable && !SymbolEqualityComparer.Default.Equals(namedTable.Symbol, entitySymbol))
+                if (source.Table is { } namedTable && !string.Equals(namedTable.TableName, entityTableName, StringComparison.OrdinalIgnoreCase))
                 {
                     Error(diagnostics, ErrorCode.ERR_SQL_SymbolError, wildcard,
                         $"'{memberName}' is a '{entityType.Name}', but '{source.Qualifier}' reads from '{namedTable.TableName}'");
@@ -3958,7 +3958,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             var matches = ArrayBuilder<SqlSource>.GetInstance();
             foreach (var source in sources)
             {
-                if (source.Table is { } table && SymbolEqualityComparer.Default.Equals(table.Symbol, entitySymbol))
+                if (source.Table is { } table && string.Equals(table.TableName, entityTableName, StringComparison.OrdinalIgnoreCase))
                 {
                     matches.Add(source);
                 }
@@ -3982,6 +3982,19 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             matches.Free();
             return found;
+        }
+
+        private string? OrmTableNameOf(INamedTypeSymbol entitySymbol)
+        {
+            foreach (var table in OrmSchemaProvider.GetSchema(Compilation).Tables)
+            {
+                if (SymbolEqualityComparer.Default.Equals(table.Symbol, entitySymbol))
+                {
+                    return table.TableName;
+                }
+            }
+
+            return null;
         }
 
         private static string QuoteSqlIdentifier(string identifier) =>
