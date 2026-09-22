@@ -1,5 +1,4 @@
 ﻿{
   "CompanyName": "iWare",
-  "TID": "compiler",
   "ConnectionString": "Data Source=127.0.0.1\\sql1,1433; Initial Catalog=csharpSqlDEV; User ID=sa; Password=asdfg12345!; Connect Timeout=5; TrustServerCertificate=True; MultipleActiveResultSets=True"
 }
